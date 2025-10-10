@@ -13,30 +13,28 @@ export const BottomNav = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 glass-card border-t border-white/10 rounded-t-3xl z-50">
-      <div className="flex items-center justify-around px-4 py-3 max-w-md mx-auto">
+      <div className="flex items-center justify-around px-4 py-4 max-w-md mx-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
+          const isAddButton = item.path === "/add";
           
           return (
             <Link
               key={item.path}
               to={item.path}
               className={cn(
-                "flex flex-col items-center gap-1 p-2 rounded-2xl transition-all duration-300",
-                isActive && "gradient-blue"
+                "p-3 rounded-2xl transition-all duration-300",
+                isAddButton && "gradient-blue scale-110 shadow-lg",
+                isActive && !isAddButton && "gradient-blue",
+                !isActive && !isAddButton && "text-muted-foreground"
               )}
             >
               <Icon className={cn(
-                "w-6 h-6 transition-colors",
-                isActive ? "text-white" : "text-muted-foreground"
+                "transition-colors",
+                isAddButton ? "w-7 h-7 text-white" : "w-6 h-6",
+                isActive && !isAddButton ? "text-white" : ""
               )} />
-              <span className={cn(
-                "text-xs transition-colors",
-                isActive ? "text-white font-medium" : "text-muted-foreground"
-              )}>
-                {item.label}
-              </span>
             </Link>
           );
         })}

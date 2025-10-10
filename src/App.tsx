@@ -12,6 +12,7 @@ import ManageAccounts from "./pages/ManageAccounts";
 import ManageCategories from "./pages/ManageCategories";
 import ManageTransfers from "./pages/ManageTransfers";
 import Profile from "./pages/Profile";
+import TransactionDetail from "./pages/TransactionDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/settings/categories" element={<ManageCategories />} />
             <Route path="/settings/transfers" element={<ManageTransfers />} />
             <Route path="/settings/profile" element={<Profile />} />
+            <Route path="/transaction/:id" element={<TransactionDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

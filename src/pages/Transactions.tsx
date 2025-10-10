@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, Link as RouterLink } from "react-router-dom";
 import { useState } from "react";
 
 const categories = [
@@ -103,13 +103,15 @@ export default function Transactions() {
 
         <div className="space-y-3">
           {displayedTransactions.map((transaction) => (
-            <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
-              <div>
-                <h4 className="font-medium">{transaction.title}</h4>
-                <p className="text-xs text-muted-foreground">{transaction.date}</p>
+            <RouterLink key={transaction.id} to={`/transaction/${transaction.id}`}>
+              <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-2">
+                <div>
+                  <h4 className="font-medium">{transaction.title}</h4>
+                  <p className="text-xs text-muted-foreground">{transaction.date}</p>
+                </div>
+                <span className="font-semibold">$ {transaction.amount}</span>
               </div>
-              <span className="font-semibold">$ {transaction.amount}</span>
-            </div>
+            </RouterLink>
           ))}
         </div>
 

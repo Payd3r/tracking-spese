@@ -118,25 +118,27 @@ export default function Home() {
 
         <div className="space-y-3">
           {filteredTransactions.map((transaction) => (
-            <GlassCard key={transaction.id} className="p-4" hover>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl gradient-blue flex items-center justify-center text-2xl">
-                    {transaction.icon}
+            <Link key={transaction.id} to={`/transaction/${transaction.id}`}>
+              <GlassCard className="p-4 hover:scale-[1.02] transition-transform cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl gradient-blue flex items-center justify-center text-2xl">
+                      {transaction.icon}
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{transaction.title}</h4>
+                      <p className="text-sm text-muted-foreground">{transaction.category}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium">{transaction.title}</h4>
-                    <p className="text-sm text-muted-foreground">{transaction.category}</p>
+                  <div className="text-right">
+                    <p className={`font-semibold ${transaction.amount > 0 ? 'text-success' : 'text-foreground'}`}>
+                      {transaction.amount > 0 ? '+' : ''}{transaction.amount > 0 ? <ArrowUpRight className="inline w-4 h-4" /> : <ArrowDownRight className="inline w-4 h-4" />} ${Math.abs(transaction.amount)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{transaction.date}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`font-semibold ${transaction.amount > 0 ? 'text-success' : 'text-foreground'}`}>
-                    {transaction.amount > 0 ? '+' : ''}{transaction.amount > 0 ? <ArrowUpRight className="inline w-4 h-4" /> : <ArrowDownRight className="inline w-4 h-4" />} ${Math.abs(transaction.amount)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{transaction.date}</p>
-                </div>
-              </div>
-            </GlassCard>
+              </GlassCard>
+            </Link>
           ))}
         </div>
       </div>

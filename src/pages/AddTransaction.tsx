@@ -6,12 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
-const categories = [
+const expenseCategories = [
   { id: 1, name: "Food", icon: "🍔", color: "gradient-green" },
   { id: 2, name: "Transport", icon: "🚕", color: "gradient-pink" },
   { id: 3, name: "Shopping", icon: "🛍️", color: "gradient-purple" },
   { id: 4, name: "Bills", icon: "📄", color: "gradient-blue" },
   { id: 5, name: "Entertainment", icon: "🎮", color: "gradient-teal" },
+];
+
+const incomeCategories = [
+  { id: 6, name: "Stipendio", icon: "💰", color: "gradient-blue" },
+  { id: 7, name: "Freelance", icon: "💼", color: "gradient-green" },
+  { id: 8, name: "Investimenti", icon: "📈", color: "gradient-purple" },
 ];
 
 const accounts = [
@@ -23,6 +29,8 @@ export default function AddTransaction() {
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number>(1);
+
+  const categories = type === "expense" ? expenseCategories : incomeCategories;
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
