@@ -1,6 +1,7 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User } from "lucide-react";
+import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, Download, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const settingsGroups = [
   {
@@ -58,7 +59,7 @@ export default function Settings() {
 
       {/* Account Info */}
       <GlassCard className="p-6 mt-8">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-6">
           <div className="w-16 h-16 rounded-full gradient-purple flex items-center justify-center text-2xl font-bold">
             M
           </div>
@@ -66,6 +67,17 @@ export default function Settings() {
             <h3 className="font-semibold text-lg">Mark Johnson</h3>
             <p className="text-sm text-muted-foreground">mark@example.com</p>
           </div>
+        </div>
+        
+        <div className="flex gap-3">
+          <Button className="flex-1 gap-2" variant="outline">
+            <Upload className="w-4 h-4" />
+            Importa Backup
+          </Button>
+          <Button className="flex-1 gap-2" variant="outline">
+            <Download className="w-4 h-4" />
+            Esporta Backup
+          </Button>
         </div>
       </GlassCard>
     </div>

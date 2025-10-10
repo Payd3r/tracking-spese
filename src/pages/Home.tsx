@@ -1,6 +1,8 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowDownRight, ArrowUpRight, Search, MoreVertical } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Search, MoreVertical, ChevronRight } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Link } from "react-router-dom";
+import { useState } from "react";
 
 const mockData = [
   { day: "L", value: 1200 },
@@ -19,6 +21,13 @@ const recentTransactions = [
 ];
 
 export default function Home() {
+  const [viewType, setViewType] = useState<"income" | "spending">("spending");
+  const [period, setPeriod] = useState<"Day" | "Week" | "Month" | "Year">("Month");
+
+  const filteredTransactions = recentTransactions.filter(t => 
+    viewType === "income" ? t.amount > 0 : t.amount < 0
+  );
+
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
       {/* Header */}
@@ -40,15 +49,22 @@ export default function Home() {
       {/* Balance Card */}
       <GlassCard className="p-6 mb-6">
         <div className="flex gap-4 mb-6">
-          <button className="text-sm text-white/70 pb-2">Spendings</button>
-          <button className="text-sm font-medium border-b-2 border-primary pb-2">Incomes</button>
+          <button 
+            onClick={() => setViewType("spending")}
+            className={`text-sm pb-2 ${viewType === "spending" ? "font-medium border-b-2 border-primary" : "text-white/70"}`}
+          >
+            Spendings
+          </button>
+          <button 
+            onClick={() => setViewType("income")}
+            className={`text-sm pb-2 ${viewType === "income" ? "font-medium border-b-2 border-primary" : "text-white/70"}`}
+          >
+            Incomes
+          </button>
         </div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-4xl font-bold">$ 1,673.80</h2>
-            <p className="text-muted-foreground text-sm mt-1">Balance totale</p>
-          </div>
-          <button className="text-sm text-primary">Statistics</button>
+        <div className="mb-4">
+          <h2 className="text-4xl font-bold">$ 1,673.80</h2>
+          <p className="text-muted-foreground text-sm mt-1">Balance totale</p>
         </div>
         
         {/* Chart */}
@@ -76,14 +92,15 @@ export default function Home() {
 
         {/* Period Selector */}
         <div className="flex gap-2">
-          {["Day", "Week", "Month", "Year"].map((period) => (
+          {(["Day", "Week", "Month", "Year"] as const).map((p) => (
             <button
-              key={period}
+              key={p}
+              onClick={() => setPeriod(p)}
               className={`flex-1 py-2 rounded-xl text-sm transition-all ${
-                period === "Month" ? "gradient-blue text-white" : "text-muted-foreground"
+                period === p ? "gradient-blue text-white" : "text-muted-foreground"
               }`}
             >
-              {period}
+              {p}
             </button>
           ))}
         </div>
@@ -92,12 +109,15 @@ export default function Home() {
       {/* Transactions */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold">Transactions</h3>
+          <Link to="/transactions" className="flex items-center gap-2 group">
+            <h3 className="text-xl font-semibold">Transactions</h3>
+            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </Link>
           <span className="text-sm text-muted-foreground">Today • Sep 16</span>
         </div>
 
         <div className="space-y-3">
-          {recentTransactions.map((transaction) => (
+          {filteredTransactions.map((transaction) => (
             <GlassCard key={transaction.id} className="p-4" hover>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 
@@ -54,13 +54,13 @@ const categories = [
 ];
 
 export default function Transactions() {
-  const [expandedCategory, setExpandedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   
   const totalSpent = categories.reduce((sum, cat) => sum + cat.spent, 0);
 
-  const toggleCategory = (categoryId: number) => {
-    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
-  };
+  const displayedTransactions = selectedCategory 
+    ? categories.find(c => c.id === selectedCategory)?.transactions || []
+    : categories.flatMap(c => c.transactions);
 
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
@@ -77,9 +77,11 @@ export default function Transactions() {
         {categories.map((category) => (
           <GlassCard
             key={category.id}
-            className={`p-5 ${category.color} cursor-pointer`}
+            className={`p-5 ${category.color} cursor-pointer transition-all ${
+              selectedCategory === category.id ? "ring-2 ring-white/50" : ""
+            }`}
             hover
-            onClick={() => toggleCategory(category.id)}
+            onClick={() => setSelectedCategory(selectedCategory === category.id ? null : category.id)}
           >
             <div className="text-4xl mb-4">{category.icon}</div>
             <h3 className="text-white font-semibold mb-1">{category.name}</h3>
@@ -91,43 +93,22 @@ export default function Transactions() {
       {/* Transactions List */}
       <div className="glass-card p-6 mb-4">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Transactions</h2>
+          <h2 className="text-2xl font-bold">
+            {selectedCategory 
+              ? categories.find(c => c.id === selectedCategory)?.name 
+              : "All Transactions"}
+          </h2>
           <span className="text-xl font-bold">$ {totalSpent.toFixed(2)}</span>
         </div>
 
-        <div className="space-y-4">
-          {categories.map((category) => (
-            <div key={category.id}>
-              <button
-                onClick={() => toggleCategory(category.id)}
-                className="w-full flex items-center justify-between mb-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl ${category.color} flex items-center justify-center text-xl`}>
-                    {category.icon}
-                  </div>
-                  <span className="font-medium">{category.name}</span>
-                </div>
-                {expandedCategory === category.id ? (
-                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
-
-              {expandedCategory === category.id && (
-                <div className="ml-12 space-y-3 mb-4">
-                  {category.transactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between py-2">
-                      <div>
-                        <h4 className="font-medium text-sm">{transaction.title}</h4>
-                        <p className="text-xs text-muted-foreground">{transaction.date}</p>
-                      </div>
-                      <span className="font-semibold">$ {transaction.amount}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+        <div className="space-y-3">
+          {displayedTransactions.map((transaction) => (
+            <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+              <div>
+                <h4 className="font-medium">{transaction.title}</h4>
+                <p className="text-xs text-muted-foreground">{transaction.date}</p>
+              </div>
+              <span className="font-semibold">$ {transaction.amount}</span>
             </div>
           ))}
         </div>
