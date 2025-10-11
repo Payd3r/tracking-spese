@@ -131,6 +131,8 @@ export const register = async (req, res, next) => {
 };
 
 export const login = async (req, res, next) => {
+  const client = await pool.connect();
+  
   try {
     const { email, password } = req.body;
     
@@ -139,7 +141,7 @@ export const login = async (req, res, next) => {
     }
     
     // Get user
-    const result = await pool.query(
+    const result = await client.query(
       'SELECT id, email, name, password_hash, default_currency FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
@@ -169,10 +171,10 @@ export const login = async (req, res, next) => {
     expiresAt.setDate(expiresAt.getDate() + 30);
     
     // Delete old sessions for this user
-    await pool.query('DELETE FROM sessions WHERE user_id = $1', [user.id]);
+    await client.query('DELETE FROM sessions WHERE user_id = $1', [user.id]);
     
     // Save new session
-    await pool.query(
+    await client.query(
       `INSERT INTO sessions (user_id, token, expires_at)
        VALUES ($1, $2, $3)`,
       [user.id, token, expiresAt]
@@ -190,6 +192,8 @@ export const login = async (req, res, next) => {
     
   } catch (error) {
     next(error);
+  } finally {
+    client.release();
   }
 };
 
