@@ -75,17 +75,21 @@ export interface Transfer {
 export interface DashboardStats {
   totalBalance: number;
   currency: string;
-  income: number;
-  expense: number;
-  period: 'day' | 'week' | 'month' | 'year';
-  chartData?: Array<{
+  period: {
+    name: 'day' | 'week' | 'month' | 'year';
+    startDate: string;
+    endDate: string;
+    totalIncome: number;
+    totalExpense: number;
+    netIncome: number;
+  };
+  trend?: Array<{
     date: string;
     income: number;
     expense: number;
-    balance: number;
   }>;
   recentTransactions?: Transaction[];
-  topCategories?: Array<{
+  categoryStats?: Array<{
     categoryId: number;
     categoryName: string;
     categoryIcon?: string;

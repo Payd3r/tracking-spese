@@ -53,9 +53,44 @@ export const register = async (req, res, next) => {
     // Create default account
     await client.query(
       `INSERT INTO accounts (user_id, name, icon, currency)
-       VALUES ($1, 'Conto Principale', '💳', $2)`,
+       VALUES ($1, 'Conto Principale', 'lucide:Wallet', $2)`,
       [user.id, defaultCurrency]
     );
+    
+    // Create default income categories
+    const incomeCategories = [
+      { name: 'Stipendio', icon: 'lucide:Briefcase', color: 'gradient-blue' },
+      { name: 'Risparmi', icon: 'lucide:PiggyBank', color: 'gradient-green' },
+      { name: 'Regalo', icon: 'lucide:Gift', color: 'gradient-pink' },
+      { name: 'Altro', icon: 'lucide:DollarSign', color: 'gradient-purple' }
+    ];
+    
+    for (const category of incomeCategories) {
+      await client.query(
+        `INSERT INTO categories (user_id, name, icon, color, type, is_system)
+         VALUES ($1, $2, $3, $4, 'income', false)`,
+        [user.id, category.name, category.icon, category.color]
+      );
+    }
+    
+    // Create default expense categories
+    const expenseCategories = [
+      { name: 'Ristorante', icon: 'lucide:Utensils', color: 'gradient-pink' },
+      { name: 'Casa', icon: 'lucide:Home', color: 'gradient-blue' },
+      { name: 'Abbonamenti', icon: 'lucide:CreditCard', color: 'gradient-purple' },
+      { name: 'Trasporti', icon: 'lucide:Car', color: 'gradient-orange' },
+      { name: 'Salute', icon: 'lucide:Heart', color: 'gradient-green' },
+      { name: 'Attività Fisica', icon: 'lucide:Dumbbell', color: 'gradient-teal' },
+      { name: 'Altro', icon: 'lucide:Tag', color: 'gradient-blue' }
+    ];
+    
+    for (const category of expenseCategories) {
+      await client.query(
+        `INSERT INTO categories (user_id, name, icon, color, type, is_system)
+         VALUES ($1, $2, $3, $4, 'expense', false)`,
+        [user.id, category.name, category.icon, category.color]
+      );
+    }
     
     // Create JWT token
     const token = jwt.sign(
@@ -172,6 +207,41 @@ export const logout = async (req, res, next) => {
 export const me = async (req, res, next) => {
   try {
     res.json({ user: req.user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { name, defaultCurrency } = req.body;
+    
+    // Validation
+    if (defaultCurrency && !['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'CNY', 'INR', 'RUB', 'BRL', 'ZAR', 'SEK', 'NOK', 'DKK', 'PLN', 'TRY', 'MXN', 'AED', 'SAR'].includes(defaultCurrency)) {
+      throw new ValidationError('Valuta non supportata');
+    }
+    
+    const result = await pool.query(
+      `UPDATE users 
+       SET name = COALESCE($1, name),
+           default_currency = COALESCE($2, default_currency),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING id, email, name, default_currency, created_at, updated_at`,
+      [name || null, defaultCurrency || null, userId]
+    );
+    
+    const updatedUser = result.rows[0];
+    
+    res.json({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      defaultCurrency: updatedUser.default_currency,
+      createdAt: updatedUser.created_at,
+      updatedAt: updatedUser.updated_at
+    });
   } catch (error) {
     next(error);
   }

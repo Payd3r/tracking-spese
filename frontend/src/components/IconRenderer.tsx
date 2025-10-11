@@ -12,8 +12,11 @@ interface IconRendererProps {
  * Falls back to a default icon if the icon is not found
  */
 export function IconRenderer({ icon, className = '', size = 24 }: IconRendererProps) {
+  const glowClassName = 'drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]';
+  const combinedClassName = `${glowClassName} ${className}`.trim();
+  
   if (!icon) {
-    return <LucideIcons.HelpCircle className={className} size={size} />;
+    return <LucideIcons.HelpCircle className={combinedClassName} size={size} />;
   }
 
   // Check if it's a lucide icon
@@ -24,11 +27,11 @@ export function IconRenderer({ icon, className = '', size = 24 }: IconRendererPr
     const IconComponent = (LucideIcons as unknown as Record<string, LucideIcon>)[iconName];
     
     if (IconComponent) {
-      return <IconComponent className={className} size={size} />;
+      return <IconComponent className={combinedClassName} size={size} />;
     }
   }
 
   // Fallback to displaying the string (for backward compatibility with emoji)
-  return <span className={className} style={{ fontSize: `${size}px` }}>{icon}</span>;
+  return <span className={combinedClassName} style={{ fontSize: `${size}px` }}>{icon}</span>;
 }
 

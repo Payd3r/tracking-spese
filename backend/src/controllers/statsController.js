@@ -1,11 +1,90 @@
 import pool from '../config/database.js';
 import { convertCurrency } from '../services/currencyService.js';
 
+export const getCategoryStats = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const defaultCurrency = req.user.default_currency;
+    const { type } = req.query; // 'income' or 'expense'
+    
+    // Get all categories of the specified type
+    let categoryQuery = `
+      SELECT id, name, icon, color, type
+      FROM categories
+      WHERE (user_id = $1 OR is_system = true)
+    `;
+    
+    const categoryParams = [userId];
+    
+    if (type) {
+      categoryQuery += ' AND type = $2';
+      categoryParams.push(type);
+    }
+    
+    categoryQuery += ' ORDER BY is_system DESC, name ASC';
+    
+    const categoriesResult = await pool.query(categoryQuery, categoryParams);
+    
+    // Get totals for each category
+    const categoryStats = await Promise.all(
+      categoriesResult.rows.map(async (category) => {
+        const statsResult = await pool.query(
+          `SELECT 
+            SUM(t.amount) as total,
+            a.currency
+           FROM transactions t
+           JOIN accounts a ON t.account_id = a.id
+           WHERE t.user_id = $1 AND t.category_id = $2
+           GROUP BY a.currency`,
+          [userId, category.id]
+        );
+        
+        let totalAmount = 0;
+        
+        // Convert all amounts to default currency
+        for (const stat of statsResult.rows) {
+          const amountInDefault = await convertCurrency(
+            parseFloat(stat.total),
+            stat.currency,
+            defaultCurrency
+          );
+          totalAmount += amountInDefault;
+        }
+        
+        return {
+          id: category.id,
+          name: category.name,
+          icon: category.icon,
+          color: category.color,
+          type: category.type,
+          total: totalAmount
+        };
+      })
+    );
+    
+    // Calculate total for all categories of this type
+    const totalForType = categoryStats.reduce((sum, cat) => sum + cat.total, 0);
+    
+    // Calculate percentage for each category
+    const categoryStatsWithPercentage = categoryStats.map(cat => ({
+      ...cat,
+      percentage: totalForType > 0 ? Math.round((cat.total / totalForType) * 100) : 0
+    }));
+    
+    res.json({
+      categories: categoryStatsWithPercentage,
+      total: totalForType
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getDashboardStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const defaultCurrency = req.user.default_currency;
-    const { period = 'month' } = req.query; // day, week, month, year
+    const { period = 'month', type = 'expense' } = req.query; // day, week, month, year and income/expense
     
     // Calculate date range
     const now = new Date();
@@ -190,52 +269,203 @@ export const getDashboardStats = async (req, res, next) => {
         : 0;
     });
     
-    // Get daily spending trend for chart (last 7 days)
-    const trendResult = await pool.query(
-      `SELECT 
-        DATE(t.transaction_date) as date,
-        SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END) as expense,
-        SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END) as income,
-        a.currency
-       FROM transactions t
-       JOIN accounts a ON t.account_id = a.id
-       WHERE t.user_id = $1 AND t.transaction_date >= NOW() - INTERVAL '7 days'
-       GROUP BY DATE(t.transaction_date), a.currency
-       ORDER BY date ASC`,
-      [userId]
-    );
+    // Get trend data based on period
+    let trendQuery;
+    let trendInterval;
+    
+    switch (period) {
+      case 'day':
+        // Get hourly data for the current day
+        trendQuery = `
+          SELECT 
+            DATE_TRUNC('hour', t.transaction_date) as date,
+            SUM(t.amount) as amount,
+            a.currency
+           FROM transactions t
+           JOIN accounts a ON t.account_id = a.id
+           WHERE t.user_id = $1 AND DATE(t.transaction_date) = CURRENT_DATE AND t.type = $2
+           GROUP BY DATE_TRUNC('hour', t.transaction_date), a.currency
+           ORDER BY date ASC`;
+        break;
+      case 'week':
+        // Get daily data for the last 7 days
+        trendQuery = `
+          SELECT 
+            DATE(t.transaction_date) as date,
+            SUM(t.amount) as amount,
+            a.currency
+           FROM transactions t
+           JOIN accounts a ON t.account_id = a.id
+           WHERE t.user_id = $1 AND t.transaction_date >= NOW() - INTERVAL '7 days' AND t.type = $2
+           GROUP BY DATE(t.transaction_date), a.currency
+           ORDER BY date ASC`;
+        break;
+      case 'month':
+        // Get weekly data for the last 4 weeks
+        trendQuery = `
+          SELECT 
+            DATE_TRUNC('week', t.transaction_date) as date,
+            SUM(t.amount) as amount,
+            a.currency
+           FROM transactions t
+           JOIN accounts a ON t.account_id = a.id
+           WHERE t.user_id = $1 AND t.transaction_date >= NOW() - INTERVAL '4 weeks' AND t.type = $2
+           GROUP BY DATE_TRUNC('week', t.transaction_date), a.currency
+           ORDER BY date ASC`;
+        break;
+      case 'year':
+        // Get monthly data for the current year
+        const currentYear = new Date().getFullYear();
+        trendQuery = `
+          SELECT 
+            DATE_TRUNC('month', t.transaction_date) as date,
+            SUM(t.amount) as amount,
+            a.currency
+           FROM transactions t
+           JOIN accounts a ON t.account_id = a.id
+           WHERE t.user_id = $1 AND EXTRACT(YEAR FROM t.transaction_date) = $2 AND t.type = $3
+           GROUP BY DATE_TRUNC('month', t.transaction_date), a.currency
+           ORDER BY date ASC`;
+        break;
+      default:
+        // Default to daily data for the last 7 days
+        trendQuery = `
+          SELECT 
+            DATE(t.transaction_date) as date,
+            SUM(t.amount) as amount,
+            a.currency
+           FROM transactions t
+           JOIN accounts a ON t.account_id = a.id
+           WHERE t.user_id = $1 AND t.transaction_date >= NOW() - INTERVAL '7 days' AND t.type = $2
+           GROUP BY DATE(t.transaction_date), a.currency
+           ORDER BY date ASC`;
+    }
+    
+    // Execute trend query with appropriate parameters
+    let trendParams = [userId];
+    if (period === 'year') {
+      const currentYear = new Date().getFullYear();
+      trendParams.push(currentYear, type);
+    } else {
+      trendParams.push(type);
+    }
+    
+    const trendResult = await pool.query(trendQuery, trendParams);
     
     // Aggregate by date and convert to default currency
     const trendMap = new Map();
     
     for (const trend of trendResult.rows) {
-      const dateKey = trend.date.toISOString().split('T')[0];
+      let dateKey;
       
-      const expenseInDefault = await convertCurrency(
-        parseFloat(trend.expense),
-        trend.currency,
-        defaultCurrency
-      );
+      // Format date key based on period
+      switch (period) {
+        case 'day':
+          dateKey = trend.date.toISOString().split('T')[1].substring(0, 5); // HH:MM
+          break;
+        case 'week':
+          dateKey = trend.date.toISOString().split('T')[0]; // YYYY-MM-DD
+          break;
+        case 'month':
+          dateKey = trend.date.toISOString().split('T')[0]; // YYYY-MM-DD
+          break;
+        case 'year':
+          dateKey = trend.date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
+          break;
+        default:
+          dateKey = trend.date.toISOString().split('T')[0];
+      }
       
-      const incomeInDefault = await convertCurrency(
-        parseFloat(trend.income),
+      const amountInDefault = await convertCurrency(
+        parseFloat(trend.amount),
         trend.currency,
         defaultCurrency
       );
       
       if (trendMap.has(dateKey)) {
-        trendMap.get(dateKey).expense += expenseInDefault;
-        trendMap.get(dateKey).income += incomeInDefault;
+        trendMap.get(dateKey).amount += amountInDefault;
       } else {
         trendMap.set(dateKey, {
-          date: dateKey,
-          expense: expenseInDefault,
-          income: incomeInDefault
+          date: trend.date.toISOString(),
+          displayDate: dateKey,
+          amount: amountInDefault
         });
       }
     }
     
-    const trend = Array.from(trendMap.values()).sort((a, b) => 
+    // Fill missing data points based on period
+    const filledTrend = [];
+    const currentTime = new Date();
+    let maxPoints;
+    
+    switch (period) {
+      case 'day':
+        maxPoints = 6; // Show 6 time slots (4-hour intervals)
+        for (let i = 0; i < maxPoints; i++) {
+          const hour = i * 4;
+          const date = new Date(currentTime);
+          date.setHours(hour, 0, 0, 0);
+          const dateKey = date.toISOString().split('T')[1].substring(0, 5);
+          const amount = trendMap.get(dateKey)?.amount || 0;
+          
+          filledTrend.push({
+            date: date.toISOString(),
+            displayDate: dateKey,
+            amount: amount
+          });
+        }
+        break;
+      case 'week':
+        maxPoints = 7; // Show 7 days
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(currentTime);
+          date.setDate(date.getDate() - i);
+          const dateKey = date.toISOString().split('T')[0];
+          const amount = trendMap.get(dateKey)?.amount || 0;
+          
+          filledTrend.push({
+            date: date.toISOString(),
+            displayDate: dateKey,
+            amount: amount
+          });
+        }
+        break;
+      case 'month':
+        maxPoints = 4; // Show 4 weeks
+        for (let i = 3; i >= 0; i--) {
+          const date = new Date(currentTime);
+          date.setDate(date.getDate() - (i * 7));
+          const dateKey = date.toISOString().split('T')[0];
+          const amount = trendMap.get(dateKey)?.amount || 0;
+          
+          filledTrend.push({
+            date: date.toISOString(),
+            displayDate: dateKey,
+            amount: amount
+          });
+        }
+        break;
+      case 'year':
+        maxPoints = 12; // Show all 12 months of current year
+        for (let i = 0; i < 12; i++) {
+          const date = new Date(currentTime.getFullYear(), i, 1); // Current year, month i+1, day 1
+          const dateKey = date.toISOString().split('T')[0].substring(0, 7);
+          
+          // Get actual data or 0
+          const amount = trendMap.get(dateKey)?.amount || 0;
+          
+          filledTrend.push({
+            date: date.toISOString(),
+            displayDate: dateKey,
+            amount: amount
+          });
+        }
+        break;
+      default:
+        filledTrend.push(...Array.from(trendMap.values()));
+    }
+    
+    const trend = filledTrend.sort((a, b) => 
       new Date(a.date) - new Date(b.date)
     );
     

@@ -1,116 +1,270 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ArrowRightLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { AmountInput } from "@/components/AmountInput";
+import { ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
-const accounts = [
-  { id: 1, name: "Conto Principale", balance: 1673.80 },
-  { id: 2, name: "Risparmi", balance: 5420.00 },
-  { id: 3, name: "Contanti", balance: 250.00 },
-];
+interface Account {
+  id: number;
+  name: string;
+  balance: number;
+  currency: string;
+  icon?: string;
+}
 
-const transfers = [
-  { id: 1, from: "Conto Principale", to: "Risparmi", amount: 500, date: "16/09/2020" },
-  { id: 2, from: "Risparmi", to: "Contanti", amount: 150, date: "15/09/2020" },
-];
+interface Category {
+  id: number;
+  name: string;
+  icon?: string;
+  color?: string;
+  type: 'income' | 'expense';
+  isSystem: boolean;
+}
 
 export default function ManageTransfers() {
-  const [fromAccount, setFromAccount] = useState<number>(1);
-  const [toAccount, setToAccount] = useState<number>(2);
+  const navigate = useNavigate();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [transferCategories, setTransferCategories] = useState<{
+    expense?: Category;
+    income?: Category;
+  }>({});
+  const [fromAccount, setFromAccount] = useState<number | null>(null);
+  const [toAccount, setToAccount] = useState<number | null>(null);
+  const [amount, setAmount] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingData, setLoadingData] = useState<boolean>(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoadingData(true);
+      
+      // Load accounts
+      const accountsResponse = await api.accounts.getAll();
+      setAccounts(accountsResponse.data.accounts);
+      
+      // Set default accounts if available
+      if (accountsResponse.data.accounts.length >= 2) {
+        setFromAccount(accountsResponse.data.accounts[0].id);
+        setToAccount(accountsResponse.data.accounts[1].id);
+      } else if (accountsResponse.data.accounts.length === 1) {
+        setFromAccount(accountsResponse.data.accounts[0].id);
+      }
+      
+      // Load transfer categories
+      const categoriesResponse = await api.categories.getAll();
+      const categories = categoriesResponse.data.categories;
+      
+      // Find transfer categories (system categories named "Trasferimento")
+      const expenseTransferCat = categories.find(
+        (cat: Category) => cat.name === 'Trasferimento' && cat.type === 'expense' && cat.isSystem
+      );
+      const incomeTransferCat = categories.find(
+        (cat: Category) => cat.name === 'Trasferimento' && cat.type === 'income' && cat.isSystem
+      );
+      
+      setTransferCategories({
+        expense: expenseTransferCat,
+        income: incomeTransferCat,
+      });
+      
+      if (!expenseTransferCat || !incomeTransferCat) {
+        toast.error("Categorie di trasferimento non trovate. Esegui le migrazioni del database.");
+      }
+    } catch (error) {
+      console.error('Errore nel caricamento dei dati:', error);
+      toast.error("Errore nel caricamento dei dati");
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleCreateTransfer = async () => {
+    // Validation
+    if (!fromAccount || !toAccount) {
+      toast.error("Seleziona entrambi i conti");
+      return;
+    }
+    
+    if (fromAccount === toAccount) {
+      toast.error("I conti di origine e destinazione devono essere diversi");
+      return;
+    }
+    
+    const amountNum = parseFloat(amount);
+    if (!amount || isNaN(amountNum) || amountNum <= 0) {
+      toast.error("Inserisci un importo valido");
+      return;
+    }
+    
+    if (!transferCategories.expense || !transferCategories.income) {
+      toast.error("Categorie di trasferimento non disponibili");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      const transferDate = new Date().toISOString();
+      const fromAccountData = accounts.find(acc => acc.id === fromAccount);
+      const toAccountData = accounts.find(acc => acc.id === toAccount);
+      
+      // Create expense transaction (money leaving fromAccount)
+      await api.transactions.create({
+        accountId: fromAccount,
+        categoryId: transferCategories.expense.id,
+        amount: amountNum,
+        type: 'expense',
+        title: `Trasferimento a ${toAccountData?.name || 'conto'}`,
+        transactionDate: transferDate,
+      });
+      
+      // Create income transaction (money entering toAccount)
+      // The backend will handle currency conversion if needed
+      await api.transactions.create({
+        accountId: toAccount,
+        categoryId: transferCategories.income.id,
+        amount: amountNum,
+        currency: fromAccountData?.currency, // Use source account currency
+        type: 'income',
+        title: `Trasferimento da ${fromAccountData?.name || 'conto'}`,
+        transactionDate: transferDate,
+      });
+      
+      toast.success("Trasferimento creato con successo!");
+      
+      // Reset form
+      setAmount("");
+      
+      // Reload accounts to update balances
+      await loadData();
+      
+    } catch (error: any) {
+      console.error('Errore nella creazione del trasferimento:', error);
+      const errorMsg = error.response?.data?.error || "Errore nella creazione del trasferimento";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAccountDisplay = (account: Account) => {
+    return `${account.currency} ${account.balance.toFixed(2)}`;
+  };
+
+  if (loadingData) {
+    return (
+      <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
+        <div className="flex items-center gap-3 mb-5">
+          <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h1 className="text-xl font-bold">Trasferimenti</h1>
+        </div>
+        <div className="text-center text-muted-foreground">Caricamento...</div>
+      </div>
+    );
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
+        <div className="flex items-center gap-3 mb-5">
+          <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <h1 className="text-xl font-bold">Trasferimenti</h1>
+        </div>
+        <GlassCard className="p-4">
+          <p className="text-center text-muted-foreground mb-4">
+            Nessun conto disponibile. Crea almeno due conti per effettuare trasferimenti.
+          </p>
+          <Button 
+            className="w-full gradient-blue text-white"
+            onClick={() => navigate('/manage-accounts')}
+          >
+            Vai ai Conti
+          </Button>
+        </GlassCard>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
+    <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Link to="/settings" className="p-2 glass-card rounded-2xl">
-          <ArrowLeft className="w-6 h-6" />
+      <div className="flex items-center gap-3 mb-5">
+        <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
+          <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold">Trasferimenti</h1>
+        <h1 className="text-xl font-bold">Trasferimenti</h1>
       </div>
 
       {/* New Transfer Form */}
-      <GlassCard className="p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Nuovo Trasferimento</h2>
-        
+      <GlassCard className="p-4 mb-4">        
         {/* From Account */}
-        <div className="mb-4">
-          <label className="text-sm text-muted-foreground mb-2 block">Da</label>
-          <div className="space-y-2">
+        <div className="mb-3">
+          <label className="text-xs text-muted-foreground mb-2 block font-medium">Da</label>
+          <div className="space-y-1.5">
             {accounts.map((account) => (
               <button
                 key={account.id}
                 onClick={() => setFromAccount(account.id)}
-                className={`w-full glass-card p-3 flex justify-between items-center transition-all ${
+                disabled={loading}
+                className={`w-full glass-card p-2.5 flex justify-between items-center transition-all rounded-2xl ${
                   fromAccount === account.id ? "gradient-pink" : ""
-                }`}
+                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <span className="font-medium text-sm">{account.name}</span>
-                <span className="text-xs">$ {account.balance.toFixed(2)}</span>
+                <span className="font-medium text-xs">{account.name}</span>
+                <span className="text-[10px]">{getAccountDisplay(account)}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* To Account */}
-        <div className="mb-4">
-          <label className="text-sm text-muted-foreground mb-2 block">A</label>
-          <div className="space-y-2">
+        <div className="mb-3">
+          <label className="text-xs text-muted-foreground mb-2 block font-medium">A</label>
+          <div className="space-y-1.5">
             {accounts.map((account) => (
               <button
                 key={account.id}
                 onClick={() => setToAccount(account.id)}
-                className={`w-full glass-card p-3 flex justify-between items-center transition-all ${
+                disabled={loading}
+                className={`w-full glass-card p-2.5 flex justify-between items-center transition-all rounded-2xl ${
                   toAccount === account.id ? "gradient-green" : ""
-                }`}
+                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <span className="font-medium text-sm">{account.name}</span>
-                <span className="text-xs">$ {account.balance.toFixed(2)}</span>
+                <span className="font-medium text-xs">{account.name}</span>
+                <span className="text-[10px]">{getAccountDisplay(account)}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Amount */}
-        <div className="mb-4">
-          <label className="text-sm text-muted-foreground mb-2 block">Importo</label>
-          <div className="flex items-center gap-2 glass-card p-4">
-            <span className="text-2xl font-bold">$</span>
-            <Input
-              type="number"
-              placeholder="0.00"
-              className="text-2xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
-            />
-          </div>
+        <div className="mb-3">
+          <AmountInput
+            value={amount}
+            onChange={setAmount}
+            currency={fromAccount ? accounts.find(a => a.id === fromAccount)?.currency : 'EUR'}
+          />
         </div>
 
-        <Button className="w-full gradient-blue text-white">
-          Crea Trasferimento
+        <Button 
+          className="w-full gradient-blue text-white h-10 text-sm"
+          onClick={handleCreateTransfer}
+          disabled={loading}
+        >
+          {loading ? "Creazione..." : "Crea Trasferimento"}
         </Button>
       </GlassCard>
-
-      {/* Transfers List */}
-      <div className="space-y-4">
-        {transfers.map((transfer) => (
-          <GlassCard key={transfer.id} className="p-5">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center">
-                <ArrowRightLeft className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{transfer.from}</span>
-                  <span className="text-muted-foreground">→</span>
-                  <span className="font-medium">{transfer.to}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{transfer.date}</p>
-              </div>
-            </div>
-            <p className="text-2xl font-bold">$ {transfer.amount.toFixed(2)}</p>
-          </GlassCard>
-        ))}
-      </div>
     </div>
   );
 }

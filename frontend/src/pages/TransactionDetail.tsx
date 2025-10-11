@@ -33,7 +33,6 @@ export default function TransactionDetail() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   
   // Edit form states
-  const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
@@ -56,7 +55,6 @@ export default function TransactionDetail() {
       setTransaction(txn);
       
       // Set form values
-      setTitle(txn.title);
       setAmount(txn.amount.toString());
       setSelectedCategory(txn.categoryId);
       setSelectedAccount(txn.accountId);
@@ -68,8 +66,8 @@ export default function TransactionDetail() {
         api.categories.getAll(txn.type),
         api.accounts.getAll()
       ]);
-      setCategories(categoriesRes.data);
-      setAccounts(accountsRes.data);
+      setCategories(Array.isArray(categoriesRes.data.categories) ? categoriesRes.data.categories : []);
+      setAccounts(Array.isArray(accountsRes.data) ? accountsRes.data : []);
     } catch (err: any) {
       console.error("Failed to load transaction:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento della transazione");
@@ -83,6 +81,12 @@ export default function TransactionDetail() {
     if (!id || !transaction) return;
     
     try {
+      // Generate automatic title from category name and type
+      const selectedCategoryData = categories.find(c => c.id === selectedCategory);
+      const title = selectedCategoryData 
+        ? `${transaction.type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
+        : transaction.type === 'income' ? 'Entrata' : 'Uscita';
+      
       await api.transactions.update(parseInt(id), {
         title,
         amount: parseFloat(amount),
@@ -131,38 +135,25 @@ export default function TransactionDetail() {
   }
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
+    <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 glass-card rounded-2xl">
-            <ArrowLeft className="w-6 h-6" />
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-1.5 glass-card rounded-2xl">
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold">Dettaglio Transazione</h1>
+          <h1 className="text-xl font-bold">Dettaglio Transazione</h1>
         </div>
         {!isEditing && (
-          <Button onClick={() => setIsEditing(true)} variant="ghost" size="sm">
+          <Button onClick={() => setIsEditing(true)} variant="ghost" size="sm" className="text-xs h-8">
             Modifica
           </Button>
         )}
       </div>
 
-      {/* Title */}
-      {isEditing && (
-        <GlassCard className="p-6 mb-6">
-          <label className="text-sm text-muted-foreground mb-2 block">Titolo</label>
-          <Input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="bg-transparent border-none p-0 h-auto text-xl focus-visible:ring-0"
-          />
-        </GlassCard>
-      )}
-
       {/* Transaction Type Badge */}
-      <div className="mb-6">
-        <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${
+      <div className="mb-4">
+        <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-medium ${
           transaction.type === "expense" ? "gradient-pink text-white" : "gradient-green text-white"
         }`}>
           {transaction.type === "expense" ? "Uscita" : "Entrata"}
@@ -170,47 +161,47 @@ export default function TransactionDetail() {
       </div>
 
       {/* Amount */}
-      <GlassCard className="p-6 mb-6">
-        <label className="text-sm text-muted-foreground mb-2 block">Importo</label>
+      <GlassCard className="p-4 mb-4">
+        <label className="text-xs text-muted-foreground mb-2 block font-medium">Importo</label>
         {isEditing ? (
           <div className="flex items-center gap-2">
-            <span className="text-4xl font-bold">€</span>
+            <span className="text-3xl font-bold">€</span>
             <Input
               type="number"
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="text-4xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
+              className="text-3xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
             />
           </div>
         ) : (
-          <p className="text-4xl font-bold">{transaction.accountCurrency} {transaction.amount.toFixed(2)}</p>
+          <p className="text-3xl font-bold">{transaction.accountCurrency} {transaction.amount.toFixed(2)}</p>
         )}
       </GlassCard>
 
       {/* Category */}
-      <GlassCard className="p-5 mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-            <IconRenderer icon={transaction.categoryIcon} size={24} />
+      <GlassCard className="p-3 mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
+            <IconRenderer icon={transaction.categoryIcon} size={20} />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-muted-foreground">Categoria</p>
-            <p className="font-semibold">{transaction.categoryName}</p>
+            <p className="text-[10px] text-muted-foreground">Categoria</p>
+            <p className="font-semibold text-sm">{transaction.categoryName}</p>
           </div>
         </div>
         {isEditing && (
-          <div className="grid grid-cols-3 gap-2 mt-4">
+          <div className="grid grid-cols-4 gap-2 mt-3">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`glass-card p-3 flex flex-col items-center gap-2 transition-all ${
+                className={`glass-card p-2 flex flex-col items-center gap-1 transition-all ${
                   selectedCategory === category.id ? (category.color || 'gradient-blue') : ""
                 }`}
               >
-                <IconRenderer icon={category.icon} size={24} />
-                <span className="text-xs font-medium">{category.name}</span>
+                <IconRenderer icon={category.icon} size={20} />
+                <span className="text-[10px] font-medium">{category.name}</span>
               </button>
             ))}
           </div>
@@ -218,28 +209,28 @@ export default function TransactionDetail() {
       </GlassCard>
 
       {/* Account */}
-      <GlassCard className="p-5 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-white" />
+      <GlassCard className="p-3 mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg gradient-blue flex items-center justify-center">
+            <Wallet className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-muted-foreground">Conto</p>
-            <p className="font-semibold">{transaction.accountName}</p>
+            <p className="text-[10px] text-muted-foreground">Conto</p>
+            <p className="font-semibold text-sm">{transaction.accountName}</p>
           </div>
         </div>
         {isEditing && (
-          <div className="space-y-2 mt-4">
+          <div className="space-y-2 mt-3">
             {accounts.map((account) => (
               <button
                 key={account.id}
                 onClick={() => setSelectedAccount(account.id)}
-                className={`w-full glass-card p-3 flex justify-between items-center transition-all ${
+                className={`w-full glass-card p-2.5 flex justify-between items-center transition-all ${
                   selectedAccount === account.id ? "gradient-blue" : ""
                 }`}
               >
-                <span className="font-medium text-sm">{account.name}</span>
-                <span className="text-xs">{account.currency} {account.balance.toFixed(2)}</span>
+                <span className="font-medium text-xs">{account.name}</span>
+                <span className="text-[10px]">{account.currency} {account.balance.toFixed(2)}</span>
               </button>
             ))}
           </div>
@@ -247,43 +238,43 @@ export default function TransactionDetail() {
       </GlassCard>
 
       {/* Date */}
-      <GlassCard className="p-5 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-white" />
+      <GlassCard className="p-3 mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-muted-foreground">Data</p>
+            <p className="text-[10px] text-muted-foreground">Data</p>
             {isEditing ? (
               <Input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="bg-transparent border-none p-0 h-auto focus-visible:ring-0 font-semibold"
+                className="bg-transparent border-none p-0 h-auto focus-visible:ring-0 font-semibold text-sm"
               />
             ) : (
-              <p className="font-semibold">{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</p>
+              <p className="font-semibold text-sm">{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</p>
             )}
           </div>
         </div>
       </GlassCard>
 
       {/* Note */}
-      <GlassCard className="p-5 mb-6">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-teal flex items-center justify-center">
-            <FileText className="w-5 h-5 text-white" />
+      <GlassCard className="p-3 mb-4">
+        <div className="flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-lg gradient-teal flex items-center justify-center">
+            <FileText className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-2">Nota</p>
+            <p className="text-[10px] text-muted-foreground mb-1.5">Nota</p>
             {isEditing ? (
               <Textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="bg-transparent border-none resize-none min-h-[60px] focus-visible:ring-0 p-0"
+                className="bg-transparent border-none resize-none min-h-[50px] focus-visible:ring-0 p-0 text-sm"
               />
             ) : (
-              <p>{transaction.note || "Nessuna nota"}</p>
+              <p className="text-sm">{transaction.note || "Nessuna nota"}</p>
             )}
           </div>
         </div>
@@ -291,12 +282,11 @@ export default function TransactionDetail() {
 
       {/* Actions */}
       {isEditing ? (
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Button 
             onClick={() => {
               setIsEditing(false);
               // Reset form values
-              setTitle(transaction.title);
               setAmount(transaction.amount.toString());
               setSelectedCategory(transaction.categoryId);
               setSelectedAccount(transaction.accountId);
@@ -304,13 +294,13 @@ export default function TransactionDetail() {
               setNote(transaction.note || "");
             }} 
             variant="outline" 
-            className="flex-1"
+            className="flex-1 h-10 text-sm"
           >
             Annulla
           </Button>
           <Button 
             onClick={handleUpdate} 
-            className="flex-1 gradient-blue text-white"
+            className="flex-1 gradient-blue text-white h-10 text-sm"
           >
             Salva
           </Button>
@@ -318,7 +308,7 @@ export default function TransactionDetail() {
       ) : (
         <Button 
           variant="destructive" 
-          className="w-full"
+          className="w-full h-10 text-sm"
           onClick={() => setDeleteDialogOpen(true)}
         >
           Elimina Transazione
@@ -329,14 +319,14 @@ export default function TransactionDetail() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base">Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               Sei sicuro di voler eliminare questa transazione? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Elimina</AlertDialogAction>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm">Elimina</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

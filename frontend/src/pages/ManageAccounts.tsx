@@ -1,11 +1,10 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
+import { BottomSheet } from "@/components/BottomSheet";
+import { AccountForm } from "@/components/forms/AccountForm";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Account } from "@/types/api";
@@ -22,60 +21,35 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function ManageAccounts() {
+  const location = useLocation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<number | null>(null);
-  
-  // Form states
-  const [name, setName] = useState("");
-  const [icon, setIcon] = useState("lucide:Wallet");
-  const [currency, setCurrency] = useState("EUR");
-  const [submitting, setSubmitting] = useState(false);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
 
   useEffect(() => {
     loadAccounts();
   }, []);
 
+  // Ricarica i conti quando si torna alla pagina
+  useEffect(() => {
+    if (location.pathname === '/settings/accounts') {
+      loadAccounts();
+    }
+  }, [location.pathname]);
+
   const loadAccounts = async () => {
     try {
       setLoading(true);
       const response = await api.accounts.getAll();
-      setAccounts(response.data);
+      setAccounts(Array.isArray(response.data.accounts) ? response.data.accounts : []);
     } catch (err: any) {
       console.error("Failed to load accounts:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento dei conti");
+      setAccounts([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!name) {
-      toast.error("Inserisci il nome del conto");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      await api.accounts.create({
-        name,
-        icon,
-        currency
-      });
-
-      toast.success("Conto creato con successo!");
-      setDialogOpen(false);
-      setName("");
-      setIcon("lucide:Wallet");
-      setCurrency("EUR");
-      loadAccounts();
-    } catch (err: any) {
-      console.error("Failed to create account:", err);
-      toast.error(err.response?.data?.message || "Errore nella creazione del conto");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -94,6 +68,11 @@ export default function ManageAccounts() {
     }
   };
 
+  const handleAccountCreated = () => {
+    setCreateSheetOpen(false);
+    loadAccounts();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -103,90 +82,41 @@ export default function ManageAccounts() {
   }
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
+    <div className="min-h-screen pb-24 px-3 pt-6 max-w-md mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Link to="/settings" className="p-2 glass-card rounded-2xl">
-          <ArrowLeft className="w-6 h-6" />
+      <div className="flex items-center gap-3 mb-5">
+        <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
+          <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold">Gestione Conti</h1>
+        <h1 className="text-xl font-bold">Gestione Conti</h1>
       </div>
 
       {/* Add Account Button */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger asChild>
-          <Button className="w-full mb-6 gap-2">
-            <Plus className="w-5 h-5" />
-            Aggiungi Conto
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nuovo Conto</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Es: Conto Principale"
-              />
-            </div>
-            <div>
-              <Label htmlFor="icon">Icona (Lucide)</Label>
-              <Input
-                id="icon"
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                placeholder="Es: lucide:Wallet"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Formato: lucide:NomeIcona (es: lucide:Wallet, lucide:CreditCard)
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="currency">Valuta</Label>
-              <Input
-                id="currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                placeholder="EUR"
-                maxLength={3}
-              />
-            </div>
-            <Button onClick={handleCreate} disabled={submitting} className="w-full">
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Creazione...
-                </>
-              ) : (
-                "Crea Conto"
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Button 
+        onClick={() => setCreateSheetOpen(true)}
+        className="w-full mb-4 gap-2 h-11"
+      >
+        <Plus className="w-4 h-4" />
+        Aggiungi Conto
+      </Button>
 
       {/* Accounts List */}
       {accounts.length === 0 ? (
-        <GlassCard className="p-6 text-center">
-          <p className="text-muted-foreground">Nessun conto disponibile</p>
+        <GlassCard className="p-5 text-center">
+          <p className="text-sm text-muted-foreground">Nessun conto disponibile</p>
         </GlassCard>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {accounts.map((account) => (
-            <GlassCard key={account.id} className="p-5">
+            <GlassCard key={account.id} className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl gradient-blue flex items-center justify-center">
-                    <IconRenderer icon={account.icon} size={24} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center">
+                    <IconRenderer icon={account.icon} size={20} />
                   </div>
                   <div>
-                    <h3 className="font-semibold">{account.name}</h3>
-                    <p className="text-2xl font-bold mt-1">
+                    <h3 className="font-semibold text-sm">{account.name}</h3>
+                    <p className="text-lg font-bold mt-0.5">
                       {account.currency} {account.balance.toFixed(2)}
                     </p>
                   </div>
@@ -196,9 +126,9 @@ export default function ManageAccounts() {
                     setAccountToDelete(account.id);
                     setDeleteDialogOpen(true);
                   }}
-                  className="p-2 hover:bg-white/5 rounded-xl transition-colors"
+                  className="p-1.5 hover:bg-white/5 rounded-xl transition-colors"
                 >
-                  <Trash2 className="w-5 h-5 text-muted-foreground" />
+                  <Trash2 className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
             </GlassCard>
@@ -210,17 +140,25 @@ export default function ManageAccounts() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base">Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               Sei sicuro di voler eliminare questo conto? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Elimina</AlertDialogAction>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm">Elimina</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Account Bottom Sheet */}
+      <BottomSheet
+        isOpen={createSheetOpen}
+        onClose={() => setCreateSheetOpen(false)}
+      >
+        <AccountForm onSuccess={handleAccountCreated} />
+      </BottomSheet>
     </div>
   );
 }

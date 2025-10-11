@@ -1,7 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
+import { TextInput } from "@/components/TextInput";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2, Mail, Lock, User, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -70,23 +69,23 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen flex items-center justify-center px-3 py-8 bg-gradient-to-br from-background via-background to-primary/5">
       <div className="w-full max-w-md">
         {/* Logo/Title */}
-        <div className="text-center mb-8">
-          <div className="inline-block p-4 rounded-3xl gradient-purple mb-4">
-            <DollarSign className="w-12 h-12 text-white" />
+        <div className="text-center mb-6">
+          <div className="inline-block p-3 rounded-3xl gradient-purple mb-3">
+            <DollarSign className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold mb-2">Tracking Spese</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold mb-1">Tracking Spese</h1>
+          <p className="text-sm text-muted-foreground">
             Gestisci le tue finanze in modo semplice
           </p>
         </div>
 
         {/* Auth Card */}
-        <GlassCard className="p-8">
+        <GlassCard className="p-5">
           {/* Mode Toggle */}
-          <div className="flex gap-2 p-2 glass-card rounded-2xl mb-6">
+          <div className="flex gap-2 p-2 glass-card rounded-2xl mb-5">
             <button
               onClick={() => setMode("login")}
               className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -106,91 +105,139 @@ export default function Auth() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="name" className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  Nome (opzionale)
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Il tuo nome"
+              <div>
+                <TextInput
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-white/5 border-white/10"
+                  onChange={setName}
+                  placeholder="Il tuo nome"
+                  icon={User}
+                  label="Nome (opzionale)"
                 />
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="email@esempio.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-white/5 border-white/10"
-              />
+            <div>
+              <GlassCard>
+                <div className="flex items-center gap-3 p-4">
+                  <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center flex-shrink-0">
+                    <Mail className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-1 block font-medium">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@esempio.com"
+                      required
+                      className="w-full bg-transparent border-none outline-none text-base placeholder:text-muted-foreground/50"
+                      style={{
+                        WebkitAppearance: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+              </GlassCard>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-white/5 border-white/10"
-                minLength={mode === "register" ? 6 : undefined}
-              />
-              {mode === "register" && (
-                <p className="text-xs text-muted-foreground">
-                  Minimo 6 caratteri
-                </p>
-              )}
+            <div>
+              <GlassCard>
+                <div className="flex items-center gap-3 p-4">
+                  <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center flex-shrink-0">
+                    <Lock className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-1 block font-medium">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={mode === "register" ? 6 : undefined}
+                      className="w-full bg-transparent border-none outline-none text-base placeholder:text-muted-foreground/50"
+                      style={{
+                        WebkitAppearance: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+              </GlassCard>
             </div>
 
             {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="currency" className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 ml-1 block font-medium">
                   Valuta Predefinita
-                </Label>
-                <Input
-                  id="currency"
-                  type="text"
-                  placeholder="EUR"
-                  value={defaultCurrency}
-                  onChange={(e) => setDefaultCurrency(e.target.value.toUpperCase())}
-                  maxLength={3}
-                  className="bg-white/5 border-white/10"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Codice ISO (es: EUR, USD, GBP)
-                </p>
+                </label>
+                <div className="flex gap-2">
+                  {['EUR', 'USD', 'GBP', 'CHF'].map((currency) => (
+                    <button
+                      key={currency}
+                      type="button"
+                      onClick={() => setDefaultCurrency(currency)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        defaultCurrency === currency
+                          ? 'gradient-blue text-white'
+                          : 'glass-card text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {currency}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDefaultCurrency('')}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      defaultCurrency === ''
+                        ? 'gradient-blue text-white'
+                        : 'glass-card text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    +
+                  </button>
+                </div>
+                {defaultCurrency === '' && (
+                  <div className="mt-2">
+                    <GlassCard>
+                      <div className="flex items-center gap-3 p-4">
+                        <div className="w-10 h-10 rounded-xl gradient-green flex items-center justify-center flex-shrink-0">
+                          <DollarSign className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={defaultCurrency}
+                            onChange={(e) => setDefaultCurrency(e.target.value.toUpperCase())}
+                            placeholder="Inserisci valuta"
+                            maxLength={3}
+                            className="w-full bg-transparent border-none outline-none text-base placeholder:text-muted-foreground/50 uppercase"
+                            style={{
+                              WebkitAppearance: 'none',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </div>
+                )}
               </div>
             )}
 
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 rounded-xl gradient-blue text-white font-semibold text-lg shadow-lg mt-6"
+              className="w-full h-11 rounded-xl gradient-blue text-white font-semibold text-base shadow-lg mt-2"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   {mode === "login" ? "Accesso..." : "Creazione..."}
                 </>
               ) : (
@@ -200,7 +247,7 @@ export default function Auth() {
           </form>
 
           {/* Additional Info */}
-          <div className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-4 text-center text-xs text-muted-foreground">
             {mode === "login" ? (
               <p>
                 Non hai un account?{" "}
@@ -226,7 +273,7 @@ export default function Auth() {
         </GlassCard>
 
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-[10px] text-muted-foreground mt-4">
           Traccia le tue spese in modo sicuro e privato
         </p>
       </div>

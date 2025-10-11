@@ -2,12 +2,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { BottomSheetProvider, useBottomSheet } from "@/contexts/BottomSheetContext";
+import { BottomSheet } from "@/components/BottomSheet";
+import { TransactionForm } from "@/components/forms/TransactionForm";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
-import AddTransaction from "./pages/AddTransaction";
 import Transactions from "./pages/Transactions";
 import Settings from "./pages/Settings";
 import ManageAccounts from "./pages/ManageAccounts";
@@ -19,24 +21,23 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  const isAuthenticated = !!localStorage.getItem("authToken");
+function AppContent() {
+  const { isTransactionSheetOpen, openTransactionSheet, closeTransactionSheet } = useBottomSheet();
+
+  const handleTransactionSuccess = () => {
+    closeTransactionSheet();
+    // Small delay to ensure transaction is saved before reloading
+    setTimeout(() => {
+      window.dispatchEvent(new Event('transactionCreated'));
+    }, 100);
+  };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="relative">
-            <Routes>
+    <>
+      <div className="relative">
+        <Routes>
               {/* Public route */}
-              <Route 
-                path="/auth" 
-                element={
-                  isAuthenticated ? <Navigate to="/" replace /> : <Auth />
-                } 
-              />
+              <Route path="/auth" element={<Auth />} />
 
               {/* Protected routes */}
               <Route
@@ -44,14 +45,6 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Home />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/add"
-                element={
-                  <ProtectedRoute>
-                    <AddTransaction />
                   </ProtectedRoute>
                 }
               />
@@ -114,8 +107,30 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            {isAuthenticated && <BottomNav />}
+            <BottomNav onAddClick={openTransactionSheet} />
           </div>
+
+          {/* Global Bottom Sheets */}
+          <BottomSheet
+            isOpen={isTransactionSheetOpen}
+            onClose={closeTransactionSheet}
+          >
+            <TransactionForm onSuccess={handleTransactionSuccess} />
+          </BottomSheet>
+        </>
+  );
+}
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <BottomSheetProvider>
+            <AppContent />
+          </BottomSheetProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

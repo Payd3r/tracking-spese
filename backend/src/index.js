@@ -11,7 +11,6 @@ import authRoutes from './routes/auth.js';
 import accountRoutes from './routes/accounts.js';
 import categoryRoutes from './routes/categories.js';
 import transactionRoutes from './routes/transactions.js';
-import transferRoutes from './routes/transfers.js';
 import statsRoutes from './routes/stats.js';
 import currencyRoutes from './routes/currencies.js';
 
@@ -42,7 +41,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/transactions', transactionRoutes);
-app.use('/api/transfers', transferRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/currencies', currencyRoutes);
 

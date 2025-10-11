@@ -1,15 +1,44 @@
 import { Navigate } from "react-router-dom";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const token = localStorage.getItem("authToken");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  if (!token) {
-    // Redirect to auth page if not authenticated
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem("authToken");
+      setIsAuthenticated(!!token);
+    };
+
+    // Check auth on mount
+    checkAuth();
+
+    // Listen for storage changes (logout from other tabs)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for localStorage changes within same tab
+    const interval = setInterval(checkAuth, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Show nothing while checking auth status
+  if (isAuthenticated === null) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
 

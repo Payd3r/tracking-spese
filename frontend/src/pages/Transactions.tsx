@@ -28,11 +28,15 @@ export default function Transactions() {
         api.transactions.getAll()
       ]);
 
-      setCategories(categoriesResponse.data);
-      setTransactions(transactionsResponse.data);
+      // Ensure arrays
+      setCategories(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
+      const transactions = transactionsResponse.data.transactions || [];
+      setTransactions(Array.isArray(transactions) ? transactions : []);
     } catch (err: any) {
       console.error("Failed to load data:", err);
       setError(err.response?.data?.message || "Errore nel caricamento dei dati");
+      setCategories([]);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -65,13 +69,13 @@ export default function Transactions() {
   }
 
   return (
-    <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
+    <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Link to="/" className="p-2 glass-card rounded-2xl">
-          <ArrowLeft className="w-6 h-6" />
+      <div className="flex items-center gap-3 mb-5">
+        <Link to="/" className="p-1.5 glass-card rounded-2xl">
+          <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold">Categorie</h1>
+        <h1 className="text-xl font-bold">Tutte le transazioni</h1>
       </div>
 
       {error && (
@@ -82,23 +86,23 @@ export default function Transactions() {
 
       {/* Category Cards */}
       {categoriesWithStats.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-3 mb-5">
           {categoriesWithStats.map((category) => {
             const percentage = totalSpent > 0 ? (category.total / totalSpent) * 100 : 0;
             return (
               <GlassCard
                 key={category.id}
-                className={`p-5 ${category.color || 'gradient-blue'} cursor-pointer transition-all ${
+                className={`p-4 ${category.color || 'gradient-blue'} cursor-pointer transition-all ${
                   selectedCategory === category.id ? "ring-2 ring-white/50" : ""
                 }`}
                 hover
                 onClick={() => setSelectedCategory(selectedCategory === category.id ? null : category.id)}
               >
-                <div className="mb-4">
-                  <IconRenderer icon={category.icon} size={40} />
+                <div className="mb-3">
+                  <IconRenderer icon={category.icon} size={32} />
                 </div>
-                <h3 className="text-white font-semibold mb-1">{category.name}</h3>
-                <p className="text-white/80 text-sm">{percentage.toFixed(1)}% • {category.count} trans.</p>
+                <h3 className="text-white font-semibold text-sm mb-0.5">{category.name}</h3>
+                <p className="text-white/80 text-xs">{percentage.toFixed(1)}% • {category.count} trans.</p>
               </GlassCard>
             );
           })}
@@ -106,35 +110,35 @@ export default function Transactions() {
       )}
 
       {/* Transactions List */}
-      <div className="glass-card p-6 mb-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">
+      <div className="glass-card p-4 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">
             {selectedCategory 
               ? categories.find(c => c.id === selectedCategory)?.name 
               : "Tutte le Transazioni"}
           </h2>
-          <span className="text-xl font-bold">€ {totalSpent.toFixed(2)}</span>
+          <span className="text-base font-bold">€ {totalSpent.toFixed(2)}</span>
         </div>
 
         {displayedTransactions.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">Nessuna transazione trovata</p>
+          <p className="text-center text-sm text-muted-foreground py-6">Nessuna transazione trovata</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {displayedTransactions.map((transaction) => (
               <RouterLink key={transaction.id} to={`/transaction/${transaction.id}`}>
-                <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-2">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-                      <IconRenderer icon={transaction.categoryIcon} size={20} />
+                <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
+                      <IconRenderer icon={transaction.categoryIcon} size={16} />
                     </div>
                     <div>
-                      <h4 className="font-medium">{transaction.title}</h4>
-                      <p className="text-xs text-muted-foreground">
+                      <h4 className="font-medium text-sm">{transaction.title}</h4>
+                      <p className="text-[10px] text-muted-foreground">
                         {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
                       </p>
                     </div>
                   </div>
-                  <span className={`font-semibold ${transaction.type === 'income' ? 'text-success' : ''}`}>
+                  <span className={`font-semibold text-sm ${transaction.type === 'income' ? 'text-success' : ''}`}>
                     {transaction.type === 'income' ? '+' : '-'}€ {Math.abs(transaction.amount).toFixed(2)}
                   </span>
                 </div>
@@ -143,7 +147,7 @@ export default function Transactions() {
           </div>
         )}
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-4">
           {format(new Date(), 'dd MMMM yyyy')}
         </p>
       </div>

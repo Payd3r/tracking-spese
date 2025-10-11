@@ -60,12 +60,16 @@ All colors MUST be HSL.
     --category-bills: 200 90% 55%;
     --category-entertainment: 290 70% 60%;
     
-    /* Chart colors */
-    --chart-1: 217 91% 60%;
-    --chart-2: 270 70% 65%;
-    --chart-3: 160 70% 50%;
-    --chart-4: 340 75% 65%;
-    --chart-5: 200 90% 55%;
+  /* Chart colors */
+  --chart-1: 217 91% 60%;
+  --chart-2: 270 70% 65%;
+  --chart-3: 160 70% 50%;
+  --chart-4: 340 75% 65%;
+  --chart-5: 200 90% 55%;
+  
+  /* Neon effect colors */
+  --neon-blue: 217 91% 60%;
+  --neon-glow: 217 91% 60% / 0.4;
   }
 }
 
@@ -80,6 +84,7 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+  /* Glass Morphism */
   .glass-card {
     @apply bg-card/70 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl;
   }
@@ -88,6 +93,7 @@ All colors MUST be HSL.
     @apply glass-card transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_60px_-15px_rgba(59,130,246,0.3)];
   }
   
+  /* Gradients */
   .gradient-blue {
     background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(200 90% 55%) 100%);
   }
@@ -106,5 +112,177 @@ All colors MUST be HSL.
   
   .gradient-teal {
     background: linear-gradient(135deg, hsl(180 70% 50%) 0%, hsl(170 65% 55%) 100%);
+  }
+  
+  .gradient-orange {
+    background: linear-gradient(135deg, hsl(30 95% 60%) 0%, hsl(20 90% 55%) 100%);
+  }
+  
+  /* Neon Chart Container */
+  .neon-chart-container {
+    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(200 90% 55%) 100%);
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: 
+      0 0 30px hsl(var(--neon-glow)),
+      0 0 60px hsl(var(--neon-glow) / 0.7),
+      0 0 120px hsl(var(--neon-glow) / 0.5),
+      0 0 200px hsl(var(--neon-glow) / 0.3),
+      inset 0 0 60px hsl(var(--neon-blue) / 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .neon-chart-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.1) 0%, 
+      rgba(255, 255, 255, 0.05) 50%, 
+      rgba(255, 255, 255, 0.1) 100%);
+    pointer-events: none;
+  }
+  
+  /* Neon glow effect for chart lines - now animated */
+  
+  /* Chart labels */
+  .chart-label {
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+  
+  /* Smaller labels for year view */
+  .chart-label-year {
+    color: white;
+    font-size: 9px;
+    font-weight: 500;
+    opacity: 0.9;
+  }
+  
+  /* Smooth transitions for chart updates */
+  .chart-transition {
+    transition: all 0.3s ease-in-out;
+  }
+  
+  /* Pulsating glow animation */
+  @keyframes neon-pulse {
+    0%, 100% {
+      filter: 
+        drop-shadow(0 0 8px hsl(var(--neon-blue) / 1))
+        drop-shadow(0 0 16px hsl(var(--neon-blue) / 0.8))
+        drop-shadow(0 0 32px hsl(var(--neon-blue) / 0.6))
+        drop-shadow(0 0 64px hsl(var(--neon-blue) / 0.4));
+    }
+    50% {
+      filter: 
+        drop-shadow(0 0 12px hsl(var(--neon-blue) / 1))
+        drop-shadow(0 0 24px hsl(var(--neon-blue) / 0.9))
+        drop-shadow(0 0 48px hsl(var(--neon-blue) / 0.7))
+        drop-shadow(0 0 96px hsl(var(--neon-blue) / 0.5));
+    }
+  }
+  
+  /* Apply pulsating animation to chart line */
+  .neon-glow {
+    animation: neon-pulse 3s ease-in-out infinite;
+  }
+  
+  /* Mobile-optimized spacing */
+  .mobile-container {
+    @apply px-3 max-w-md mx-auto;
+  }
+  
+  .mobile-spacing-sm {
+    @apply mb-3;
+  }
+  
+  .mobile-spacing-md {
+    @apply mb-4;
+  }
+  
+  .mobile-spacing-lg {
+    @apply mb-5;
+  }
+  
+  .mobile-gap-sm {
+    @apply gap-2;
+  }
+  
+  .mobile-gap-md {
+    @apply gap-3;
+  }
+  
+  /* Mobile typography */
+  .text-mobile-xs {
+    font-size: 11px;
+  }
+  
+  .text-mobile-sm {
+    font-size: 13px;
+  }
+  
+  .text-mobile-base {
+    font-size: 15px;
+  }
+  
+  .text-mobile-lg {
+    font-size: 17px;
+  }
+  
+  .text-mobile-xl {
+    font-size: 20px;
+  }
+  
+  .text-mobile-2xl {
+    font-size: 24px;
+  }
+  
+  .text-mobile-3xl {
+    font-size: 28px;
+  }
+  
+  /* iOS-style bottom navigation */
+  .ios-bottom-nav {
+    @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
+    @apply rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)];
+    @apply px-6 py-0 max-w-md mx-auto;
+    padding-bottom: max(0rem, env(safe-area-inset-bottom, 0rem));
+    min-height: 0.1rem;
+  }
+
+  /* Pulsante centrale floating */
+  .nav-btn-primary {
+    @apply w-[72px] h-[72px] rounded-full;
+    @apply gradient-blue shadow-[0_4px_24px_rgba(59,130,246,0.4)];
+    @apply border-2 border-white/20;
+    @apply flex items-center justify-center;
+    @apply transition-all duration-200 active:scale-95;
+    transform: translateY(-25px);
+  }
+
+  /* Icone laterali */
+  .nav-btn-secondary {
+    @apply w-[40px] h-[40px] rounded-full;
+    @apply flex items-center justify-center;
+    @apply text-muted-foreground/60;
+    @apply transition-all duration-200;
+    @apply hover:text-muted-foreground/80 active:scale-95;
+  }
+
+  /* Spring animation per tap */
+  @keyframes spring-tap {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+
+  .tap-spring {
+    animation: spring-tap 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 }

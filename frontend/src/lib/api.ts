@@ -31,7 +31,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      window.location.href = '/auth';
     }
     
     return Promise.reject(error);
@@ -50,6 +50,8 @@ export const api = {
       apiClient.post('/auth/logout'),
     me: () =>
       apiClient.get('/auth/me'),
+    updateProfile: (data: { name?: string; defaultCurrency?: string }) =>
+      apiClient.put('/auth/profile', data),
   },
   
   // Accounts
@@ -118,28 +120,12 @@ export const api = {
       apiClient.delete(`/transactions/${id}`),
   },
   
-  // Transfers
-  transfers: {
-    getAll: (params?: { limit?: number; offset?: number }) =>
-      apiClient.get('/transfers', { params }),
-    getOne: (id: number) =>
-      apiClient.get(`/transfers/${id}`),
-    create: (data: {
-      fromAccountId: number;
-      toAccountId: number;
-      amount: number;
-      transferDate: string;
-      note?: string;
-    }) =>
-      apiClient.post('/transfers', data),
-    delete: (id: number) =>
-      apiClient.delete(`/transfers/${id}`),
-  },
-  
   // Stats
   stats: {
-    getDashboard: (period?: 'day' | 'week' | 'month' | 'year') =>
-      apiClient.get('/stats/dashboard', { params: { period } }),
+    getDashboard: (period?: 'day' | 'week' | 'month' | 'year', type?: 'income' | 'expense') =>
+      apiClient.get('/stats/dashboard', { params: { period, type } }),
+    getCategoryStats: (type?: 'income' | 'expense') =>
+      apiClient.get('/stats/categories', { params: { type } }),
   },
   
   // Currencies
