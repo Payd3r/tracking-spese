@@ -1,0 +1,74 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { errorHandler } from './middleware/errorHandler.js';
+import { cleanupExpiredSessions } from './controllers/authController.js';
+
+// Import routes
+import authRoutes from './routes/auth.js';
+import accountRoutes from './routes/accounts.js';
+import categoryRoutes from './routes/categories.js';
+import transactionRoutes from './routes/transactions.js';
+import transferRoutes from './routes/transfers.js';
+import statsRoutes from './routes/stats.js';
+import currencyRoutes from './routes/currencies.js';
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/transfers', transferRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/currencies', currencyRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint non trovato' });
+});
+
+// Error handler (must be last)
+app.use(errorHandler);
+
+// Cleanup expired sessions every hour
+setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Server avviato sulla porta ${PORT}`);
+  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  process.exit(0);
+});
+
+

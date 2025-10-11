@@ -119,7 +119,7 @@ export default function Home() {
         <div className="space-y-3">
           {filteredTransactions.map((transaction) => (
             <Link key={transaction.id} to={`/transaction/${transaction.id}`}>
-              <GlassCard className="p-4 hover:scale-[1.02] transition-transform cursor-pointer">
+              <GlassCard className="p-3 hover:scale-[1.02] transition-transform cursor-pointer mb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl gradient-blue flex items-center justify-center text-2xl">

@@ -1,0 +1,32 @@
+{
+  "name": "tracking-spese-backend",
+  "version": "1.0.0",
+  "description": "Backend API per applicazione tracking spese",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down",
+    "seed": "node src/utils/seed.js",
+    "populate": "node src/utils/populate.js"
+  },
+  "keywords": ["expense-tracker", "api", "express", "postgresql"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "axios": "^1.7.2",
+    "node-pg-migrate": "^7.6.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
+
