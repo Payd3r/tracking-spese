@@ -68,8 +68,6 @@ services:
       dockerfile: Dockerfile
     container_name: tracking-spese-nginx
     restart: unless-stopped
-    ports:
-      - "${APP_PORT:-80}:80"
     depends_on:
       - frontend
       - backend
