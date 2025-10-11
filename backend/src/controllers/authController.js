@@ -136,28 +136,49 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     
+    // Validation
     if (!email || !password) {
       throw new ValidationError('Email e password sono obbligatori');
     }
     
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      throw new ValidationError('Email e password devono essere stringhe valide');
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new ValidationError('Formato email non valido');
+    }
+    
+    if (password.length < 1) {
+      throw new ValidationError('Password non può essere vuota');
+    }
+    
     // Get user
+    console.log(`🔍 Attempting login for email: ${email.toLowerCase()}`);
     const result = await client.query(
       'SELECT id, email, name, password_hash, default_currency FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     
     if (result.rows.length === 0) {
+      console.log(`❌ User not found for email: ${email.toLowerCase()}`);
       throw new ValidationError('Credenziali non valide');
     }
     
     const user = result.rows[0];
     
     // Verify password
+    console.log(`🔐 Verifying password for user: ${user.id}`);
     const validPassword = await bcrypt.compare(password, user.password_hash);
     
     if (!validPassword) {
+      console.log(`❌ Invalid password for user: ${user.id}`);
       throw new ValidationError('Credenziali non valide');
     }
+    
+    console.log(`✅ Login successful for user: ${user.id}`);
     
     // Create JWT token
     const token = jwt.sign(
@@ -191,6 +212,7 @@ export const login = async (req, res, next) => {
     });
     
   } catch (error) {
+    console.error(`❌ Login error for email ${email}:`, error.message);
     next(error);
   } finally {
     client.release();

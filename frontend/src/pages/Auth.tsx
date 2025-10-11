@@ -21,13 +21,27 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation
     if (!email || !password) {
       toast.error("Inserisci email e password");
       return;
     }
 
-    if (mode === "register" && password.length < 6) {
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Inserisci un'email valida");
+      return;
+    }
+
+    // Password validation
+    if (password.length < 6) {
       toast.error("La password deve essere almeno di 6 caratteri");
+      return;
+    }
+
+    if (mode === "register" && name && name.trim().length < 2) {
+      toast.error("Il nome deve essere almeno di 2 caratteri");
       return;
     }
 
@@ -62,7 +76,32 @@ export default function Auth() {
       }
     } catch (err: any) {
       console.error("Auth error:", err);
-      toast.error(err.response?.data?.message || "Errore durante l'autenticazione");
+      
+      // Extract error message from response
+      let errorMessage = "Errore durante l'autenticazione";
+      
+      if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        if (errorMessage.includes("Credenziali non valide")) {
+          errorMessage = "Email o password non corretti";
+        } else if (errorMessage.includes("Email già registrata")) {
+          errorMessage = "Un account con questa email esiste già";
+        }
+      } else if (err.response?.status === 500) {
+        errorMessage = "Errore del server. Riprova più tardi.";
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = "Errore di connessione. Verifica la tua connessione internet.";
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

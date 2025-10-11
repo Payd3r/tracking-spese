@@ -1,5 +1,13 @@
 export const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('❌ Error Handler:', {
+    message: err.message,
+    name: err.name,
+    code: err.code,
+    status: err.status,
+    stack: err.stack,
+    url: req.url,
+    method: req.method
+  });
   
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
@@ -21,6 +29,10 @@ export const errorHandler = (err, req, res, next) => {
   
   if (err.code === '23514') { // Check violation
     return res.status(400).json({ error: 'Vincolo di validazione fallito' });
+  }
+  
+  if (err.code === 'ECONNREFUSED') {
+    return res.status(500).json({ error: 'Errore di connessione al database' });
   }
   
   // Validation errors
