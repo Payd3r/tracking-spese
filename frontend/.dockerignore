@@ -10,10 +10,3 @@ README.md
 dist
 coverage
 .vscode
-backend
-nginx/*.conf
-docker-compose*.yml
-Dockerfile
-.dockerignore
-
-

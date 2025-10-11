@@ -1,0 +1,34 @@
+import * as LucideIcons from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
+
+interface IconRendererProps {
+  icon?: string;
+  className?: string;
+  size?: number;
+}
+
+/**
+ * Renders a Lucide icon based on a string like "lucide:Wallet"
+ * Falls back to a default icon if the icon is not found
+ */
+export function IconRenderer({ icon, className = '', size = 24 }: IconRendererProps) {
+  if (!icon) {
+    return <LucideIcons.HelpCircle className={className} size={size} />;
+  }
+
+  // Check if it's a lucide icon
+  if (icon.startsWith('lucide:')) {
+    const iconName = icon.replace('lucide:', '');
+    
+    // Get the icon component from Lucide
+    const IconComponent = (LucideIcons as unknown as Record<string, LucideIcon>)[iconName];
+    
+    if (IconComponent) {
+      return <IconComponent className={className} size={size} />;
+    }
+  }
+
+  // Fallback to displaying the string (for backward compatibility with emoji)
+  return <span className={className} style={{ fontSize: `${size}px` }}>{icon}</span>;
+}
+

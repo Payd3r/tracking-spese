@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { errorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredSessions } from './controllers/authController.js';
 
@@ -13,8 +15,10 @@ import transferRoutes from './routes/transfers.js';
 import statsRoutes from './routes/stats.js';
 import currencyRoutes from './routes/currencies.js';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from project root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

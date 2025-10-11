@@ -2,8 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import AddTransaction from "./pages/AddTransaction";
 import Transactions from "./pages/Transactions";
@@ -17,31 +19,107 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <div className="relative">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/add" element={<AddTransaction />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/settings/accounts" element={<ManageAccounts />} />
-            <Route path="/settings/categories" element={<ManageCategories />} />
-            <Route path="/settings/transfers" element={<ManageTransfers />} />
-            <Route path="/settings/profile" element={<Profile />} />
-            <Route path="/transaction/:id" element={<TransactionDetail />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <BottomNav />
-        </div>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const isAuthenticated = !!localStorage.getItem("authToken");
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <div className="relative">
+            <Routes>
+              {/* Public route */}
+              <Route 
+                path="/auth" 
+                element={
+                  isAuthenticated ? <Navigate to="/" replace /> : <Auth />
+                } 
+              />
+
+              {/* Protected routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/add"
+                element={
+                  <ProtectedRoute>
+                    <AddTransaction />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transactions"
+                element={
+                  <ProtectedRoute>
+                    <Transactions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/accounts"
+                element={
+                  <ProtectedRoute>
+                    <ManageAccounts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/categories"
+                element={
+                  <ProtectedRoute>
+                    <ManageCategories />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/transfers"
+                element={
+                  <ProtectedRoute>
+                    <ManageTransfers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transaction/:id"
+                element={
+                  <ProtectedRoute>
+                    <TransactionDetail />
+                  </ProtectedRoute>
+                }
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            {isAuthenticated && <BottomNav />}
+          </div>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

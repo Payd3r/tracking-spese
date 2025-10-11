@@ -50,7 +50,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: frontend/Dockerfile
     container_name: tracking-spese-frontend
     restart: unless-stopped
     networks:

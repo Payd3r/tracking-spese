@@ -1,7 +1,21 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { User as UserType } from "@/types/api";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const settingsGroups = [
   {
@@ -21,6 +35,39 @@ const settingsGroups = [
 ];
 
 export default function Settings() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<UserType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      setLoading(true);
+      const response = await api.auth.me();
+      setUser(response.data);
+    } catch (err: any) {
+      console.error("Failed to load user:", err);
+      toast.error("Errore nel caricamento del profilo");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    // Clear auth data
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    
+    toast.success("Logout effettuato con successo");
+    navigate("/auth");
+  };
+
+  const initial = user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U";
+
   return (
     <div className="min-h-screen pb-24 px-4 pt-6 max-w-md mx-auto">
       {/* Header */}
@@ -58,20 +105,52 @@ export default function Settings() {
       </div>
 
       {/* Account Info */}
-      <Link to="/settings/profile">
-        <GlassCard className="p-6 mt-8 hover:scale-[1.02] transition-transform cursor-pointer">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full gradient-purple flex items-center justify-center text-2xl font-bold">
-              M
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">Mark Johnson</h3>
-              <p className="text-sm text-muted-foreground">mark@example.com</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </div>
+      {loading ? (
+        <GlassCard className="p-6 mt-8 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin" />
         </GlassCard>
-      </Link>
+      ) : (
+        <Link to="/settings/profile">
+          <GlassCard className="p-6 mt-8 hover:scale-[1.02] transition-transform cursor-pointer">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full gradient-purple flex items-center justify-center text-2xl font-bold">
+                {initial}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">{user?.name || "Utente"}</h3>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </GlassCard>
+        </Link>
+      )}
+
+      {/* Logout Button */}
+      <Button
+        variant="destructive"
+        className="w-full mt-6 gap-2"
+        onClick={() => setLogoutDialogOpen(true)}
+      >
+        <LogOut className="w-4 h-4" />
+        Esci
+      </Button>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma logout</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler uscire dal tuo account?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout}>Esci</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
