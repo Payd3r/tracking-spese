@@ -16,7 +16,9 @@ export const updateViewportHeight = () => {
   if (isIOS && isPWA) {
     // Per iOS PWA, usa l'altezza fisica dello schermo
     targetHeight = window.screen.height;
-    console.log('iOS PWA detected - using screen height:', targetHeight);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('iOS PWA detected - using screen height:', targetHeight);
+    }
   } else {
     // Per browser normali, usa window.innerHeight
     targetHeight = window.innerHeight;
@@ -27,22 +29,18 @@ export const updateViewportHeight = () => {
   // Imposta la variabile CSS custom --vh
   document.documentElement.style.setProperty('--vh', `${vh}px`);
   
-  // Debug log più dettagliato
-  console.log(`Viewport height updated:`, {
-    isIOS,
-    isPWA,
-    windowHeight: window.innerHeight,
-    screenHeight: window.screen.height,
-    targetHeight,
-    vh: vh,
-    calculatedHeight: vh * 100,
-    diff: window.screen.height - window.innerHeight
-  });
-  
-  // Aggiorna anche il debug info se presente
-  const debugElement = document.querySelector('[data-debug-viewport]');
-  if (debugElement) {
-    debugElement.textContent = `--vh: ${vh}px (${targetHeight}px)`;
+  // Log di debug (rimuovere in produzione se necessario)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Viewport height updated:`, {
+      isIOS,
+      isPWA,
+      windowHeight: window.innerHeight,
+      screenHeight: window.screen.height,
+      targetHeight,
+      vh: vh,
+      calculatedHeight: vh * 100,
+      diff: window.screen.height - window.innerHeight
+    });
   }
 };
 
