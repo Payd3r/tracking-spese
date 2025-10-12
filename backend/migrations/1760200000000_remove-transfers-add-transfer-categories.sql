@@ -9,10 +9,10 @@ DROP TABLE IF EXISTS transfers CASCADE;
 
 -- Transfer category for expenses (when money leaves an account)
 INSERT INTO categories (user_id, name, icon, color, type, is_system)
-VALUES (NULL, 'Trasferimento', 'ArrowRightLeft', '#ef4444', 'expense', true);
+VALUES (NULL, 'Trasferimento', 'lucide:ArrowLeftRight', '#ef4444', 'expense', true);
 
 -- Transfer category for income (when money enters an account)
 INSERT INTO categories (user_id, name, icon, color, type, is_system)
-VALUES (NULL, 'Trasferimento', 'ArrowRightLeft', '#22c55e', 'income', true);
+VALUES (NULL, 'Trasferimento', 'lucide:ArrowLeftRight', '#22c55e', 'income', true);
 
 
