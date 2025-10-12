@@ -20,3 +20,9 @@ WHERE is_system = true AND user_id IS NOT NULL;
 UPDATE categories 
 SET is_system = false 
 WHERE is_system = true AND user_id IS NOT NULL;
+
+-- Add unique constraint to prevent duplicate system categories
+-- This ensures we don't have multiple system categories with the same name
+CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_system_unique 
+ON categories (name, type) 
+WHERE is_system = true;

@@ -192,7 +192,9 @@ export default function TransactionDetail() {
         </div>
         {isEditing && (
           <div className="grid grid-cols-4 gap-2 mt-3">
-            {categories.map((category) => (
+            {categories
+              .filter(category => category.name !== 'Trasferimento') // Nascondi categorie di trasferimento
+              .map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}

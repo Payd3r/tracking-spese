@@ -163,7 +163,9 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-2">
-            {categories.map((category) => (
+            {categories
+              .filter(category => category.name !== 'Trasferimento') // Nascondi categorie di trasferimento
+              .map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
