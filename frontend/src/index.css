@@ -36,6 +36,9 @@ All colors MUST be HSL.
     --success: 160 70% 50%;
     --success-foreground: 0 0% 100%;
 
+    --warning: 30 95% 60%;
+    --warning-foreground: 0 0% 100%;
+
     --border: 240 15% 20%;
     --input: 240 15% 20%;
     --ring: 217 91% 60%;
@@ -372,13 +375,26 @@ All colors MUST be HSL.
     margin: 0 auto; /* Center the content */
   }
 
-  /* Ensure toast are perfectly centered */
+  /* Toast customizzati con safe area */
+  .sonner-toast {
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Posizione safe-area aware per toast */
   [data-sonner-toaster] {
     position: fixed !important;
-    top: 50% !important;
+    top: env(safe-area-inset-top, 16px) !important;
     left: 50% !important;
-    transform: translate(-50%, -50%) !important;
+    transform: translateX(-50%) !important;
     z-index: 9999 !important;
+    padding-top: 8px !important;
+    max-width: 420px !important;
+    width: calc(100% - 32px) !important;
+  }
+
+  /* Animazioni fluide per toast */
+  [data-sonner-toast] {
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   }
 
   /* Prevent iOS bounce scroll completely */
