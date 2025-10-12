@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Calendar, FileText, Wallet, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Wallet, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ export default function TransactionDetail() {
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -145,7 +146,10 @@ export default function TransactionDetail() {
           <h1 className="text-xl font-bold">Dettaglio Transazione</h1>
         </div>
         {!isEditing && (
-          <Button onClick={() => setIsEditing(true)} variant="ghost" size="sm" className="text-xs h-8">
+          <Button onClick={() => {
+            setIsEditing(true);
+            setCategoriesExpanded(false);
+          }} variant="ghost" size="sm" className="text-xs h-8">
             Modifica
           </Button>
         )}
@@ -191,22 +195,51 @@ export default function TransactionDetail() {
           </div>
         </div>
         {isEditing && (
-          <div className="grid grid-cols-4 gap-2 mt-3">
-            {categories
-              .filter(category => category.name !== 'Trasferimento') // Nascondi categorie di trasferimento
-              .map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`glass-card p-2 flex flex-col items-center gap-1 transition-all ${
-                  selectedCategory === category.id ? (category.color || 'gradient-blue') : ""
-                }`}
-              >
-                <IconRenderer icon={category.icon} size={20} />
-                <span className="text-[10px] font-medium">{category.name}</span>
-              </button>
-            ))}
-          </div>
+          <>
+            {(() => {
+              const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
+              const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
+              const hasMoreCategories = filteredCategories.length > 8;
+              
+              return (
+                <>
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {visibleCategories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`glass-card p-2 flex flex-col items-center gap-1 transition-all ${
+                          selectedCategory === category.id ? (category.color || 'gradient-blue') : ""
+                        }`}
+                      >
+                        <IconRenderer icon={category.icon} size={20} />
+                        <span className="text-[10px] font-medium">{category.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {hasMoreCategories && (
+                    <button
+                      onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10"
+                    >
+                      {categoriesExpanded ? (
+                        <>
+                          <ChevronUp className="w-4 h-4" />
+                          Mostra meno
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-4 h-4" />
+                          Mostra tutte le categorie ({filteredCategories.length - 8} altre)
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </>
         )}
       </GlassCard>
 

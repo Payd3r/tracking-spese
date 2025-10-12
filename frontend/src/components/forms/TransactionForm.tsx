@@ -3,7 +3,7 @@ import { IconRenderer } from "@/components/IconRenderer";
 import { AmountInput } from "@/components/AmountInput";
 import { MobileDateInput } from "@/components/MobileDateInput";
 import { NoteInput } from "@/components/NoteInput";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -28,6 +28,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -120,6 +121,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           onClick={() => {
             setType("expense");
             setSelectedCategory(null);
+            setCategoriesExpanded(false);
           }}
           className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
             type === "expense" ? "gradient-blue text-white" : "text-muted-foreground"
@@ -131,6 +133,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           onClick={() => {
             setType("income");
             setSelectedCategory(null);
+            setCategoriesExpanded(false);
           }}
           className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
             type === "income" ? "gradient-blue text-white" : "text-muted-foreground"
@@ -162,24 +165,53 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {categories
-              .filter(category => category.name !== 'Trasferimento') // Nascondi categorie di trasferimento
-              .map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
-                  selectedCategory === category.id 
-                    ? (category.color || "gradient-blue") 
-                    : ""
-                }`}
-              >
-                <IconRenderer icon={category.icon} size={24} />
-                <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
-              </button>
-            ))}
-          </div>
+          <>
+            {(() => {
+              const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
+              const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
+              const hasMoreCategories = filteredCategories.length > 8;
+              
+              return (
+                <>
+                  <div className="grid grid-cols-4 gap-2">
+                    {visibleCategories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
+                          selectedCategory === category.id 
+                            ? (category.color || "gradient-blue") 
+                            : ""
+                        }`}
+                      >
+                        <IconRenderer icon={category.icon} size={24} />
+                        <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {hasMoreCategories && (
+                    <button
+                      onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10"
+                    >
+                      {categoriesExpanded ? (
+                        <>
+                          <ChevronUp className="w-4 h-4" />
+                          Mostra meno
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-4 h-4" />
+                          Mostra tutte le categorie ({filteredCategories.length - 8} altre)
+                        </>
+                      )}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </>
         )}
       </GlassCard>
 
