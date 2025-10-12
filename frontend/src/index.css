@@ -296,7 +296,7 @@ All colors MUST be HSL.
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); /* Space for bottom nav ridotta */
+    padding-bottom: calc(53px + env(safe-area-inset-bottom, 0px)); /* Space for bottom nav ridotta */
     padding-top: env(safe-area-inset-top, 0px); /* Space for status bar */
   }
 
@@ -330,13 +330,13 @@ All colors MUST be HSL.
     @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
     @apply rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)];
     @apply px-6 py-2 max-w-md mx-auto;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem); /* Solo safe-area, senza padding extra */
     min-height: calc(53px + env(safe-area-inset-bottom, 0px)); /* Ridotto del 40% da 88px */
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 9999 !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50; /* Sotto i modal che hanno z-index 100 */
     transform: translateZ(0); /* Force hardware acceleration */
     will-change: transform;
   }
