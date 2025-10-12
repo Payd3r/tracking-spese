@@ -169,7 +169,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
+    <div className="px-3 pt-4 max-w-md mx-auto">
 
       {loading && (
         <div className="flex justify-center items-center py-20">

@@ -160,7 +160,7 @@ export default function ManageTransfers() {
 
   if (loadingData) {
     return (
-      <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
+      <div className="px-3 pt-4 max-w-md mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
             <ArrowLeft className="w-5 h-5" />
@@ -174,7 +174,7 @@ export default function ManageTransfers() {
 
   if (accounts.length === 0) {
     return (
-      <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
+      <div className="px-3 pt-4 max-w-md mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
             <ArrowLeft className="w-5 h-5" />

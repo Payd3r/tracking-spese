@@ -136,7 +136,7 @@ export default function TransactionDetail() {
   }
 
   return (
-    <div className="min-h-screen pb-24 px-3 pt-4 max-w-md mx-auto">
+    <div className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">

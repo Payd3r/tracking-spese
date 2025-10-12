@@ -34,8 +34,9 @@ function AppContent() {
 
   return (
     <>
-      <div className="relative">
-        <Routes>
+      <div className="page-container">
+        <div className="scrollable-content">
+          <Routes>
               {/* Public route */}
               <Route path="/auth" element={<Auth />} />
 
@@ -107,8 +108,9 @@ function AppContent() {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <BottomNav onAddClick={openTransactionSheet} />
-          </div>
+        </div>
+        <BottomNav onAddClick={openTransactionSheet} />
+      </div>
 
           {/* Global Bottom Sheets */}
           <BottomSheet

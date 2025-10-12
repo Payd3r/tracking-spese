@@ -37,7 +37,7 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50">
+    <nav>
       <div className="ios-bottom-nav">
         <div className="flex items-center justify-evenly">
           {/* Home - Icona sinistra */}

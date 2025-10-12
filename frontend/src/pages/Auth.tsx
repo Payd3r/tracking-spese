@@ -108,7 +108,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-3 py-8 bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="h-full flex items-center justify-center px-3 py-8 bg-gradient-to-br from-background via-background to-primary/5">
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-6">

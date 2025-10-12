@@ -82,7 +82,7 @@ export default function ManageAccounts() {
   }
 
   return (
-    <div className="min-h-screen pb-24 px-3 pt-6 max-w-md mx-auto">
+    <div className="px-3 pt-6 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
