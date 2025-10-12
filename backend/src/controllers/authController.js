@@ -131,29 +131,39 @@ export const register = async (req, res, next) => {
 };
 
 export const login = async (req, res, next) => {
-  const client = await pool.connect();
+  let client;
   
   try {
+    console.log(`📥 Login request received from ${req.ip}`);
     const { email, password } = req.body;
     
     // Validation
     if (!email || !password) {
+      console.log('❌ Missing email or password');
       throw new ValidationError('Email e password sono obbligatori');
     }
     
     if (typeof email !== 'string' || typeof password !== 'string') {
+      console.log('❌ Invalid email or password type');
       throw new ValidationError('Email e password devono essere stringhe valide');
     }
     
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.log('❌ Invalid email format');
       throw new ValidationError('Formato email non valido');
     }
     
     if (password.length < 1) {
+      console.log('❌ Empty password');
       throw new ValidationError('Password non può essere vuota');
     }
+    
+    // Get database connection
+    console.log('🔌 Getting database connection...');
+    client = await pool.connect();
+    console.log('✅ Database connection established');
     
     // Get user
     console.log(`🔍 Attempting login for email: ${email.toLowerCase()}`);
@@ -178,9 +188,10 @@ export const login = async (req, res, next) => {
       throw new ValidationError('Credenziali non valide');
     }
     
-    console.log(`✅ Login successful for user: ${user.id}`);
+    console.log(`✅ Password verified for user: ${user.id}`);
     
     // Create JWT token
+    console.log(`🔑 Creating JWT token...`);
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
@@ -192,14 +203,18 @@ export const login = async (req, res, next) => {
     expiresAt.setDate(expiresAt.getDate() + 30);
     
     // Delete old sessions for this user
+    console.log(`🗑️ Cleaning old sessions for user: ${user.id}`);
     await client.query('DELETE FROM sessions WHERE user_id = $1', [user.id]);
     
     // Save new session
+    console.log(`💾 Saving new session for user: ${user.id}`);
     await client.query(
       `INSERT INTO sessions (user_id, token, expires_at)
        VALUES ($1, $2, $3)`,
       [user.id, token, expiresAt]
     );
+    
+    console.log(`✅ Login successful for user: ${user.id}`);
     
     res.json({
       token,
@@ -212,10 +227,14 @@ export const login = async (req, res, next) => {
     });
     
   } catch (error) {
-    console.error(`❌ Login error for email ${email}:`, error.message);
+    console.error(`❌ Login error:`, error);
+    console.error(`❌ Error stack:`, error.stack);
     next(error);
   } finally {
-    client.release();
+    if (client) {
+      console.log('🔌 Releasing database connection');
+      client.release();
+    }
   }
 };
 
