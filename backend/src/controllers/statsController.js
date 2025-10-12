@@ -120,12 +120,6 @@ export const getDashboardStats = async (req, res, next) => {
         COALESCE(
           (SELECT SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END)
            FROM transactions WHERE account_id = a.id), 0
-        ) +
-        COALESCE(
-          (SELECT SUM(to_amount) FROM transfers WHERE to_account_id = a.id), 0
-        ) -
-        COALESCE(
-          (SELECT SUM(from_amount) FROM transfers WHERE from_account_id = a.id), 0
         ) as balance
        FROM accounts a
        WHERE a.user_id = $1

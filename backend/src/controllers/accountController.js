@@ -15,12 +15,6 @@ export const getAccounts = async (req, res, next) => {
         COALESCE(
           (SELECT SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END)
            FROM transactions WHERE account_id = a.id), 0
-        ) +
-        COALESCE(
-          (SELECT SUM(to_amount) FROM transfers WHERE to_account_id = a.id), 0
-        ) -
-        COALESCE(
-          (SELECT SUM(from_amount) FROM transfers WHERE from_account_id = a.id), 0
         ) as balance,
         a.created_at,
         a.updated_at
@@ -60,12 +54,6 @@ export const getAccount = async (req, res, next) => {
         COALESCE(
           (SELECT SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END)
            FROM transactions WHERE account_id = a.id), 0
-        ) +
-        COALESCE(
-          (SELECT SUM(to_amount) FROM transfers WHERE to_account_id = a.id), 0
-        ) -
-        COALESCE(
-          (SELECT SUM(from_amount) FROM transfers WHERE from_account_id = a.id), 0
         ) as balance,
         a.created_at,
         a.updated_at
@@ -194,16 +182,6 @@ export const deleteAccount = async (req, res, next) => {
     
     if (parseInt(transactionsResult.rows[0].count) > 0) {
       throw new ValidationError('Impossibile eliminare un account con transazioni. Elimina prima le transazioni.');
-    }
-    
-    // Check if there are transfers
-    const transfersResult = await client.query(
-      'SELECT COUNT(*) as count FROM transfers WHERE from_account_id = $1 OR to_account_id = $1',
-      [accountId]
-    );
-    
-    if (parseInt(transfersResult.rows[0].count) > 0) {
-      throw new ValidationError('Impossibile eliminare un account con trasferimenti. Elimina prima i trasferimenti.');
     }
     
     // Delete account
