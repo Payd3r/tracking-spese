@@ -83,10 +83,6 @@ All colors MUST be HSL.
     height: 100vh;
     height: 100dvh; /* Dynamic viewport height for mobile */
     overflow: hidden; /* Disable body scroll */
-    position: fixed; /* Prevent any scrolling */
-    width: 100%;
-    top: 0;
-    left: 0;
   }
 
   #root {
@@ -305,20 +301,15 @@ All colors MUST be HSL.
     padding-top: env(safe-area-inset-top, 0px);
   }
 
-  /* Prevent iOS bounce scroll */
-  .prevent-scroll {
-    -webkit-overflow-scrolling: auto !important;
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch;
+  /* Ensure navigation buttons are always clickable */
+  .ios-bottom-nav a,
+  .ios-bottom-nav button {
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
+    touch-action: manipulation;
   }
 
-  /* Ensure no scroll on body */
-  body.prevent-scroll {
-    position: fixed;
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
-  }
 
   /* iOS-style bottom navigation */
   .ios-bottom-nav {
@@ -327,13 +318,11 @@ All colors MUST be HSL.
     @apply px-6 py-0 max-w-md mx-auto;
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
     min-height: calc(88px + env(safe-area-inset-bottom, 0px));
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 9999;
-    transform: translateZ(0); /* Force hardware acceleration */
-    will-change: transform; /* Optimize for fixed positioning */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
   }
 
   /* Pulsante centrale floating */
@@ -343,16 +332,22 @@ All colors MUST be HSL.
     @apply border-2 border-white/20;
     @apply flex items-center justify-center;
     @apply transition-all duration-200 active:scale-95;
+    @apply cursor-pointer;
     transform: translateY(-25px);
+    min-height: 44px; /* iOS minimum touch target */
+    min-width: 44px;
   }
 
   /* Icone laterali */
   .nav-btn-secondary {
-    @apply w-[40px] h-[40px] rounded-full;
+    @apply w-[48px] h-[48px] rounded-full;
     @apply flex items-center justify-center;
     @apply text-muted-foreground/60;
     @apply transition-all duration-200;
     @apply hover:text-muted-foreground/80 active:scale-95;
+    @apply cursor-pointer;
+    min-height: 44px; /* iOS minimum touch target */
+    min-width: 44px;
   }
 
   /* Spring animation per tap */

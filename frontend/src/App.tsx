@@ -25,31 +25,6 @@ const queryClient = new QueryClient();
 function AppContent() {
   const { isTransactionSheetOpen, openTransactionSheet, closeTransactionSheet } = useBottomSheet();
 
-  // Prevent body scroll on iOS
-  useEffect(() => {
-    const preventScroll = (e: TouchEvent) => {
-      const target = e.target as Element;
-      // Allow scrolling only within scrollable-content
-      if (!target.closest('.scrollable-content')) {
-        e.preventDefault();
-      }
-    };
-
-    // Add touch event listeners
-    document.addEventListener('touchmove', preventScroll, { passive: false });
-    document.addEventListener('touchstart', preventScroll, { passive: false });
-
-    // Prevent default touch behaviors
-    document.body.style.overscrollBehavior = 'none';
-    document.body.style.webkitOverflowScrolling = 'auto';
-
-    return () => {
-      document.removeEventListener('touchmove', preventScroll);
-      document.removeEventListener('touchstart', preventScroll);
-      document.body.style.overscrollBehavior = '';
-      document.body.style.webkitOverflowScrolling = '';
-    };
-  }, []);
 
   const handleTransactionSuccess = () => {
     closeTransactionSheet();
@@ -136,8 +111,8 @@ function AppContent() {
               <Route path="*" element={<NotFound />} />
             </Routes>
         </div>
-        <BottomNav onAddClick={openTransactionSheet} />
       </div>
+      <BottomNav onAddClick={openTransactionSheet} />
 
           {/* Global Bottom Sheets */}
           <BottomSheet
