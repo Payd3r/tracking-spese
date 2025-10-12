@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BottomSheetProvider, useBottomSheet } from "@/contexts/BottomSheetContext";
 import { BottomSheet } from "@/components/BottomSheet";
 import { TransactionForm } from "@/components/forms/TransactionForm";
+import { DebugInfo } from "@/components/DebugInfo";
 import { useEffect } from "react";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -36,6 +37,7 @@ function AppContent() {
 
   return (
     <>
+      <DebugInfo />
       <div className="page-container">
         <div className="scrollable-content">
           <Routes>

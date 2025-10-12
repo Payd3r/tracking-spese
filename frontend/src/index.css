@@ -78,6 +78,13 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  /* Reset all spacing to zero */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
   html, body {
     @apply bg-background text-foreground antialiased;
     height: 100vh;
@@ -326,6 +333,25 @@ All colors MUST be HSL.
     transform: translateY(0) !important;
   }
 
+  /* NUCLEAR OPTION: Force navbar to absolute bottom */
+  .ios-bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    height: 53px !important;
+    margin: 0 !important;
+    padding: 0.5rem 1.5rem 0 1.5rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Center navbar content but keep full width */
+  .ios-bottom-nav .flex {
+    max-width: 448px; /* max-w-md equivalent */
+    margin: 0 auto; /* Center the content */
+  }
+
   /* Prevent iOS bounce scroll completely */
   * {
     overscroll-behavior: none;
@@ -341,16 +367,17 @@ All colors MUST be HSL.
   .ios-bottom-nav {
     @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
     @apply rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)];
-    @apply px-6 pt-2 max-w-md mx-auto; /* Solo padding top e laterale */
+    @apply px-6 pt-2 w-full; /* Larghezza completa, senza max-width */
     padding-bottom: 0 !important; /* ZERO padding bottom */
     margin-bottom: 0 !important; /* ZERO margin bottom */
     min-height: 53px; /* Altezza fissa senza safe area */
+    height: 53px !important; /* Forza altezza fissa */
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     z-index: 50; /* Sotto i modal che hanno z-index 100 */
-    transform: translateZ(0); /* Force hardware acceleration */
+    transform: translateZ(0) !important; /* Force hardware acceleration */
     will-change: transform;
   }
 
