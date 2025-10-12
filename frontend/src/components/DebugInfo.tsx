@@ -65,6 +65,7 @@ export const DebugInfo = () => {
         <div>Safe Right: {debugInfo.safeAreaRight}px</div>
         <div>100vh: {debugInfo.windowHeight}px</div>
         <div>100dvh: {debugInfo.viewportHeight}px</div>
+        <div data-debug-viewport>--vh: loading...</div>
       </div>
       <div className="mt-2 text-yellow-300">
         Diff: {debugInfo.screenHeight - debugInfo.windowHeight}px

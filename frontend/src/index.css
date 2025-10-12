@@ -85,12 +85,25 @@ All colors MUST be HSL.
     box-sizing: border-box;
   }
 
-  html, body {
-    @apply bg-background text-foreground antialiased;
+  html {
+    height: 100%;
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100); /* Usa variabile CSS custom */
     min-height: 100vh;
     min-height: -webkit-fill-available; /* iOS Safari */
+    /* Fix specifico per iOS PWA */
+    min-height: calc(100vh + env(safe-area-inset-bottom, 0px));
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    height: 100%;
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100); /* Usa variabile CSS custom */
+    min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS Safari */
+    /* Fix specifico per iOS PWA */
+    min-height: calc(100vh + env(safe-area-inset-bottom, 0px));
     overflow: hidden; /* Disable body scroll */
     position: fixed; /* Completely prevent any scrolling */
     width: 100%;
@@ -101,10 +114,13 @@ All colors MUST be HSL.
   }
 
   #root {
+    height: 100%;
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
     min-height: 100vh;
     min-height: -webkit-fill-available;
+    /* Fix specifico per iOS PWA */
+    min-height: calc(100vh + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
