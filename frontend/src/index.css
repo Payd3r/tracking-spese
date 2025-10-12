@@ -118,6 +118,26 @@ All colors MUST be HSL.
     background: linear-gradient(135deg, hsl(30 95% 60%) 0%, hsl(20 90% 55%) 100%);
   }
   
+  .gradient-red {
+    background: linear-gradient(135deg, hsl(0 85% 60%) 0%, hsl(350 80% 55%) 100%);
+  }
+  
+  .gradient-yellow {
+    background: linear-gradient(135deg, hsl(45 95% 60%) 0%, hsl(35 90% 55%) 100%);
+  }
+  
+  .gradient-cyan {
+    background: linear-gradient(135deg, hsl(180 70% 50%) 0%, hsl(190 65% 55%) 100%);
+  }
+  
+  .gradient-indigo {
+    background: linear-gradient(135deg, hsl(240 70% 65%) 0%, hsl(250 65% 60%) 100%);
+  }
+  
+  .gradient-gray {
+    background: linear-gradient(135deg, hsl(240 15% 50%) 0%, hsl(240 10% 45%) 100%);
+  }
+  
   /* Neon Chart Container */
   .neon-chart-container {
     background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(200 90% 55%) 100%);
