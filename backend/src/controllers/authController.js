@@ -57,40 +57,8 @@ export const register = async (req, res, next) => {
       [user.id, defaultCurrency]
     );
     
-    // Create default income categories
-    const incomeCategories = [
-      { name: 'Stipendio', icon: 'lucide:Briefcase', color: 'gradient-blue' },
-      { name: 'Risparmi', icon: 'lucide:PiggyBank', color: 'gradient-green' },
-      { name: 'Regalo', icon: 'lucide:Gift', color: 'gradient-pink' },
-      { name: 'Altro', icon: 'lucide:DollarSign', color: 'gradient-purple' }
-    ];
-    
-    for (const category of incomeCategories) {
-      await client.query(
-        `INSERT INTO categories (user_id, name, icon, color, type, is_system)
-         VALUES ($1, $2, $3, $4, 'income', false)`,
-        [user.id, category.name, category.icon, category.color]
-      );
-    }
-    
-    // Create default expense categories
-    const expenseCategories = [
-      { name: 'Ristorante', icon: 'lucide:Utensils', color: 'gradient-pink' },
-      { name: 'Casa', icon: 'lucide:Home', color: 'gradient-blue' },
-      { name: 'Abbonamenti', icon: 'lucide:CreditCard', color: 'gradient-purple' },
-      { name: 'Trasporti', icon: 'lucide:Car', color: 'gradient-orange' },
-      { name: 'Salute', icon: 'lucide:Heart', color: 'gradient-green' },
-      { name: 'Attività Fisica', icon: 'lucide:Dumbbell', color: 'gradient-teal' },
-      { name: 'Altro', icon: 'lucide:Tag', color: 'gradient-blue' }
-    ];
-    
-    for (const category of expenseCategories) {
-      await client.query(
-        `INSERT INTO categories (user_id, name, icon, color, type, is_system)
-         VALUES ($1, $2, $3, $4, 'expense', false)`,
-        [user.id, category.name, category.icon, category.color]
-      );
-    }
+    // Note: Default categories are now created globally via migrations
+    // No need to create user-specific categories during registration
     
     // Create JWT token
     const token = jwt.sign(
