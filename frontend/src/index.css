@@ -88,7 +88,9 @@ All colors MUST be HSL.
   html, body {
     @apply bg-background text-foreground antialiased;
     height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for mobile */
+    height: calc(var(--vh, 1vh) * 100); /* Usa variabile CSS custom */
+    min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS Safari */
     overflow: hidden; /* Disable body scroll */
     position: fixed; /* Completely prevent any scrolling */
     width: 100%;
@@ -100,7 +102,9 @@ All colors MUST be HSL.
 
   #root {
     height: 100vh;
-    height: 100dvh;
+    height: calc(var(--vh, 1vh) * 100);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -350,6 +354,15 @@ All colors MUST be HSL.
   .ios-bottom-nav .flex {
     max-width: 448px; /* max-w-md equivalent */
     margin: 0 auto; /* Center the content */
+  }
+
+  /* Ensure toast are perfectly centered */
+  [data-sonner-toaster] {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 9999 !important;
   }
 
   /* Prevent iOS bounce scroll completely */
