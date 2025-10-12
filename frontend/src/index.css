@@ -83,6 +83,10 @@ All colors MUST be HSL.
     height: 100vh;
     height: 100dvh; /* Dynamic viewport height for mobile */
     overflow: hidden; /* Disable body scroll */
+    position: fixed; /* Completely prevent any scrolling */
+    width: 100%;
+    top: 0;
+    left: 0;
   }
 
   #root {
@@ -292,7 +296,7 @@ All colors MUST be HSL.
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); /* Space for bottom nav */
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); /* Space for bottom nav ridotta */
     padding-top: env(safe-area-inset-top, 0px); /* Space for status bar */
   }
 
@@ -310,37 +314,49 @@ All colors MUST be HSL.
     touch-action: manipulation;
   }
 
+  /* Prevent iOS bounce scroll completely */
+  * {
+    overscroll-behavior: none;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
 
   /* iOS-style bottom navigation */
   .ios-bottom-nav {
     @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
     @apply rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)];
-    @apply px-6 py-0 max-w-md mx-auto;
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
-    min-height: calc(88px + env(safe-area-inset-bottom, 0px));
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 50;
+    @apply px-6 py-2 max-w-md mx-auto;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+    min-height: calc(53px + env(safe-area-inset-bottom, 0px)); /* Ridotto del 40% da 88px */
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+    transform: translateZ(0); /* Force hardware acceleration */
+    will-change: transform;
   }
 
   /* Pulsante centrale floating */
   .nav-btn-primary {
-    @apply w-[72px] h-[72px] rounded-full;
+    @apply w-[60px] h-[60px] rounded-full;
     @apply gradient-blue shadow-[0_4px_24px_rgba(59,130,246,0.4)];
     @apply border-2 border-white/20;
     @apply flex items-center justify-center;
     @apply transition-all duration-200 active:scale-95;
     @apply cursor-pointer;
-    transform: translateY(-25px);
+    transform: translateY(-15px); /* Ridotto proporzionalmente */
     min-height: 44px; /* iOS minimum touch target */
     min-width: 44px;
   }
 
   /* Icone laterali */
   .nav-btn-secondary {
-    @apply w-[48px] h-[48px] rounded-full;
+    @apply w-[40px] h-[40px] rounded-full;
     @apply flex items-center justify-center;
     @apply text-muted-foreground/60;
     @apply transition-all duration-200;
