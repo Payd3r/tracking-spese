@@ -15,3 +15,4 @@ VALUES (NULL, 'Trasferimento', 'ArrowRightLeft', '#ef4444', 'expense', true);
 INSERT INTO categories (user_id, name, icon, color, type, is_system)
 VALUES (NULL, 'Trasferimento', 'ArrowRightLeft', '#22c55e', 'income', true);
 
+

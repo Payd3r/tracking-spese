@@ -18,7 +18,11 @@ import currencyRoutes from './routes/currencies.js';
 // Load environment variables from project root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// In production, env vars are passed by Docker. Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,11 +35,25 @@ app.use(cors({
     'https://spese.andrea-mauri.duckdns.org',
     process.env.FRONTEND_URL
   ].filter(Boolean),
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Authorization'],
+  maxAge: 86400 // 24 hours
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms) - IP: ${req.ip} - Origin: ${req.get('origin') || 'N/A'}`);
+  });
+  next();
+});
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

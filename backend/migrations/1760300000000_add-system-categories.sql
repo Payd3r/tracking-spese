@@ -22,3 +22,4 @@ INSERT INTO categories (name, icon, color, type, is_system) VALUES
 ('Affitto', 'lucide:Home', 'gradient-indigo', 'income', true),
 ('Dividendi', 'lucide:PieChart', 'gradient-red', 'income', true),
 ('Altro', 'lucide:MoreHorizontal', 'gradient-gray', 'income', true);
+
