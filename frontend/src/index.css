@@ -389,7 +389,7 @@ All colors MUST be HSL.
     z-index: 9999 !important;
     padding-top: 8px !important;
     max-width: 420px !important;
-    width: calc(100% - 32px) !important;
+    width: calc(100% - 16px) !important;
   }
 
   /* Animazioni fluide per toast */
@@ -413,7 +413,7 @@ All colors MUST be HSL.
     @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
     @apply rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)];
     @apply px-6 pt-2 w-full; /* Larghezza completa, senza max-width */
-    padding-bottom: 14px !important; /* Padding bottom per distanziare dal bordo */
+    padding-bottom: 16px !important; /* Padding bottom per distanziare dal bordo */
     margin-bottom: 0 !important; /* ZERO margin bottom */
     min-height: 67px; /* Altezza aumentata per il padding */
     height: 67px !important; /* Forza altezza con padding */
@@ -421,7 +421,7 @@ All colors MUST be HSL.
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    z-index: 50; /* Sotto i modal che hanno z-index 100 */
+    z-index: 50; /* Sotto i modal/bottom sheets (z-index: 200) e toast (z-index: 9999) */
     transform: translateZ(0) !important; /* Force hardware acceleration */
     will-change: transform;
   }

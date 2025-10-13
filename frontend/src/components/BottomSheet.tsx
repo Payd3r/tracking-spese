@@ -116,7 +116,7 @@ export function BottomSheet({ isOpen, onClose, children, className }: BottomShee
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end"
+      className="fixed inset-0 z-[200] flex items-end"
       onClick={handleOverlayClick}
     >
       {/* Backdrop */}
