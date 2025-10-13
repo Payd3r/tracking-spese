@@ -11,12 +11,16 @@ import { api } from "@/lib/api";
 import { Account, Category } from "@/types/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useSync } from "@/contexts/SyncContext";
+import { addPendingTransaction } from "@/lib/sync";
+import { db } from "@/lib/db";
 
 interface TransactionFormProps {
   onSuccess: () => void;
 }
 
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
+  const { isOnline } = useSync();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
@@ -37,20 +41,43 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [categoriesResponse, accountsResponse] = await Promise.all([
-        api.categories.getAll(type),
-        api.accounts.getAll()
-      ]);
       
-      const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
-      const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-      
-      setCategories(categoriesData);
-      setAccounts(accountsData);
-      
-      // Always select first account if available and nothing is selected
-      if (accountsData.length > 0 && selectedAccount === null) {
-        setSelectedAccount(accountsData[0].id);
+      if (isOnline) {
+        // Online: fetch from API and cache the data
+        const [categoriesResponse, accountsResponse] = await Promise.all([
+          api.categories.getAll(type),
+          api.accounts.getAll()
+        ]);
+        
+        const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+        const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
+        
+        // Cache data for offline use
+        await db.cachedCategories.bulkPut(categoriesData);
+        await db.cachedAccounts.bulkPut(accountsData);
+        
+        setCategories(categoriesData);
+        setAccounts(accountsData);
+        
+        // Always select first account if available and nothing is selected
+        if (accountsData.length > 0 && selectedAccount === null) {
+          setSelectedAccount(accountsData[0].id);
+        }
+      } else {
+        // Offline: load from cache
+        const cachedCategories = await db.cachedCategories
+          .where('type')
+          .equals(type)
+          .toArray();
+        const cachedAccounts = await db.cachedAccounts.toArray();
+        
+        setCategories(cachedCategories);
+        setAccounts(cachedAccounts);
+        
+        // Always select first account if available and nothing is selected
+        if (cachedAccounts.length > 0 && selectedAccount === null) {
+          setSelectedAccount(cachedAccounts[0].id);
+        }
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
@@ -76,17 +103,36 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : type === 'income' ? 'Entrata' : 'Uscita';
       
-      await api.transactions.create({
-        accountId: selectedAccount,
-        categoryId: selectedCategory,
-        amount: parseFloat(amount),
-        type,
-        title,
-        note: note || undefined,
-        transactionDate: new Date(date).toISOString(),
-      });
+      if (!isOnline) {
+        // Offline: save to pending queue
+        const user = localStorage.getItem('user');
+        const userId = user ? JSON.parse(user).id : '';
+        
+        await addPendingTransaction(userId, {
+          accountId: selectedAccount,
+          categoryId: selectedCategory,
+          amount: parseFloat(amount),
+          type,
+          title,
+          note: note || undefined,
+          transactionDate: new Date(date).toISOString(),
+        });
 
-      toast.success("Transazione creata con successo!");
+        toast.success("Transazione salvata offline! Verrà sincronizzata quando torni online.");
+      } else {
+        // Online: create directly via API
+        await api.transactions.create({
+          accountId: selectedAccount,
+          categoryId: selectedCategory,
+          amount: parseFloat(amount),
+          type,
+          title,
+          note: note || undefined,
+          transactionDate: new Date(date).toISOString(),
+        });
+
+        toast.success("Transazione creata con successo!");
+      }
       
       // Reset form
       setAmount("");

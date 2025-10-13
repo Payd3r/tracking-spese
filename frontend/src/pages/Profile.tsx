@@ -118,7 +118,7 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
+      <div className="flex justify-center items-center py-20">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -126,7 +126,7 @@ export default function Profile() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
+      <div className="flex justify-center items-center py-20">
         <p>Errore nel caricamento del profilo</p>
       </div>
     );

@@ -1,12 +1,14 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Loader2, Wifi, WifiOff } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import { DashboardStats, Transaction } from "@/types/api";
 import { format } from "date-fns";
+import { useSync } from "@/contexts/SyncContext";
+import { db } from "@/lib/db";
 
 // Helper function to format chart labels based on period
 const formatChartLabel = (date: string, period: string, index: number): string => {
@@ -53,6 +55,32 @@ const getVisibleLabels = (data: any[], period: string) => {
   }
 };
 
+// Helper function to get date range based on period
+const getDateRange = (period: 'day' | 'week' | 'month' | 'year') => {
+  const now = new Date();
+  let startDate = new Date();
+  
+  switch (period) {
+    case 'day':
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case 'week':
+      startDate.setDate(now.getDate() - 7);
+      break;
+    case 'month':
+      startDate.setMonth(now.getMonth() - 1);
+      break;
+    case 'year':
+      startDate.setFullYear(now.getFullYear() - 1);
+      break;
+  }
+  
+  return {
+    startDate: startDate.toISOString(),
+    endDate: now.toISOString()
+  };
+};
+
 // Convert currency code to symbol
 const getCurrencySymbol = (code: string = "EUR"): string => {
   const symbols: Record<string, string> = {
@@ -82,6 +110,7 @@ const getCurrencySymbol = (code: string = "EUR"): string => {
 };
 
 export default function Home() {
+  const { isOnline } = useSync();
   const [viewType, setViewType] = useState<"income" | "spending">("spending");
   const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("week");
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -104,25 +133,76 @@ export default function Home() {
       setLoading(true);
       setError(null);
       
-      const [statsResponse, transactionsResponse] = await Promise.all([
-        api.stats.getDashboard(period, viewType === "spending" ? "expense" : "income"),
-        api.transactions.getAll({ limit: 10 })
-      ]);
-
-      setStats(statsResponse.data);
+      const dateRange = getDateRange(period);
+      const transactionType = viewType === "spending" ? "expense" : "income";
       
-      // Ensure recentTransactions is always an array
-      const transactions = transactionsResponse.data.transactions || [];
-      setRecentTransactions(Array.isArray(transactions) ? transactions : []);
+      if (isOnline) {
+        // Online: fetch from API and cache
+        const [statsResponse, transactionsResponse] = await Promise.all([
+          api.stats.getDashboard(period, transactionType),
+          api.transactions.getAll({ 
+            limit: 10,
+            type: transactionType,
+            startDate: dateRange.startDate,
+            endDate: dateRange.endDate
+          })
+        ]);
+
+        setStats(statsResponse.data);
+        
+        // Ensure recentTransactions is always an array
+        const transactions = transactionsResponse.data.transactions || [];
+        setRecentTransactions(Array.isArray(transactions) ? transactions : []);
+        
+        // Cache transactions for offline use
+        if (Array.isArray(transactions)) {
+          const user = localStorage.getItem('user');
+          const userId = user ? JSON.parse(user).id : '';
+          const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
+          await db.cachedTransactions.bulkPut(txsWithUser);
+        }
+      } else {
+        // Offline: load from cache
+        const cachedTransactions = await db.cachedTransactions
+          .where('type')
+          .equals(transactionType)
+          .reverse()
+          .limit(10)
+          .toArray();
+        
+        // Load pending transactions
+        const pendingTxs = await db.pendingTransactions
+          .where('type')
+          .equals(transactionType)
+          .toArray();
+        
+        // Calculate stats from cached data
+        const totalAmount = cachedTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+        
+        setStats({
+          currency: 'EUR',
+          totalBalance: 0,
+          period: { 
+            name: period,
+            startDate: getDateRange(period).startDate,
+            endDate: getDateRange(period).endDate,
+            totalIncome: viewType === 'income' ? totalAmount : 0, 
+            totalExpense: viewType === 'spending' ? totalAmount : 0,
+            netIncome: viewType === 'income' ? totalAmount : -totalAmount
+          },
+          trend: []
+        });
+        
+        setRecentTransactions(cachedTransactions);
+      }
     } catch (err: any) {
       console.error("Failed to load data:", err);
       setError(err.response?.data?.message || "Errore nel caricamento dei dati");
-      // Set empty array on error to avoid filter issues
       setRecentTransactions([]);
     } finally {
       setLoading(false);
     }
-  }, [period, viewType]);
+  }, [period, viewType, isOnline]);
 
   useEffect(() => {
     loadUserName();
@@ -143,10 +223,6 @@ export default function Home() {
       window.removeEventListener('transactionCreated', handleTransactionCreated);
     };
   }, [loadData]);
-
-  const filteredTransactions = recentTransactions.filter(t => 
-    viewType === "income" ? t.type === 'income' : t.type === 'expense'
-  );
 
   const chartData = stats?.trend || [];
   const totalAmount = viewType === "income" ? stats?.period?.totalIncome || 0 : stats?.period?.totalExpense || 0;
@@ -187,27 +263,38 @@ export default function Home() {
         <>
           {/* Balance Card */}
           <GlassCard className="p-4 mb-4">
-            <div className="flex gap-3 mb-4">
+            <div className="p-2 glass-card flex gap-2 mb-4">
               <button 
                 onClick={() => setViewType("spending")}
-                className={`text-xs pb-1.5 ${viewType === "spending" ? "font-medium border-b-2 border-primary" : "text-white/70"}`}
+                className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+                  viewType === "spending" ? "gradient-blue text-white" : "text-muted-foreground"
+                }`}
               >
                 Uscite
               </button>
               <button 
                 onClick={() => setViewType("income")}
-                className={`text-xs pb-1.5 ${viewType === "income" ? "font-medium border-b-2 border-primary" : "text-white/70"}`}
+                className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+                  viewType === "income" ? "gradient-blue text-white" : "text-muted-foreground"
+                }`}
               >
                 Entrate
               </button>
             </div>
-            <div className="mb-3">
+            <div className="mb-3 flex items-center justify-between">
               <h2 className="text-3xl font-bold">
-                {stats?.currency} {totalAmount.toFixed(2)}
+                {getCurrencySymbol(stats?.currency)} {totalAmount.toFixed(2)}
               </h2>
-              <p className="text-muted-foreground text-xs mt-1">
-                {viewType === "income" ? "Totale entrate" : "Totale uscite"}
-              </p>
+              {/* Online/Offline Badge */}
+              <div className={`flex items-center justify-center w-9 h-9 rounded-full ${
+                isOnline ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+              }`}>
+                {isOnline ? (
+                  <Wifi className="w-5 h-5" />
+                ) : (
+                  <WifiOff className="w-5 h-5" />
+                )}
+              </div>
             </div>
             
             {/* Chart */}
@@ -281,13 +368,13 @@ export default function Home() {
             </Link>
           </div>
 
-          {filteredTransactions.length === 0 ? (
+          {recentTransactions.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground">Nessuna transazione trovata</p>
             </div>
           ) : (
             <div className="space-y-2 gap-2">
-              {filteredTransactions.map((transaction) => (
+              {recentTransactions.map((transaction) => (
                 <Link key={transaction.id} to={`/transaction/${transaction.id}`}>
                   <div className="glass-card p-2.5 hover:scale-[1.01] transition-transform cursor-pointer rounded-xl mb-2">
                     <div className="flex items-center justify-between">

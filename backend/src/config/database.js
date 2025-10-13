@@ -1,22 +1,30 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env from project root
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// Load .env.local (dev) or .env (prod)
+const devEnvPath = path.resolve(__dirname, '../../../.env.local');
+const prodEnvPath = path.resolve(__dirname, '../../../.env');
+
+if (fs.existsSync(devEnvPath)) {
+  dotenv.config({ path: devEnvPath, override: true });
+} else if (fs.existsSync(prodEnvPath)) {
+  dotenv.config({ path: prodEnvPath, override: true });
+}
 
 const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: false, // Disable SSL for Docker internal network
+  ssl: false,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // 10 secondi
 });
 
 pool.on('error', (err) => {

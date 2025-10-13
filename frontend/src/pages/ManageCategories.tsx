@@ -94,7 +94,7 @@ export default function ManageCategories() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
+      <div className="flex justify-center items-center py-20">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );

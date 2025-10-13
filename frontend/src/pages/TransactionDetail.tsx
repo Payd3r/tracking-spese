@@ -10,6 +10,34 @@ import { api } from "@/lib/api";
 import { Transaction, Account, Category } from "@/types/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+// Convert currency code to symbol
+const getCurrencySymbol = (code: string = "EUR"): string => {
+  const symbols: Record<string, string> = {
+    'EUR': '€',
+    'USD': '$',
+    'GBP': '£',
+    'JPY': '¥',
+    'CHF': 'Fr',
+    'CAD': 'C$',
+    'AUD': 'A$',
+    'CNY': '¥',
+    'INR': '₹',
+    'RUB': '₽',
+    'BRL': 'R$',
+    'ZAR': 'R',
+    'SEK': 'kr',
+    'NOK': 'kr',
+    'DKK': 'kr',
+    'PLN': 'zł',
+    'TRY': '₺',
+    'MXN': '$',
+    'AED': 'د.إ',
+    'SAR': '﷼',
+  };
+  
+  return symbols[code.toUpperCase()] || code;
+};
 import {
   AlertDialog,
   AlertDialogAction,
@@ -138,60 +166,50 @@ export default function TransactionDetail() {
   return (
     <div className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 glass-card rounded-2xl">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-xl font-bold">Dettaglio Transazione</h1>
-        </div>
-        {!isEditing && (
-          <Button onClick={() => {
-            setIsEditing(true);
-            setCategoriesExpanded(false);
-          }} variant="ghost" size="sm" className="text-xs h-8">
-            Modifica
-          </Button>
-        )}
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={() => navigate(-1)} className="p-1.5 glass-card rounded-2xl">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-xl font-bold">Dettaglio Transazione</h1>
       </div>
 
       {/* Transaction Type Badge */}
-      <div className="mb-4">
-        <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-medium ${
-          transaction.type === "expense" ? "gradient-pink text-white" : "gradient-green text-white"
-        }`}>
+      <GlassCard className={`p-3 mb-4 text-center ${
+        transaction.type === "expense" ? "gradient-pink" : "gradient-green"
+      }`}>
+        <span className="text-white text-sm font-medium">
           {transaction.type === "expense" ? "Uscita" : "Entrata"}
         </span>
-      </div>
+      </GlassCard>
 
       {/* Amount */}
       <GlassCard className="p-4 mb-4">
         <label className="text-xs text-muted-foreground mb-2 block font-medium">Importo</label>
         {isEditing ? (
           <div className="flex items-center gap-2">
-            <span className="text-3xl font-bold">€</span>
+            <span className="text-2xl font-bold">{getCurrencySymbol(transaction.accountCurrency)}</span>
             <Input
               type="number"
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="text-3xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
+              className="text-2xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
             />
           </div>
         ) : (
-          <p className="text-3xl font-bold">{transaction.accountCurrency} {transaction.amount.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{getCurrencySymbol(transaction.accountCurrency)} {transaction.amount.toFixed(2)}</p>
         )}
       </GlassCard>
 
       {/* Category */}
-      <GlassCard className="p-3 mb-3">
+      <GlassCard className="p-4 mb-4">
         <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
+          <div className={`w-10 h-10 rounded-xl ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
             <IconRenderer icon={transaction.categoryIcon} size={20} />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] text-muted-foreground">Categoria</p>
-            <p className="font-semibold text-sm">{transaction.categoryName}</p>
+            <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
+            <p className="font-medium text-sm">{transaction.categoryName}</p>
           </div>
         </div>
         {isEditing && (
@@ -208,12 +226,12 @@ export default function TransactionDetail() {
                       <button
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
-                        className={`glass-card p-2 flex flex-col items-center gap-1 transition-all ${
+                        className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
                           selectedCategory === category.id ? (category.color || 'gradient-blue') : ""
                         }`}
                       >
-                        <IconRenderer icon={category.icon} size={20} />
-                        <span className="text-[10px] font-medium">{category.name}</span>
+                        <IconRenderer icon={category.icon} size={24} />
+                        <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
                       </button>
                     ))}
                   </div>
@@ -244,28 +262,28 @@ export default function TransactionDetail() {
       </GlassCard>
 
       {/* Account */}
-      <GlassCard className="p-3 mb-3">
+      <GlassCard className="p-4 mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg gradient-blue flex items-center justify-center">
-            <Wallet className="w-4 h-4 text-white" />
+          <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center">
+            <Wallet className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] text-muted-foreground">Conto</p>
-            <p className="font-semibold text-sm">{transaction.accountName}</p>
+            <p className="text-xs text-muted-foreground mb-0.5">Conto</p>
+            <p className="font-medium text-sm">{transaction.accountName}</p>
           </div>
         </div>
         {isEditing && (
-          <div className="space-y-2 mt-3">
+          <div className="grid grid-cols-4 gap-2 mt-3">
             {accounts.map((account) => (
               <button
                 key={account.id}
                 onClick={() => setSelectedAccount(account.id)}
-                className={`w-full glass-card p-2.5 flex justify-between items-center transition-all ${
+                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl ${
                   selectedAccount === account.id ? "gradient-blue" : ""
                 }`}
               >
-                <span className="font-medium text-xs">{account.name}</span>
-                <span className="text-[10px]">{account.currency} {account.balance.toFixed(2)}</span>
+                <IconRenderer icon={account.icon} size={24} />
+                <span className="text-[10px] font-medium leading-tight text-center">{account.name}</span>
               </button>
             ))}
           </div>
@@ -273,35 +291,35 @@ export default function TransactionDetail() {
       </GlassCard>
 
       {/* Date */}
-      <GlassCard className="p-3 mb-3">
+      <GlassCard className="p-4 mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-white" />
+          <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] text-muted-foreground">Data</p>
+            <p className="text-xs text-muted-foreground mb-0.5">Data</p>
             {isEditing ? (
               <Input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="bg-transparent border-none p-0 h-auto focus-visible:ring-0 font-semibold text-sm"
+                className="bg-transparent border-none p-0 h-auto focus-visible:ring-0 font-medium text-sm"
               />
             ) : (
-              <p className="font-semibold text-sm">{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</p>
+              <p className="font-medium text-sm">{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</p>
             )}
           </div>
         </div>
       </GlassCard>
 
       {/* Note */}
-      <GlassCard className="p-3 mb-4">
+      <GlassCard className="p-4 mb-5">
         <div className="flex items-start gap-2.5">
-          <div className="w-8 h-8 rounded-lg gradient-teal flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white" />
+          <div className="w-10 h-10 rounded-xl gradient-teal flex items-center justify-center flex-shrink-0">
+            <FileText className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] text-muted-foreground mb-1.5">Nota</p>
+            <p className="text-xs text-muted-foreground mb-1.5">Nota</p>
             {isEditing ? (
               <Textarea
                 value={note}
@@ -309,46 +327,60 @@ export default function TransactionDetail() {
                 className="bg-transparent border-none resize-none min-h-[50px] focus-visible:ring-0 p-0 text-sm"
               />
             ) : (
-              <p className="text-sm">{transaction.note || "Nessuna nota"}</p>
+              <p className="text-sm leading-relaxed">{transaction.note || "Nessuna nota"}</p>
             )}
           </div>
         </div>
       </GlassCard>
 
       {/* Actions */}
-      {isEditing ? (
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => {
-              setIsEditing(false);
-              // Reset form values
-              setAmount(transaction.amount.toString());
-              setSelectedCategory(transaction.categoryId);
-              setSelectedAccount(transaction.accountId);
-              setDate(format(new Date(transaction.transactionDate), 'yyyy-MM-dd'));
-              setNote(transaction.note || "");
-            }} 
-            variant="outline" 
-            className="flex-1 h-10 text-sm"
-          >
-            Annulla
-          </Button>
-          <Button 
-            onClick={handleUpdate} 
-            className="flex-1 gradient-blue text-white h-10 text-sm"
-          >
-            Salva
-          </Button>
-        </div>
-      ) : (
-        <Button 
-          variant="destructive" 
-          className="w-full h-10 text-sm"
-          onClick={() => setDeleteDialogOpen(true)}
-        >
-          Elimina Transazione
-        </Button>
-      )}
+      <div className="flex gap-2">
+        {isEditing ? (
+          <>
+            <Button 
+              onClick={() => {
+                setIsEditing(false);
+                // Reset form values
+                setAmount(transaction.amount.toString());
+                setSelectedCategory(transaction.categoryId);
+                setSelectedAccount(transaction.accountId);
+                setDate(format(new Date(transaction.transactionDate), 'yyyy-MM-dd'));
+                setNote(transaction.note || "");
+              }} 
+              variant="outline" 
+              className="flex-1 h-11 text-sm rounded-2xl"
+            >
+              Annulla
+            </Button>
+            <Button 
+              onClick={handleUpdate} 
+              className="flex-1 gradient-blue text-white h-11 text-sm rounded-2xl"
+            >
+              Salva
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button 
+              onClick={() => {
+                setIsEditing(true);
+                setCategoriesExpanded(false);
+              }}
+              variant="outline"
+              className="flex-1 h-11 text-sm rounded-2xl"
+            >
+              Modifica
+            </Button>
+            <Button 
+              variant="destructive" 
+              className="flex-1 h-11 text-sm rounded-2xl"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              Elimina
+            </Button>
+          </>
+        )}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

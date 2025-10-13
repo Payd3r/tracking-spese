@@ -46,7 +46,10 @@ export function AmountInput({ value, onChange, currency = "EUR", type = "expense
         Importo
       </label>
       <div className="flex items-center gap-2">
-        <span className="text-3xl font-medium text-muted-foreground">
+        <span 
+          className="font-bold text-foreground"
+          style={{ fontSize: '30px' }}
+        >
           {symbol}
         </span>
         <input
@@ -58,8 +61,9 @@ export function AmountInput({ value, onChange, currency = "EUR", type = "expense
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="text-3xl font-medium bg-transparent border-none outline-none w-full text-foreground"
+          className="font-bold bg-transparent border-none outline-none w-full text-foreground"
           style={{
+            fontSize: '25px',
             WebkitAppearance: 'none',
             MozAppearance: 'textfield'
           }}

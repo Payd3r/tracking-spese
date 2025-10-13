@@ -1,64 +1,122 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { Link, Link as RouterLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { Category, Transaction } from "@/types/api";
+import { Category, Transaction, Account } from "@/types/api";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { useSync } from "@/contexts/SyncContext";
+import { db } from "@/lib/db";
 
 export default function Transactions() {
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const { isOnline } = useSync();
+  const [viewType, setViewType] = useState<"income" | "expense">("expense");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState<number | null>(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<number | null>(null);
+  
+  // Temporary filter states (before applying)
+  const [tempAccountFilter, setTempAccountFilter] = useState<number | null>(null);
+  const [tempCategoryFilter, setTempCategoryFilter] = useState<number | null>(null);
+  
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [viewType, selectedAccountFilter, selectedCategoryFilter]);
+  
+  const applyFilters = () => {
+    setSelectedAccountFilter(tempAccountFilter);
+    setSelectedCategoryFilter(tempCategoryFilter);
+    setFiltersExpanded(false);
+  };
+  
+  const clearFilters = () => {
+    setTempAccountFilter(null);
+    setTempCategoryFilter(null);
+    setSelectedAccountFilter(null);
+    setSelectedCategoryFilter(null);
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const [categoriesResponse, transactionsResponse] = await Promise.all([
-        api.categories.getAll(),
-        api.transactions.getAll()
-      ]);
+      if (isOnline) {
+        // Online: fetch from API and cache
+        const [categoriesResponse, accountsResponse, transactionsResponse] = await Promise.all([
+          api.categories.getAll(viewType),
+          api.accounts.getAll(),
+          api.transactions.getAll({
+            type: viewType,
+            accountId: selectedAccountFilter || undefined,
+            categoryId: selectedCategoryFilter || undefined,
+          })
+        ]);
 
-      // Ensure arrays
-      setCategories(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
-      const transactions = transactionsResponse.data.transactions || [];
-      setTransactions(Array.isArray(transactions) ? transactions : []);
+        // Ensure arrays
+        setCategories(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
+        setAccounts(Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : []);
+        const transactions = transactionsResponse.data.transactions || [];
+        setTransactions(Array.isArray(transactions) ? transactions : []);
+        
+        // Cache data for offline use
+        const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+        const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
+        
+        await db.cachedCategories.bulkPut(categoriesData);
+        await db.cachedAccounts.bulkPut(accountsData);
+        
+        if (Array.isArray(transactions)) {
+          const user = localStorage.getItem('user');
+          const userId = user ? JSON.parse(user).id : '';
+          const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
+          await db.cachedTransactions.bulkPut(txsWithUser);
+        }
+      } else {
+        // Offline: load from cache
+        let cachedTransactions = await db.cachedTransactions
+          .where('type')
+          .equals(viewType)
+          .toArray();
+        
+        // Apply filters if set
+        if (selectedAccountFilter) {
+          cachedTransactions = cachedTransactions.filter(tx => tx.accountId === selectedAccountFilter);
+        }
+        if (selectedCategoryFilter) {
+          cachedTransactions = cachedTransactions.filter(tx => tx.categoryId === selectedCategoryFilter);
+        }
+        
+        const cachedCategories = await db.cachedCategories
+          .where('type')
+          .equals(viewType)
+          .toArray();
+        const cachedAccounts = await db.cachedAccounts.toArray();
+        
+        setCategories(cachedCategories);
+        setAccounts(cachedAccounts);
+        setTransactions(cachedTransactions);
+      }
     } catch (err: any) {
       console.error("Failed to load data:", err);
       setError(err.response?.data?.message || "Errore nel caricamento dei dati");
       setCategories([]);
+      setAccounts([]);
       setTransactions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate spent percentage for each category
-  const categoriesWithStats = categories.map(category => {
-    const categoryTransactions = transactions.filter(t => t.categoryId === category.id && t.type === 'expense');
-    const total = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
-    return {
-      ...category,
-      total,
-      count: categoryTransactions.length,
-      transactions: categoryTransactions
-    };
-  }).filter(c => c.count > 0);
-
-  const totalSpent = categoriesWithStats.reduce((sum, cat) => sum + cat.total, 0);
-
-  const displayedTransactions = selectedCategory 
-    ? transactions.filter(t => t.categoryId === selectedCategory)
-    : transactions;
+  const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   if (loading) {
     return (
@@ -75,7 +133,13 @@ export default function Transactions() {
         <Link to="/" className="p-1.5 glass-card rounded-2xl">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-xl font-bold">Tutte le transazioni</h1>
+        <h1 className="text-xl font-bold flex-1">Tutte le transazioni</h1>
+        <button 
+          onClick={() => setFiltersExpanded(!filtersExpanded)}
+          className="p-1.5 glass-card rounded-2xl transition-all"
+        >
+          {filtersExpanded ? <ChevronUp className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+        </button>
       </div>
 
       {error && (
@@ -84,28 +148,128 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Category Cards */}
-      {categoriesWithStats.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          {categoriesWithStats.map((category) => {
-            const percentage = totalSpent > 0 ? (category.total / totalSpent) * 100 : 0;
-            return (
-              <GlassCard
-                key={category.id}
-                className={`p-4 ${category.color || 'gradient-blue'} cursor-pointer transition-all ${
-                  selectedCategory === category.id ? "ring-2 ring-white/50" : ""
+      {/* Toggle Income/Expense */}
+      <GlassCard className="p-2 mb-4 flex gap-2">
+        <button 
+          onClick={() => setViewType("expense")}
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+            viewType === "expense" ? "gradient-blue text-white" : "text-muted-foreground"
+          }`}
+        >
+          Uscite
+        </button>
+        <button 
+          onClick={() => setViewType("income")}
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+            viewType === "income" ? "gradient-blue text-white" : "text-muted-foreground"
+          }`}
+        >
+          Entrate
+        </button>
+      </GlassCard>
+
+      {/* Expandable Filters */}
+      {filtersExpanded && (
+        <GlassCard className="p-4 mb-4">
+          <h3 className="text-sm font-semibold mb-3">Filtri</h3>
+          
+          {/* Account Filter */}
+          <div className="mb-4">
+            <label className="text-xs text-muted-foreground mb-2 block">Conto</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTempAccountFilter(null)}
+                className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                  tempAccountFilter === null 
+                    ? "bg-primary text-white" 
+                    : "glass-card text-white/70"
                 }`}
-                hover
-                onClick={() => setSelectedCategory(selectedCategory === category.id ? null : category.id)}
               >
-                <div className="mb-3">
-                  <IconRenderer icon={category.icon} size={32} />
-                </div>
-                <h3 className="text-white font-semibold text-sm mb-0.5">{category.name}</h3>
-                <p className="text-white/80 text-xs">{percentage.toFixed(1)}% • {category.count} trans.</p>
-              </GlassCard>
-            );
-          })}
+                Tutti
+              </button>
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  onClick={() => setTempAccountFilter(account.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                    tempAccountFilter === account.id 
+                      ? "bg-primary text-white" 
+                      : "glass-card text-white/70"
+                  }`}
+                >
+                  {account.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Filter */}
+          <div className="mb-4">
+            <label className="text-xs text-muted-foreground mb-2 block">Categoria</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTempCategoryFilter(null)}
+                className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                  tempCategoryFilter === null 
+                    ? "bg-primary text-white" 
+                    : "glass-card text-white/70"
+                }`}
+              >
+                Tutte
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setTempCategoryFilter(category.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all ${
+                    tempCategoryFilter === category.id 
+                      ? "bg-primary text-white" 
+                      : "glass-card text-white/70"
+                  }`}
+                >
+                  <IconRenderer icon={category.icon} size={14} />
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Apply/Clear Buttons */}
+          <div className="flex gap-2">
+            <Button
+              onClick={clearFilters}
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs h-8"
+            >
+              Cancella
+            </Button>
+            <Button
+              onClick={applyFilters}
+              size="sm"
+              className="flex-1 gradient-blue text-white text-xs h-8"
+            >
+              Applica
+            </Button>
+          </div>
+        </GlassCard>
+      )}
+
+      {/* Active Filters Display */}
+      {(selectedAccountFilter || selectedCategoryFilter) && (
+        <div className="mb-3 flex gap-2 flex-wrap">
+          {selectedAccountFilter && (
+            <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
+              <span>Conto: {accounts.find(a => a.id === selectedAccountFilter)?.name}</span>
+              <button onClick={() => setSelectedAccountFilter(null)} className="text-red-400">×</button>
+            </div>
+          )}
+          {selectedCategoryFilter && (
+            <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
+              <span>Categoria: {categories.find(c => c.id === selectedCategoryFilter)?.name}</span>
+              <button onClick={() => setSelectedCategoryFilter(null)} className="text-red-400">×</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -113,18 +277,16 @@ export default function Transactions() {
       <div className="glass-card p-4 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">
-            {selectedCategory 
-              ? categories.find(c => c.id === selectedCategory)?.name 
-              : "Tutte le Transazioni"}
+            {transactions.length} {transactions.length === 1 ? 'Transazione' : 'Transazioni'}
           </h2>
-          <span className="text-base font-bold">€ {totalSpent.toFixed(2)}</span>
+          <span className="text-base font-bold">€ {totalAmount.toFixed(2)}</span>
         </div>
 
-        {displayedTransactions.length === 0 ? (
+        {transactions.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">Nessuna transazione trovata</p>
         ) : (
           <div className="space-y-2">
-            {displayedTransactions.map((transaction) => (
+            {transactions.map((transaction) => (
               <RouterLink key={transaction.id} to={`/transaction/${transaction.id}`}>
                 <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5">
                   <div className="flex items-center gap-2.5">
@@ -146,10 +308,6 @@ export default function Transactions() {
             ))}
           </div>
         )}
-
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          {format(new Date(), 'dd MMMM yyyy')}
-        </p>
       </div>
     </div>
   );

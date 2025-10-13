@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { errorHandler } from './middleware/errorHandler.js';
 import { cleanupExpiredSessions } from './controllers/authController.js';
@@ -19,9 +20,20 @@ import currencyRoutes from './routes/currencies.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// In production, env vars are passed by Docker. Only load .env in development
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load environment variables
+// Priority: .env.local (dev) > .env (prod)
+// override: true forza il caricamento anche se le variabili esistono già
+const devEnvPath = path.resolve(__dirname, '../../.env.local');
+const prodEnvPath = path.resolve(__dirname, '../../.env');
+
+if (fs.existsSync(devEnvPath)) {
+  dotenv.config({ path: devEnvPath, override: true });
+  console.log('📄 Loaded .env.local (DEVELOPMENT)');
+} else if (fs.existsSync(prodEnvPath)) {
+  dotenv.config({ path: prodEnvPath, override: true });
+  console.log('📄 Loaded .env (PRODUCTION)');
+} else {
+  console.log('📄 Using environment variables from Docker/System');
 }
 
 const app = express();

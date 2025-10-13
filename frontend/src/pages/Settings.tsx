@@ -1,10 +1,14 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut } from "lucide-react";
+import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut, Wifi, WifiOff, CloudUpload, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useSync } from "@/contexts/SyncContext";
+import { getLastSyncTime } from "@/lib/db";
+import { formatDistanceToNow } from "date-fns";
+import { it } from "date-fns/locale";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +39,23 @@ const settingsGroups = [
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { isOnline, isSyncing, pendingCount, hasPending, triggerSync } = useSync();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+
+  useEffect(() => {
+    loadLastSyncTime();
+  }, []);
+
+  const loadLastSyncTime = async () => {
+    const time = await getLastSyncTime();
+    setLastSync(time);
+  };
+
+  const handleManualSync = async () => {
+    await triggerSync();
+    await loadLastSyncTime();
+  };
 
   const handleLogout = async () => {
     try {
@@ -65,8 +85,66 @@ export default function Settings() {
         <h1 className="text-xl font-bold">Impostazioni</h1>
       </div>
 
-      {/* Settings Groups */}
+      {/* Sync Section */}
       <div className="space-y-4">
+        <div>
+          <h2 className="text-xs text-muted-foreground mb-2 ml-1 font-medium">Sincronizzazione</h2>
+          <GlassCard className="p-4">
+            {/* Online Status */}
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                {isOnline ? (
+                  <Wifi className="w-4 h-4 text-green-400" />
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-400" />
+                )}
+                <span className="text-sm font-medium">Stato</span>
+              </div>
+              <span className={`text-sm font-medium ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
+            </div>
+
+            {/* Last Sync Time */}
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/5">
+              <span className="text-sm font-medium">Ultima sincronizzazione</span>
+              <span className="text-xs text-muted-foreground">
+                {lastSync ? formatDistanceToNow(lastSync, { addSuffix: true, locale: it }) : 'Mai'}
+              </span>
+            </div>
+
+            {/* Pending Operations */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Operazioni in attesa</span>
+              <span className={`text-sm font-medium ${hasPending ? 'text-yellow-400' : 'text-muted-foreground'}`}>
+                {pendingCount}
+              </span>
+            </div>
+
+            {/* Sync Button */}
+            <Button
+              onClick={handleManualSync}
+              disabled={!isOnline || !hasPending || isSyncing}
+              className="w-full gap-2 h-9 text-sm"
+            >
+              {isSyncing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sincronizzazione...
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="w-4 h-4" />
+                  Sincronizza ora
+                </>
+              )}
+            </Button>
+          </GlassCard>
+        </div>
+      </div>
+
+      {/* Settings Groups */}
+      <div className="space-y-4 mt-4">
         {settingsGroups.map((group, index) => (
           <div key={index}>
             <h2 className="text-xs text-muted-foreground mb-2 ml-1 font-medium">{group.title}</h2>

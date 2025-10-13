@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BottomSheetProvider, useBottomSheet } from "@/contexts/BottomSheetContext";
+import { SyncProvider } from "@/contexts/SyncContext";
 import { BottomSheet } from "@/components/BottomSheet";
 import { TransactionForm } from "@/components/forms/TransactionForm";
 import { useEffect } from "react";
@@ -130,9 +131,11 @@ const App = () => {
       <TooltipProvider>
         <Sonner />
         <BrowserRouter>
-          <BottomSheetProvider>
-            <AppContent />
-          </BottomSheetProvider>
+          <SyncProvider>
+            <BottomSheetProvider>
+              <AppContent />
+            </BottomSheetProvider>
+          </SyncProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
