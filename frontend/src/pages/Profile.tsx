@@ -221,7 +221,7 @@ export default function Profile() {
       )}
 
       {/* Backup Section */}
-      <GlassCard className="p-4">
+      <GlassCard className="p-4 mb-4">
         <h3 className="font-semibold text-sm mb-3">Backup Dati</h3>
         <div className="space-y-2">
           <Button 

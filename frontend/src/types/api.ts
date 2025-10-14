@@ -99,6 +99,12 @@ export interface DashboardStats {
   }>;
 }
 
+// Transaction list response
+export interface TransactionsResponse {
+  transactions: Transaction[];
+  total: number;
+}
+
 // API Response wrappers
 export interface ApiResponse<T> {
   data: T;

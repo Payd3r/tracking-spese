@@ -82,7 +82,7 @@ export default function ManageAccounts() {
   }
 
   return (
-    <div className="px-3 pt-6 max-w-md mx-auto">
+    <div className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
@@ -102,11 +102,11 @@ export default function ManageAccounts() {
 
       {/* Accounts List */}
       {accounts.length === 0 ? (
-        <GlassCard className="p-5 text-center">
+        <GlassCard className="p-5 text-center mb-4">
           <p className="text-sm text-muted-foreground">Nessun conto disponibile</p>
         </GlassCard>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 mb-4">
           {accounts.map((account) => (
             <GlassCard key={account.id} className="p-4">
               <div className="flex items-center justify-between">

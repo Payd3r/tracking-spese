@@ -173,7 +173,7 @@ export default function Settings() {
       {/* Logout Button */}
       <Button
         variant="destructive"
-        className="w-full mt-4 gap-2 h-10 text-sm"
+        className="w-full mt-4 mb-4 gap-2 h-10 text-sm"
         onClick={() => setLogoutDialogOpen(true)}
       >
         <LogOut className="w-3.5 h-3.5" />

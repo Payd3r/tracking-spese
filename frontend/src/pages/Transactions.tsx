@@ -24,11 +24,17 @@ export default function Transactions() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const LIMIT = 50;
 
   useEffect(() => {
-    loadData();
+    setOffset(0); // Reset offset when filters change
+    loadData(true);
   }, [viewType, selectedAccountFilter, selectedCategoryFilter]);
   
   const applyFilters = () => {
@@ -43,42 +49,85 @@ export default function Transactions() {
     setSelectedAccountFilter(null);
     setSelectedCategoryFilter(null);
   };
+  
+  const loadMoreTransactions = async () => {
+    const newOffset = offset + LIMIT;
+    setOffset(newOffset);
+    await loadData(false, newOffset);
+  };
 
-  const loadData = async () => {
+  const loadData = async (reset: boolean = true, customOffset?: number) => {
     try {
-      setLoading(true);
+      const currentOffset = customOffset !== undefined ? customOffset : (reset ? 0 : offset);
+      
+      if (reset) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
       
       if (isOnline) {
         // Online: fetch from API and cache
-        const [categoriesResponse, accountsResponse, transactionsResponse] = await Promise.all([
-          api.categories.getAll(viewType),
-          api.accounts.getAll(),
-          api.transactions.getAll({
+        if (reset) {
+          // Load categories and accounts only on reset
+          const [categoriesResponse, accountsResponse, transactionsResponse] = await Promise.all([
+            api.categories.getAll(viewType),
+            api.accounts.getAll(),
+            api.transactions.getAll({
+              type: viewType,
+              accountId: selectedAccountFilter || undefined,
+              categoryId: selectedCategoryFilter || undefined,
+              limit: LIMIT,
+              offset: currentOffset
+            })
+          ]);
+
+          // Ensure arrays
+          setCategories(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
+          setAccounts(Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : []);
+          const transactions = transactionsResponse.data.transactions || [];
+          const total = transactionsResponse.data.total || 0;
+          
+          setTransactions(Array.isArray(transactions) ? transactions : []);
+          setTotalTransactions(total);
+          
+          // Cache data for offline use
+          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+          const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
+          
+          await db.cachedCategories.bulkPut(categoriesData);
+          await db.cachedAccounts.bulkPut(accountsData);
+          
+          if (Array.isArray(transactions)) {
+            const user = localStorage.getItem('user');
+            const userId = user ? JSON.parse(user).id : '';
+            const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
+            await db.cachedTransactions.bulkPut(txsWithUser);
+          }
+        } else {
+          // Load more transactions
+          const transactionsResponse = await api.transactions.getAll({
             type: viewType,
             accountId: selectedAccountFilter || undefined,
             categoryId: selectedCategoryFilter || undefined,
-          })
-        ]);
-
-        // Ensure arrays
-        setCategories(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
-        setAccounts(Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : []);
-        const transactions = transactionsResponse.data.transactions || [];
-        setTransactions(Array.isArray(transactions) ? transactions : []);
-        
-        // Cache data for offline use
-        const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
-        const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-        
-        await db.cachedCategories.bulkPut(categoriesData);
-        await db.cachedAccounts.bulkPut(accountsData);
-        
-        if (Array.isArray(transactions)) {
-          const user = localStorage.getItem('user');
-          const userId = user ? JSON.parse(user).id : '';
-          const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
-          await db.cachedTransactions.bulkPut(txsWithUser);
+            limit: LIMIT,
+            offset: currentOffset
+          });
+          
+          const newTransactions = transactionsResponse.data.transactions || [];
+          const total = transactionsResponse.data.total || 0;
+          
+          setTransactions(prev => [...prev, ...(Array.isArray(newTransactions) ? newTransactions : [])]);
+          setTotalTransactions(total);
+          
+          // Cache new transactions
+          if (Array.isArray(newTransactions)) {
+            const user = localStorage.getItem('user');
+            const userId = user ? JSON.parse(user).id : '';
+            const txsWithUser = newTransactions.map(tx => ({ ...tx, userId }));
+            await db.cachedTransactions.bulkPut(txsWithUser);
+          }
         }
       } else {
         // Offline: load from cache
@@ -95,24 +144,36 @@ export default function Transactions() {
           cachedTransactions = cachedTransactions.filter(tx => tx.categoryId === selectedCategoryFilter);
         }
         
-        const cachedCategories = await db.cachedCategories
-          .where('type')
-          .equals(viewType)
-          .toArray();
-        const cachedAccounts = await db.cachedAccounts.toArray();
+        const total = cachedTransactions.length;
+        const paginatedTransactions = cachedTransactions.slice(currentOffset, currentOffset + LIMIT);
         
-        setCategories(cachedCategories);
-        setAccounts(cachedAccounts);
-        setTransactions(cachedTransactions);
+        if (reset) {
+          const cachedCategories = await db.cachedCategories
+            .where('type')
+            .equals(viewType)
+            .toArray();
+          const cachedAccounts = await db.cachedAccounts.toArray();
+          
+          setCategories(cachedCategories);
+          setAccounts(cachedAccounts);
+          setTransactions(paginatedTransactions);
+        } else {
+          setTransactions(prev => [...prev, ...paginatedTransactions]);
+        }
+        
+        setTotalTransactions(total);
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
       setError(err.response?.data?.message || "Errore nel caricamento dei dati");
-      setCategories([]);
-      setAccounts([]);
-      setTransactions([]);
+      if (reset) {
+        setCategories([]);
+        setAccounts([]);
+        setTransactions([]);
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -277,7 +338,7 @@ export default function Transactions() {
       <div className="glass-card p-4 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">
-            {transactions.length} {transactions.length === 1 ? 'Transazione' : 'Transazioni'}
+            {totalTransactions} {totalTransactions === 1 ? 'Transazione' : 'Transazioni'}
           </h2>
           <span className="text-base font-bold">€ {totalAmount.toFixed(2)}</span>
         </div>
@@ -285,28 +346,49 @@ export default function Transactions() {
         {transactions.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">Nessuna transazione trovata</p>
         ) : (
-          <div className="space-y-2">
-            {transactions.map((transaction) => (
-              <RouterLink key={transaction.id} to={`/transaction/${transaction.id}`}>
-                <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-                      <IconRenderer icon={transaction.categoryIcon} size={16} />
+          <>
+            <div className="space-y-2">
+              {transactions.map((transaction) => (
+                <RouterLink key={transaction.id} to={`/transaction/${transaction.id}`}>
+                  <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
+                        <IconRenderer icon={transaction.categoryIcon} size={16} />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-sm">{transaction.title}</h4>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-sm">{transaction.title}</h4>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
-                      </p>
-                    </div>
+                    <span className={`font-semibold text-sm ${transaction.type === 'income' ? 'text-success' : ''}`}>
+                      {transaction.type === 'income' ? '+' : '-'}€ {Math.abs(transaction.amount).toFixed(2)}
+                    </span>
                   </div>
-                  <span className={`font-semibold text-sm ${transaction.type === 'income' ? 'text-success' : ''}`}>
-                    {transaction.type === 'income' ? '+' : '-'}€ {Math.abs(transaction.amount).toFixed(2)}
-                  </span>
-                </div>
-              </RouterLink>
-            ))}
-          </div>
+                </RouterLink>
+              ))}
+            </div>
+            
+            {/* Load More Button */}
+            {transactions.length < totalTransactions && (
+              <Button
+                onClick={loadMoreTransactions}
+                disabled={loadingMore}
+                variant="outline"
+                className="w-full mt-4 h-11 text-sm font-medium"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Caricamento...
+                  </>
+                ) : (
+                  `Altre... (${totalTransactions - transactions.length} rimanenti)`
+                )}
+              </Button>
+            )}
+          </>
         )}
       </div>
     </div>

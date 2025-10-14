@@ -148,11 +148,11 @@ export default function Home() {
           })
         ]);
 
-        setStats(statsResponse.data);
-        
-        // Ensure recentTransactions is always an array
-        const transactions = transactionsResponse.data.transactions || [];
-        setRecentTransactions(Array.isArray(transactions) ? transactions : []);
+         setStats(statsResponse.data);
+         
+         // Ensure recentTransactions is always an array
+         const transactions = transactionsResponse.data?.transactions || [];
+         setRecentTransactions(Array.isArray(transactions) ? transactions : []);
         
         // Cache transactions for offline use
         if (Array.isArray(transactions)) {

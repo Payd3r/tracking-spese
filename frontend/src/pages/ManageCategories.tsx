@@ -101,7 +101,7 @@ export default function ManageCategories() {
   }
 
   return (
-    <div className="px-3 pt-6 max-w-md mx-auto">
+    <div className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
@@ -145,7 +145,7 @@ export default function ManageCategories() {
 
       {/* Categories Grid */}
       {filteredCategories.length === 0 ? (
-        <div className="px-1.5">
+        <div className="px-1.5 mb-4">
           <GlassCard className="p-5 text-center">
             <p className="text-sm text-muted-foreground">Nessuna categoria personalizzata</p>
             <p className="text-xs text-muted-foreground mt-2">
@@ -154,7 +154,7 @@ export default function ManageCategories() {
           </GlassCard>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2 px-1.5">
+        <div className="grid grid-cols-3 gap-2 px-1.5 mb-4">
           {filteredCategories.map((category) => {
             // Find stats for this category
             const stats = categoryStats.find(stat => stat.id === category.id);

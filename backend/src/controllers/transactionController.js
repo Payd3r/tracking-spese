@@ -15,6 +15,52 @@ export const getTransactions = async (req, res, next) => {
       offset = 0 
     } = req.query;
     
+    // Build WHERE clause for both queries
+    let whereClause = 'WHERE t.user_id = $1';
+    const params = [userId];
+    let paramIndex = 2;
+    
+    if (accountId) {
+      whereClause += ` AND t.account_id = $${paramIndex}`;
+      params.push(parseInt(accountId));
+      paramIndex++;
+    }
+    
+    if (categoryId) {
+      whereClause += ` AND t.category_id = $${paramIndex}`;
+      params.push(parseInt(categoryId));
+      paramIndex++;
+    }
+    
+    if (type) {
+      whereClause += ` AND t.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+    
+    if (startDate) {
+      whereClause += ` AND t.transaction_date >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereClause += ` AND t.transaction_date <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+    
+    // Count total transactions matching filters
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM transactions t
+      ${whereClause}
+    `;
+    
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+    
+    // Get paginated transactions
     let query = `
       SELECT 
         t.id, 
@@ -37,44 +83,11 @@ export const getTransactions = async (req, res, next) => {
       FROM transactions t
       JOIN accounts a ON t.account_id = a.id
       JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = $1
+      ${whereClause}
+      ORDER BY t.transaction_date DESC, t.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     
-    const params = [userId];
-    let paramIndex = 2;
-    
-    if (accountId) {
-      query += ` AND t.account_id = $${paramIndex}`;
-      params.push(parseInt(accountId));
-      paramIndex++;
-    }
-    
-    if (categoryId) {
-      query += ` AND t.category_id = $${paramIndex}`;
-      params.push(parseInt(categoryId));
-      paramIndex++;
-    }
-    
-    if (type) {
-      query += ` AND t.type = $${paramIndex}`;
-      params.push(type);
-      paramIndex++;
-    }
-    
-    if (startDate) {
-      query += ` AND t.transaction_date >= $${paramIndex}`;
-      params.push(startDate);
-      paramIndex++;
-    }
-    
-    if (endDate) {
-      query += ` AND t.transaction_date <= $${paramIndex}`;
-      params.push(endDate);
-      paramIndex++;
-    }
-    
-    query += ` ORDER BY t.transaction_date DESC, t.created_at DESC`;
-    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
     
     const result = await pool.query(query, params);
@@ -99,7 +112,7 @@ export const getTransactions = async (req, res, next) => {
       updatedAt: t.updated_at
     }));
     
-    res.json({ transactions });
+    res.json({ transactions, total });
   } catch (error) {
     next(error);
   }

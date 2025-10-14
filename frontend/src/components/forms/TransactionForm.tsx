@@ -224,10 +224,10 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                       <button
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
-                        className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
+                        className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
                           selectedCategory === category.id 
                             ? (category.color || "gradient-blue") 
-                            : ""
+                            : "glass-card"
                         }`}
                       >
                         <IconRenderer icon={category.icon} size={24} />
