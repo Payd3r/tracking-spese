@@ -1,22 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getPendingCount, hasPendingOperations } from '@/lib/db';
 
 export function usePendingSync() {
   const [pendingCount, setPendingCount] = useState(0);
   const [hasPending, setHasPending] = useState(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const count = await getPendingCount();
     const pending = await hasPendingOperations();
-    setPendingCount(count);
-    setHasPending(pending);
-  };
+    
+    // Only update state if values actually changed
+    setPendingCount(prev => prev !== count ? count : prev);
+    setHasPending(prev => prev !== pending ? pending : prev);
+  }, []);
 
   useEffect(() => {
     refresh();
     
-    // Refresh every 5 seconds
-    const interval = setInterval(refresh, 5000);
+    // Refresh every 2 minutes (much less frequent)
+    const interval = setInterval(() => {
+      // Skip refresh if app is not visible
+      if (!document.hidden) {
+        refresh();
+      }
+    }, 120000);
     
     return () => clearInterval(interval);
   }, []);

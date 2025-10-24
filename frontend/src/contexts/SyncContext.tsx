@@ -25,7 +25,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [serverReachable, setServerReachable] = useState(true);
 
-  const triggerSync = async () => {
+  const triggerSync = React.useCallback(async () => {
     if (!isOnline || !serverReachable || isSyncing || !hasPending) {
       return;
     }
@@ -52,22 +52,41 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [isOnline, serverReachable, isSyncing, hasPending, refreshPending]);
 
   // Health check for server reachability
   useEffect(() => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      setServerReachable(false);
+      return;
+    }
+
+    let isHealthCheckRunning = false;
 
     const performHealthCheck = async () => {
-      const isReachable = await checkServerHealth();
-      setServerReachable(isReachable);
+      // Skip if already running or app not visible
+      if (isHealthCheckRunning || document.hidden) return;
+      
+      isHealthCheckRunning = true;
+      try {
+        const isReachable = await checkServerHealth();
+        // Only update state if it actually changed to prevent unnecessary re-renders
+        setServerReachable(prev => {
+          if (prev !== isReachable) {
+            return isReachable;
+          }
+          return prev; // Return same reference to prevent re-render
+        });
+      } finally {
+        isHealthCheckRunning = false;
+      }
     };
 
     // Initial health check
     performHealthCheck();
 
-    // Periodic health check every 30 seconds
-    const interval = setInterval(performHealthCheck, 30000);
+    // Periodic health check every 5 minutes (much less frequent)
+    const interval = setInterval(performHealthCheck, 300000);
 
     return () => clearInterval(interval);
   }, [isOnline]);
@@ -106,7 +125,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isOnline, serverReachable, hasPending, isSyncing]);
 
-  const value: SyncContextType = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value: SyncContextType = React.useMemo(() => ({
     isOnline,
     serverReachable,
     isSyncing,
@@ -114,7 +134,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     hasPending,
     lastSyncResult,
     triggerSync,
-  };
+  }), [isOnline, serverReachable, isSyncing, pendingCount, hasPending, lastSyncResult, triggerSync]);
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
