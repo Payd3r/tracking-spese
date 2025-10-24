@@ -380,7 +380,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(20px) saturate(180%);
   }
 
-  /* Posizione centrata orizzontalmente per toast */
+  /* Toast allargato */
   [data-sonner-toaster] {
     position: fixed !important;
     top: env(safe-area-inset-top, 16px) !important;
@@ -388,8 +388,8 @@ All colors MUST be HSL.
     transform: translateX(-50%) !important;
     z-index: 9999 !important;
     padding-top: 8px !important;
-    max-width: 420px !important;
-    width: 90% !important;
+    max-width: 95% !important;
+    width: 95% !important;
     margin: 0 auto !important;
   }
 
