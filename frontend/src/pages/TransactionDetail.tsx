@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import { Transaction, Account, Category } from "@/types/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { getCategoryStyle } from "@/utils/categoryColors";
+import { formatCurrency } from "@/lib/utils";
 
 // Convert currency code to symbol
 const getCurrencySymbol = (code: string = "EUR"): string => {
@@ -197,7 +199,7 @@ export default function TransactionDetail() {
             />
           </div>
         ) : (
-          <p className="text-2xl font-bold">{getCurrencySymbol(transaction.accountCurrency)} {transaction.amount.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{getCurrencySymbol(transaction.accountCurrency)} {formatCurrency(transaction.amount)}</p>
         )}
       </GlassCard>
 
@@ -222,18 +224,26 @@ export default function TransactionDetail() {
               return (
                 <>
                   <div className="grid grid-cols-4 gap-2 mt-3">
-                    {visibleCategories.map((category) => (
-                      <button
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
-                        className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
-                          selectedCategory === category.id ? (category.color || 'gradient-blue') : ""
-                        }`}
-                      >
-                        <IconRenderer icon={category.icon} size={24} />
-                        <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
-                      </button>
-                    ))}
+                    {visibleCategories.map((category) => {
+                      const { className: colorClass, style: colorStyle } = getCategoryStyle(
+                        category.color, 
+                        selectedCategory === category.id
+                      );
+                      
+                      return (
+                        <button
+                          key={category.id}
+                          onClick={() => setSelectedCategory(category.id)}
+                          className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
+                            selectedCategory === category.id ? colorClass : ""
+                          }`}
+                          style={colorStyle}
+                        >
+                          <IconRenderer icon={category.icon} size={24} />
+                          <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                   
                   {hasMoreCategories && (

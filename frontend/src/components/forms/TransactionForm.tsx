@@ -14,13 +14,14 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { addPendingTransaction } from "@/lib/sync";
 import { db } from "@/lib/db";
+import { getCategoryStyle } from "@/utils/categoryColors";
 
 interface TransactionFormProps {
   onSuccess: () => void;
 }
 
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
-  const { isOnline } = useSync();
+  const { isOnline, serverReachable } = useSync();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
@@ -42,7 +43,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     try {
       setLoading(true);
       
-      if (isOnline) {
+      if (isOnline && serverReachable) {
         // Online: fetch from API and cache the data
         const [categoriesResponse, accountsResponse] = await Promise.all([
           api.categories.getAll(type),
@@ -103,8 +104,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : type === 'income' ? 'Entrata' : 'Uscita';
       
-      if (!isOnline) {
-        // Offline: save to pending queue
+      if (!isOnline || !serverReachable) {
+        // Offline or server unreachable: save to pending queue
         const user = localStorage.getItem('user');
         const userId = user ? JSON.parse(user).id : '';
         
@@ -118,20 +119,54 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           transactionDate: new Date(date).toISOString(),
         });
 
-        toast.success("Transazione salvata offline! Verrà sincronizzata quando torni online.");
+        const message = !isOnline 
+          ? "Transazione salvata offline! Verrà sincronizzata quando torni online."
+          : "Server non disponibile. Transazione salvata offline.";
+        toast.success(message);
       } else {
-        // Online: create directly via API
-        await api.transactions.create({
-          accountId: selectedAccount,
-          categoryId: selectedCategory,
-          amount: parseFloat(amount),
-          type,
-          title,
-          note: note || undefined,
-          transactionDate: new Date(date).toISOString(),
-        });
+        // Online and server reachable: try API first, fallback to offline if fails
+        try {
+          await api.transactions.create({
+            accountId: selectedAccount,
+            categoryId: selectedCategory,
+            amount: parseFloat(amount),
+            type,
+            title,
+            note: note || undefined,
+            transactionDate: new Date(date).toISOString(),
+          });
 
-        toast.success("Transazione creata con successo!");
+          toast.success("Transazione creata con successo!");
+        } catch (error: any) {
+          // If API fails, fallback to offline mode
+          const isConnectionError = 
+            error.code === 'ECONNREFUSED' ||
+            error.code === 'ETIMEDOUT' ||
+            error.message?.includes('Network Error') ||
+            error.message?.includes('timeout') ||
+            !error.response;
+          
+          if (isConnectionError) {
+            // Server offline: save to pending queue
+            const user = localStorage.getItem('user');
+            const userId = user ? JSON.parse(user).id : '';
+            
+            await addPendingTransaction(userId, {
+              accountId: selectedAccount,
+              categoryId: selectedCategory,
+              amount: parseFloat(amount),
+              type,
+              title,
+              note: note || undefined,
+              transactionDate: new Date(date).toISOString(),
+            });
+
+            toast.success("Server non disponibile. Transazione salvata offline.");
+          } else {
+            // Other error: show error message
+            throw error;
+          }
+        }
       }
       
       // Reset form
@@ -220,20 +255,26 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
               return (
                 <>
                   <div className="grid grid-cols-4 gap-2">
-                    {visibleCategories.map((category) => (
-                      <button
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
-                        className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
-                          selectedCategory === category.id 
-                            ? (category.color || "gradient-blue") 
-                            : "glass-card"
-                        }`}
-                      >
-                        <IconRenderer icon={category.icon} size={24} />
-                        <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
-                      </button>
-                    ))}
+                    {visibleCategories.map((category) => {
+                      const { className: colorClass, style: colorStyle } = getCategoryStyle(
+                        category.color, 
+                        selectedCategory === category.id
+                      );
+                      
+                      return (
+                        <button
+                          key={category.id}
+                          onClick={() => setSelectedCategory(category.id)}
+                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
+                            selectedCategory === category.id ? colorClass : "glass-card"
+                          }`}
+                          style={colorStyle}
+                        >
+                          <IconRenderer icon={category.icon} size={24} />
+                          <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                   
                   {hasMoreCategories && (

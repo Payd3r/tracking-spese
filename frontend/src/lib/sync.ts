@@ -9,7 +9,7 @@ export interface SyncResult {
   errors: string[];
 }
 
-// Exponential backoff retry
+// Exponential backoff retry with intelligent error handling
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries = 3,
@@ -20,8 +20,24 @@ async function retryWithBackoff<T>(
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
+      
+      // Check if it's a connection error (server offline)
+      const isConnectionError = 
+        error.code === 'ECONNREFUSED' ||
+        error.code === 'ETIMEDOUT' ||
+        error.message?.includes('Network Error') ||
+        error.message?.includes('timeout') ||
+        !error.response; // No response means connection issue
+      
+      // For connection errors, reduce retries and fail faster
+      if (isConnectionError && i === 0) {
+        // If it's a connection error on first attempt, don't retry
+        throw error;
+      }
+      
+      // For server errors (4xx, 5xx), continue with normal retry
       if (i < maxRetries - 1) {
         const delay = baseDelay * Math.pow(2, i);
         await new Promise(resolve => setTimeout(resolve, delay));

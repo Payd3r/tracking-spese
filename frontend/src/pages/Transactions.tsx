@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { getCachedCategories, getCachedAccounts, getCachedTransactions } from "@/lib/cacheManager";
+import { formatCurrency } from "@/lib/utils";
 
 export default function Transactions() {
   const { isOnline } = useSync();
@@ -369,7 +370,7 @@ export default function Transactions() {
           <h2 className="text-lg font-bold">
             {totalTransactions} {totalTransactions === 1 ? 'Transazione' : 'Transazioni'}
           </h2>
-          <span className="text-base font-bold">€ {totalAmount.toFixed(2)}</span>
+          <span className="text-base font-bold">€ {formatCurrency(totalAmount)}</span>
         </div>
 
         {transactions.length === 0 ? (
@@ -398,7 +399,7 @@ export default function Transactions() {
                           ? 'text-success' 
                           : 'text-red-400'
                     }`}>
-                      {transaction.type === 'income' ? '+' : '-'}€ {Math.abs(transaction.amount).toFixed(2)}
+                      {transaction.type === 'income' ? '+' : '-'}€ {formatCurrency(transaction.amount)}
                     </span>
                   </div>
                 </RouterLink>

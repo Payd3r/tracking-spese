@@ -9,6 +9,7 @@ import { DashboardStats, Transaction } from "@/types/api";
 import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
+import { formatCurrency } from "@/lib/utils";
 
 // Helper function to format chart labels based on period
 const formatChartLabel = (date: string, period: string, index: number): string => {
@@ -352,7 +353,7 @@ export default function Home() {
             </div>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-3xl font-bold">
-                {getCurrencySymbol(stats?.currency)} {totalAmount.toFixed(2)}
+                {getCurrencySymbol(stats?.currency)} {formatCurrency(totalAmount)}
               </h2>
               {/* Online/Offline Badge */}
               <div className={`flex items-center justify-center w-9 h-9 rounded-full ${
@@ -467,7 +468,7 @@ export default function Home() {
                               : 'text-red-400'
                         }`}>
                           {transaction.type === 'income' ? <ArrowUpRight className="inline w-4 h-4 mb-0.5" /> : <ArrowDownRight className="inline w-4 h-4 mb-0.5" />}
-                          {' '}{getCurrencySymbol(transaction.accountCurrency || stats?.currency)} {Math.abs(transaction.amount).toFixed(2)}
+                          {' '}{getCurrencySymbol(transaction.accountCurrency || stats?.currency)} {formatCurrency(transaction.amount)}
                         </p>
                       </div>
                     </div>

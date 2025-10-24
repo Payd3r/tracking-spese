@@ -4,9 +4,11 @@ import { usePendingSync } from '@/hooks/usePendingSync';
 import { syncData, SyncResult } from '@/lib/sync';
 import { refreshCacheAfterSync } from '@/lib/cacheManager';
 import { toast } from 'sonner';
+import { checkServerHealth, isServerReachable } from '@/lib/api';
 
 interface SyncContextType {
   isOnline: boolean;
+  serverReachable: boolean;
   isSyncing: boolean;
   pendingCount: number;
   hasPending: boolean;
@@ -21,9 +23,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { pendingCount, hasPending, refresh: refreshPending } = usePendingSync();
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
+  const [serverReachable, setServerReachable] = useState(true);
 
   const triggerSync = async () => {
-    if (!isOnline || isSyncing || !hasPending) {
+    if (!isOnline || !serverReachable || isSyncing || !hasPending) {
       return;
     }
 
@@ -51,27 +54,45 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Health check for server reachability
+  useEffect(() => {
+    if (!isOnline) return;
+
+    const performHealthCheck = async () => {
+      const isReachable = await checkServerHealth();
+      setServerReachable(isReachable);
+    };
+
+    // Initial health check
+    performHealthCheck();
+
+    // Periodic health check every 30 seconds
+    const interval = setInterval(performHealthCheck, 30000);
+
+    return () => clearInterval(interval);
+  }, [isOnline]);
+
   // Auto-sync when coming back online
   useEffect(() => {
-    if (isOnline && hasPending && !isSyncing) {
+    if (isOnline && serverReachable && hasPending && !isSyncing) {
       const timer = setTimeout(() => {
         triggerSync();
       }, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [isOnline, hasPending]);
+  }, [isOnline, serverReachable, hasPending]);
 
   // Auto-sync when app regains focus
   useEffect(() => {
     const handleFocus = () => {
-      if (isOnline && hasPending && !isSyncing) {
+      if (isOnline && serverReachable && hasPending && !isSyncing) {
         triggerSync();
       }
     };
 
     const handleVisibilityChange = () => {
-      if (!document.hidden && isOnline && hasPending && !isSyncing) {
+      if (!document.hidden && isOnline && serverReachable && hasPending && !isSyncing) {
         triggerSync();
       }
     };
@@ -83,10 +104,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isOnline, hasPending, isSyncing]);
+  }, [isOnline, serverReachable, hasPending, isSyncing]);
 
   const value: SyncContextType = {
     isOnline,
+    serverReachable,
     isSyncing,
     pendingCount,
     hasPending,

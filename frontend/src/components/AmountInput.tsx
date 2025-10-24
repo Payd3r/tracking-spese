@@ -56,7 +56,7 @@ export function AmountInput({ value, onChange, currency = "EUR", type = "expense
           type="number"
           step="0.01"
           inputMode="decimal"
-          placeholder="0.00"
+          placeholder="0,00"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}

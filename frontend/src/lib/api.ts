@@ -9,7 +9,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 5000,
 });
 
 // Request interceptor to add auth token
@@ -138,9 +138,44 @@ export const api = {
   },
 };
 
-// Check if online
+// Server health check
+let serverReachable: boolean | null = null;
+let lastHealthCheck: number = 0;
+const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
+
+export async function checkServerHealth(): Promise<boolean> {
+  try {
+    // Use a lightweight endpoint for health check
+    const response = await apiClient.get('/auth/me', { timeout: 3000 });
+    serverReachable = response.status >= 200 && response.status < 400;
+    lastHealthCheck = Date.now();
+    return serverReachable;
+  } catch (error: any) {
+    // Check if it's a connection error vs server error
+    const isConnectionError = 
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ETIMEDOUT' ||
+      error.message?.includes('Network Error') ||
+      error.message?.includes('timeout') ||
+      !error.response; // No response means connection issue
+    
+    serverReachable = !isConnectionError;
+    lastHealthCheck = Date.now();
+    return serverReachable;
+  }
+}
+
+export function isServerReachable(): boolean {
+  // If we haven't checked recently, assume server is reachable
+  if (Date.now() - lastHealthCheck > HEALTH_CHECK_INTERVAL) {
+    return true;
+  }
+  return serverReachable ?? true;
+}
+
+// Check if online (both internet and server)
 export function isOnline(): boolean {
-  return navigator.onLine;
+  return navigator.onLine && isServerReachable();
 }
 
 

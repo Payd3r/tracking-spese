@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Account } from "@/types/api";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -117,7 +118,7 @@ export default function ManageAccounts() {
                   <div>
                     <h3 className="font-semibold text-sm">{account.name}</h3>
                     <p className="text-lg font-bold mt-0.5">
-                      {account.currency} {account.balance.toFixed(2)}
+                      {account.currency} {formatCurrency(account.balance)}
                     </p>
                   </div>
                 </div>

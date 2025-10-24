@@ -3,9 +3,9 @@ import { Loader2, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 
 export function SyncIndicator() {
-  const { isOnline, isSyncing, pendingCount, hasPending, triggerSync } = useSync();
+  const { isOnline, serverReachable, isSyncing, pendingCount, hasPending, triggerSync } = useSync();
 
-  if (!isOnline) {
+  if (!isOnline || !serverReachable) {
     return (
       <div className="fixed bottom-20 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-destructive/90 text-destructive-foreground rounded-full shadow-lg backdrop-blur-sm">
         <CloudOff className="w-4 h-4" />
@@ -28,7 +28,7 @@ export function SyncIndicator() {
     );
   }
 
-  if (hasPending) {
+  if (hasPending && isOnline && serverReachable) {
     return (
       <Button
         onClick={triggerSync}
