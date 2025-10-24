@@ -389,7 +389,8 @@ All colors MUST be HSL.
     z-index: 9999 !important;
     padding-top: 8px !important;
     max-width: 420px !important;
-    width: calc(100% - 32px) !important;
+    width: 90% !important;
+    margin: 0 auto !important;
   }
 
   /* Animazioni fluide per toast */
