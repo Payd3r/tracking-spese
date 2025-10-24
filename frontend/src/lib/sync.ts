@@ -1,5 +1,5 @@
 import { db, PendingTransaction, PendingUpdate, PendingDelete, setLastSyncTime } from './db';
-import { api, isOnline } from './api';
+import { api, isOnline, isServerReachable } from './api';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SyncResult {
@@ -9,7 +9,19 @@ export interface SyncResult {
   errors: string[];
 }
 
-// Exponential backoff retry with intelligent error handling
+// Helper function to check if error is network-related
+function isNetworkError(error: any): boolean {
+  return !error.response && (
+    error.code === 'ECONNREFUSED' ||
+    error.code === 'ETIMEDOUT' ||
+    error.code === 'ENETUNREACH' ||
+    error.code === 'ERR_NETWORK' ||
+    error.message?.includes('Network Error') ||
+    error.message?.includes('timeout')
+  );
+}
+
+// Exponential backoff retry with network error handling
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries = 3,
@@ -20,24 +32,15 @@ async function retryWithBackoff<T>(
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error) {
       lastError = error;
       
-      // Check if it's a connection error (server offline)
-      const isConnectionError = 
-        error.code === 'ECONNREFUSED' ||
-        error.code === 'ETIMEDOUT' ||
-        error.message?.includes('Network Error') ||
-        error.message?.includes('timeout') ||
-        !error.response; // No response means connection issue
-      
-      // For connection errors, reduce retries and fail faster
-      if (isConnectionError && i === 0) {
-        // If it's a connection error on first attempt, don't retry
+      // If it's a network error, don't retry - server is unreachable
+      if (isNetworkError(error)) {
         throw error;
       }
       
-      // For server errors (4xx, 5xx), continue with normal retry
+      // For server errors (4xx/5xx), retry with backoff
       if (i < maxRetries - 1) {
         const delay = baseDelay * Math.pow(2, i);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -187,6 +190,15 @@ export async function syncData(): Promise<SyncResult> {
       synced: 0,
       failed: 0,
       errors: ['Nessuna connessione internet']
+    };
+  }
+  
+  if (!isServerReachable()) {
+    return {
+      success: false,
+      synced: 0,
+      failed: 0,
+      errors: ['Server non raggiungibile']
     };
   }
   

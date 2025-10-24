@@ -3,13 +3,16 @@ import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 // Use relative path for API calls - works in both dev and prod
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+// Global flag to track server reachability
+let serverReachable = true;
+
 // Create axios instance
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 5000,
+  timeout: 5000, // Reduced from 10000 to fail faster
 });
 
 // Request interceptor to add auth token
@@ -26,13 +29,22 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Server is reachable if we get a response
+    serverReachable = true;
+    return response;
+  },
   (error: AxiosError) => {
     // Handle 401 - unauthorized
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/auth';
+    }
+    
+    // Check for network/connection errors
+    if (isNetworkError(error)) {
+      serverReachable = false;
     }
     
     return Promise.reject(error);
@@ -138,44 +150,40 @@ export const api = {
   },
 };
 
-// Server health check
-let serverReachable: boolean | null = null;
-let lastHealthCheck: number = 0;
-const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
-
-export async function checkServerHealth(): Promise<boolean> {
-  try {
-    // Use a lightweight endpoint for health check
-    const response = await apiClient.get('/auth/me', { timeout: 3000 });
-    serverReachable = response.status >= 200 && response.status < 400;
-    lastHealthCheck = Date.now();
-    return serverReachable;
-  } catch (error: any) {
-    // Check if it's a connection error vs server error
-    const isConnectionError = 
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ETIMEDOUT' ||
-      error.message?.includes('Network Error') ||
-      error.message?.includes('timeout') ||
-      !error.response; // No response means connection issue
-    
-    serverReachable = !isConnectionError;
-    lastHealthCheck = Date.now();
-    return serverReachable;
-  }
+// Check if online
+export function isOnline(): boolean {
+  return navigator.onLine;
 }
 
+// Check if server is reachable
 export function isServerReachable(): boolean {
-  // If we haven't checked recently, assume server is reachable
-  if (Date.now() - lastHealthCheck > HEALTH_CHECK_INTERVAL) {
+  return serverReachable;
+}
+
+// Check if we have both internet and server connectivity
+export function isFullyOnline(): boolean {
+  return isOnline() && isServerReachable();
+}
+
+// Helper function to detect network errors
+function isNetworkError(error: AxiosError): boolean {
+  // No response means network error
+  if (!error.response) {
     return true;
   }
-  return serverReachable ?? true;
-}
-
-// Check if online (both internet and server)
-export function isOnline(): boolean {
-  return navigator.onLine && isServerReachable();
+  
+  // Check for specific network error codes
+  const networkErrorCodes = [
+    'ECONNREFUSED',
+    'ETIMEDOUT', 
+    'ENETUNREACH',
+    'ERR_NETWORK',
+    'ERR_INTERNET_DISCONNECTED'
+  ];
+  
+  return networkErrorCodes.includes(error.code || '') || 
+         error.message.includes('Network Error') ||
+         error.message.includes('timeout');
 }
 
 

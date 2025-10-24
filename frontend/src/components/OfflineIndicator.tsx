@@ -2,9 +2,9 @@ import { useSync } from '@/contexts/SyncContext';
 import { WifiOff } from 'lucide-react';
 
 export function OfflineIndicator() {
-  const { isOnline, serverReachable } = useSync();
+  const { isFullyOnline } = useSync();
 
-  if (isOnline && serverReachable) {
+  if (isFullyOnline) {
     return null;
   }
 

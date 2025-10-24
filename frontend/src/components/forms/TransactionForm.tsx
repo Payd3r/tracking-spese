@@ -21,7 +21,7 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
-  const { isOnline, serverReachable } = useSync();
+  const { isOnline } = useSync();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
@@ -43,7 +43,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     try {
       setLoading(true);
       
-      if (isOnline && serverReachable) {
+      if (isOnline) {
         // Online: fetch from API and cache the data
         const [categoriesResponse, accountsResponse] = await Promise.all([
           api.categories.getAll(type),
@@ -104,8 +104,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : type === 'income' ? 'Entrata' : 'Uscita';
       
-      if (!isOnline || !serverReachable) {
-        // Offline or server unreachable: save to pending queue
+      if (!isOnline) {
+        // Offline: save to pending queue
         const user = localStorage.getItem('user');
         const userId = user ? JSON.parse(user).id : '';
         
@@ -119,54 +119,20 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           transactionDate: new Date(date).toISOString(),
         });
 
-        const message = !isOnline 
-          ? "Transazione salvata offline! Verrà sincronizzata quando torni online."
-          : "Server non disponibile. Transazione salvata offline.";
-        toast.success(message);
+        toast.success("Transazione salvata offline! Verrà sincronizzata quando torni online.");
       } else {
-        // Online and server reachable: try API first, fallback to offline if fails
-        try {
-          await api.transactions.create({
-            accountId: selectedAccount,
-            categoryId: selectedCategory,
-            amount: parseFloat(amount),
-            type,
-            title,
-            note: note || undefined,
-            transactionDate: new Date(date).toISOString(),
-          });
+        // Online: create directly via API
+        await api.transactions.create({
+          accountId: selectedAccount,
+          categoryId: selectedCategory,
+          amount: parseFloat(amount),
+          type,
+          title,
+          note: note || undefined,
+          transactionDate: new Date(date).toISOString(),
+        });
 
-          toast.success("Transazione creata con successo!");
-        } catch (error: any) {
-          // If API fails, fallback to offline mode
-          const isConnectionError = 
-            error.code === 'ECONNREFUSED' ||
-            error.code === 'ETIMEDOUT' ||
-            error.message?.includes('Network Error') ||
-            error.message?.includes('timeout') ||
-            !error.response;
-          
-          if (isConnectionError) {
-            // Server offline: save to pending queue
-            const user = localStorage.getItem('user');
-            const userId = user ? JSON.parse(user).id : '';
-            
-            await addPendingTransaction(userId, {
-              accountId: selectedAccount,
-              categoryId: selectedCategory,
-              amount: parseFloat(amount),
-              type,
-              title,
-              note: note || undefined,
-              transactionDate: new Date(date).toISOString(),
-            });
-
-            toast.success("Server non disponibile. Transazione salvata offline.");
-          } else {
-            // Other error: show error message
-            throw error;
-          }
-        }
+        toast.success("Transazione creata con successo!");
       }
       
       // Reset form
