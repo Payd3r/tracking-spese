@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Filter, Clock } from "lucide-react";
 import { Link, Link as RouterLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
+import { getCachedCategories, getCachedAccounts, getCachedTransactions } from "@/lib/cacheManager";
 
 export default function Transactions() {
   const { isOnline } = useSync();
@@ -84,18 +85,17 @@ export default function Transactions() {
           ]);
 
           // Ensure arrays
-          setCategories(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
-          setAccounts(Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : []);
+          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+          const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
           const transactions = transactionsResponse.data.transactions || [];
           const total = transactionsResponse.data.total || 0;
           
+          setCategories(categoriesData);
+          setAccounts(accountsData);
           setTransactions(Array.isArray(transactions) ? transactions : []);
           setTotalTransactions(total);
           
           // Cache data for offline use
-          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
-          const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-          
           await db.cachedCategories.bulkPut(categoriesData);
           await db.cachedAccounts.bulkPut(accountsData);
           
@@ -130,29 +130,20 @@ export default function Transactions() {
           }
         }
       } else {
-        // Offline: load from cache
-        let cachedTransactions = await db.cachedTransactions
-          .where('type')
-          .equals(viewType)
-          .toArray();
-        
-        // Apply filters if set
-        if (selectedAccountFilter) {
-          cachedTransactions = cachedTransactions.filter(tx => tx.accountId === selectedAccountFilter);
-        }
-        if (selectedCategoryFilter) {
-          cachedTransactions = cachedTransactions.filter(tx => tx.categoryId === selectedCategoryFilter);
-        }
+        // Offline: load from cache using cacheManager
+        const cachedTransactions = await getCachedTransactions({
+          type: viewType,
+          accountId: selectedAccountFilter || undefined,
+          categoryId: selectedCategoryFilter || undefined,
+          limit: LIMIT
+        });
         
         const total = cachedTransactions.length;
         const paginatedTransactions = cachedTransactions.slice(currentOffset, currentOffset + LIMIT);
         
         if (reset) {
-          const cachedCategories = await db.cachedCategories
-            .where('type')
-            .equals(viewType)
-            .toArray();
-          const cachedAccounts = await db.cachedAccounts.toArray();
+          const cachedCategories = await getCachedCategories(viewType);
+          const cachedAccounts = await getCachedAccounts();
           
           setCategories(cachedCategories);
           setAccounts(cachedAccounts);
@@ -162,6 +153,33 @@ export default function Transactions() {
         }
         
         setTotalTransactions(total);
+      }
+
+      // Load pending transactions and merge with current transactions
+      const pendingTxs = await db.pendingTransactions
+        .where('type')
+        .equals(viewType)
+        .toArray();
+
+      if (pendingTxs.length > 0) {
+        const mergedPendingTxs = pendingTxs.map(pt => ({
+          ...pt,
+          id: parseInt(pt.tempId.replace(/\D/g, '')), // Convert tempId to number
+          accountName: pt.accountName || 'Account sconosciuto',
+          categoryName: pt.categoryName || 'Categoria sconosciuta',
+          accountCurrency: pt.accountCurrency || 'EUR',
+          categoryIcon: pt.categoryIcon || 'HelpCircle',
+          categoryColor: pt.categoryColor || 'gradient-gray',
+          isPending: true,
+          updatedAt: pt.createdAt // Use createdAt as updatedAt for pending
+        }));
+
+        if (reset) {
+          setTransactions(prev => [...mergedPendingTxs, ...prev]);
+        } else {
+          setTransactions(prev => [...prev, ...mergedPendingTxs]);
+        }
+        setTotalTransactions(prev => prev + pendingTxs.length);
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
@@ -176,6 +194,17 @@ export default function Transactions() {
       setLoadingMore(false);
     }
   };
+
+  // Listen for data synced event
+  useEffect(() => {
+    const handleDataSynced = () => {
+      loadData(true); // Reload all data after sync
+    };
+    window.addEventListener('dataSynced', handleDataSynced);
+    return () => {
+      window.removeEventListener('dataSynced', handleDataSynced);
+    };
+  }, [viewType, selectedAccountFilter, selectedCategoryFilter]);
 
   const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -362,7 +391,13 @@ export default function Transactions() {
                         </p>
                       </div>
                     </div>
-                    <span className={`font-semibold text-sm ${transaction.type === 'income' ? 'text-success' : ''}`}>
+                    <span className={`font-semibold text-sm ${
+                      transaction.isPending 
+                        ? 'text-orange-400'  // Pending = arancione
+                        : transaction.type === 'income' 
+                          ? 'text-success' 
+                          : 'text-red-400'
+                    }`}>
                       {transaction.type === 'income' ? '+' : '-'}€ {Math.abs(transaction.amount).toFixed(2)}
                     </span>
                   </div>

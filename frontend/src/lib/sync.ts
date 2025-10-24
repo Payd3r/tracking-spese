@@ -207,14 +207,23 @@ export async function syncData(): Promise<SyncResult> {
 // Add transaction to pending queue (for offline mode)
 export async function addPendingTransaction(
   userId: string,
-  transaction: Omit<PendingTransaction, 'tempId' | 'userId' | 'createdAt'>
+  transaction: Omit<PendingTransaction, 'tempId' | 'userId' | 'createdAt' | 'categoryName' | 'categoryIcon' | 'categoryColor' | 'accountName' | 'accountCurrency'>
 ): Promise<string> {
   const tempId = uuidv4();
+  
+  // Get category and account metadata for display
+  const category = await db.cachedCategories.get(transaction.categoryId);
+  const account = await db.cachedAccounts.get(transaction.accountId);
   
   await db.pendingTransactions.add({
     tempId,
     userId,
     ...transaction,
+    categoryName: category?.name,
+    categoryIcon: category?.icon,
+    categoryColor: category?.color,
+    accountName: account?.name,
+    accountCurrency: account?.currency,
     createdAt: new Date().toISOString()
   });
   

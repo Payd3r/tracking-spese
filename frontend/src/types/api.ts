@@ -47,6 +47,8 @@ export interface Transaction {
   transactionDate: string;
   createdAt: string;
   updatedAt: string;
+  // Pending flag for offline transactions
+  isPending?: boolean;
   // Joined data
   accountName?: string;
   accountCurrency?: string;

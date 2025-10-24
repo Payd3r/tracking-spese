@@ -12,6 +12,12 @@ export interface PendingTransaction {
   note?: string;
   transactionDate: string;
   createdAt: string;
+  // Metadata for display
+  categoryName?: string;
+  categoryIcon?: string;
+  categoryColor?: string;
+  accountName?: string;
+  accountCurrency?: string;
 }
 
 export interface PendingUpdate {
@@ -96,6 +102,16 @@ export class TrackingSpeseDB extends Dexie {
       pendingDeletes: 'id, entity, timestamp',
       cachedAccounts: 'id, userId',
       cachedTransactions: 'id, userId, transactionDate, accountId',
+      cachedCategories: 'id, userId, type',
+      metadata: 'key'
+    });
+
+    this.version(2).stores({
+      pendingTransactions: 'tempId, userId, createdAt, type',
+      pendingUpdates: 'id, entity, timestamp',
+      pendingDeletes: 'id, entity, timestamp',
+      cachedAccounts: 'id, userId',
+      cachedTransactions: 'id, userId, transactionDate, accountId, type',
       cachedCategories: 'id, userId, type',
       metadata: 'key'
     });

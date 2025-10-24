@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Loader2, Wifi, WifiOff } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Loader2, Wifi, WifiOff, Clock } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
@@ -136,64 +136,126 @@ export default function Home() {
       const dateRange = getDateRange(period);
       const transactionType = viewType === "spending" ? "expense" : "income";
       
-      if (isOnline) {
-        // Online: fetch from API and cache
-        const [statsResponse, transactionsResponse] = await Promise.all([
-          api.stats.getDashboard(period, transactionType),
-          api.transactions.getAll({ 
-            limit: 10,
-            type: transactionType,
-            startDate: dateRange.startDate,
-            endDate: dateRange.endDate
-          })
-        ]);
-
-         setStats(statsResponse.data);
-         
-         // Ensure recentTransactions is always an array
-         const transactions = transactionsResponse.data?.transactions || [];
-         setRecentTransactions(Array.isArray(transactions) ? transactions : []);
-        
-        // Cache transactions for offline use
-        if (Array.isArray(transactions)) {
-          const user = localStorage.getItem('user');
-          const userId = user ? JSON.parse(user).id : '';
-          const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
-          await db.cachedTransactions.bulkPut(txsWithUser);
-        }
-      } else {
-        // Offline: load from cache
-        const cachedTransactions = await db.cachedTransactions
-          .where('type')
-          .equals(transactionType)
-          .reverse()
-          .limit(10)
-          .toArray();
-        
-        // Load pending transactions
-        const pendingTxs = await db.pendingTransactions
-          .where('type')
-          .equals(transactionType)
-          .toArray();
-        
-        // Calculate stats from cached data
-        const totalAmount = cachedTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-        
-        setStats({
-          currency: 'EUR',
-          totalBalance: 0,
-          period: { 
-            name: period,
-            startDate: getDateRange(period).startDate,
-            endDate: getDateRange(period).endDate,
-            totalIncome: viewType === 'income' ? totalAmount : 0, 
-            totalExpense: viewType === 'spending' ? totalAmount : 0,
-            netIncome: viewType === 'income' ? totalAmount : -totalAmount
-          },
-          trend: []
+      // CACHE-FIRST STRATEGY: Always try cache first
+      const cachedTransactions = await db.cachedTransactions
+        .where('type')
+        .equals(transactionType)
+        .reverse()
+        .limit(10)
+        .toArray();
+      
+      // Load pending transactions
+      const pendingTxs = await db.pendingTransactions
+        .where('type')
+        .equals(transactionType)
+        .toArray();
+      
+      // Combine cached + pending transactions
+      const allTransactions = [...cachedTransactions, ...pendingTxs.map(pt => ({
+        ...pt,
+        id: parseInt(pt.tempId.replace(/\D/g, '')), // Convert tempId to number
+        accountName: pt.accountName || 'Account sconosciuto',
+        categoryName: pt.categoryName || 'Categoria sconosciuta',
+        accountCurrency: pt.accountCurrency || 'EUR',
+        categoryIcon: pt.categoryIcon || 'HelpCircle',
+        categoryColor: pt.categoryColor || 'gradient-gray',
+        isPending: true,
+        updatedAt: pt.createdAt // Use createdAt as updatedAt for pending
+      }))];
+      
+      // Calculate stats from all data
+      const totalAmount = allTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+      
+      // Calculate local trend from cached transactions
+      const calculateLocalTrend = (transactions: Transaction[], period: 'day' | 'week' | 'month' | 'year') => {
+        const dateRange = getDateRange(period);
+        const filteredTxs = transactions.filter(tx => {
+          const txDate = new Date(tx.transactionDate);
+          return txDate >= new Date(dateRange.startDate) && txDate <= new Date(dateRange.endDate);
         });
-        
-        setRecentTransactions(cachedTransactions);
+
+        // Group by date based on period
+        const groupedByDate = filteredTxs.reduce((acc, tx) => {
+          let dateKey: string;
+          const txDate = new Date(tx.transactionDate);
+          
+          switch(period) {
+            case 'day':
+              dateKey = format(txDate, 'HH:00');
+              break;
+            case 'week':
+              dateKey = format(txDate, 'EEE');
+              break;
+            case 'month':
+              dateKey = format(txDate, 'dd');
+              break;
+            case 'year':
+              dateKey = format(txDate, 'MMM');
+              break;
+            default:
+              dateKey = format(txDate, 'yyyy-MM-dd');
+          }
+          
+          if (!acc[dateKey]) acc[dateKey] = 0;
+          acc[dateKey] += tx.amount;
+          return acc;
+        }, {} as Record<string, number>);
+
+        return Object.entries(groupedByDate).map(([date, amount]) => ({
+          date,
+          income: transactionType === 'income' ? amount : 0,
+          expense: transactionType === 'expense' ? Math.abs(amount) : 0
+        }));
+      };
+
+      const localTrend = calculateLocalTrend(allTransactions, period);
+      
+      setStats({
+        currency: 'EUR',
+        totalBalance: 0,
+        period: { 
+          name: period,
+          startDate: getDateRange(period).startDate,
+          endDate: getDateRange(period).endDate,
+          totalIncome: viewType === 'income' ? totalAmount : 0, 
+          totalExpense: viewType === 'spending' ? totalAmount : 0,
+          netIncome: viewType === 'income' ? totalAmount : -totalAmount
+        },
+        trend: localTrend
+      });
+      
+      setRecentTransactions(allTransactions.slice(0, 10));
+      
+      // If online, try to fetch fresh data in background
+      if (isOnline) {
+        try {
+          const [statsResponse, transactionsResponse] = await Promise.all([
+            api.stats.getDashboard(period, transactionType),
+            api.transactions.getAll({ 
+              limit: 10,
+              type: transactionType,
+              startDate: dateRange.startDate,
+              endDate: dateRange.endDate
+            })
+          ]);
+
+          // Update with fresh data
+          setStats(statsResponse.data);
+          
+          const transactions = transactionsResponse.data.transactions || [];
+          setRecentTransactions(Array.isArray(transactions) ? transactions : []);
+          
+          // Cache fresh transactions
+          if (Array.isArray(transactions)) {
+            const user = localStorage.getItem('user');
+            const userId = user ? JSON.parse(user).id : '';
+            const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
+            await db.cachedTransactions.bulkPut(txsWithUser);
+          }
+        } catch (networkErr: any) {
+          // Network failed, but we already have cache data - no error shown
+          console.log("Network fetch failed, using cached data:", networkErr);
+        }
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
@@ -202,7 +264,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [period, viewType, isOnline]);
+  }, [period, viewType]); // REMOVED isOnline from dependencies to fix infinite loop
 
   useEffect(() => {
     loadUserName();
@@ -218,9 +280,16 @@ export default function Home() {
       loadData();
     };
 
+    // Listen for data synced event
+    const handleDataSynced = () => {
+      loadData();
+    };
+
     window.addEventListener('transactionCreated', handleTransactionCreated);
+    window.addEventListener('dataSynced', handleDataSynced);
     return () => {
       window.removeEventListener('transactionCreated', handleTransactionCreated);
+      window.removeEventListener('dataSynced', handleDataSynced);
     };
   }, [loadData]);
 
@@ -390,7 +459,13 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold text-sm ${transaction.type === 'income' ? 'text-success' : 'text-red-400'}`}>
+                        <p className={`font-semibold text-sm ${
+                          transaction.isPending 
+                            ? 'text-orange-400'  // Pending = arancione
+                            : transaction.type === 'income' 
+                              ? 'text-success' 
+                              : 'text-red-400'
+                        }`}>
                           {transaction.type === 'income' ? <ArrowUpRight className="inline w-4 h-4 mb-0.5" /> : <ArrowDownRight className="inline w-4 h-4 mb-0.5" />}
                           {' '}{getCurrencySymbol(transaction.accountCurrency || stats?.currency)} {Math.abs(transaction.amount).toFixed(2)}
                         </p>

@@ -48,11 +48,11 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
           {/* Add - Pulsante centrale prominente */}
           {onAddClick ? (
             <button onClick={onAddClick} className="nav-btn-primary">
-              <Plus className="w-10 h-10 text-white" />
+              <Plus className="w-14 h-14 text-white" />
             </button>
           ) : (
             <Link to="/add" className="nav-btn-primary">
-              <Plus className="w-10 h-10 text-white" />
+              <Plus className="w-14 h-14 text-white" />
             </Link>
           )}
           

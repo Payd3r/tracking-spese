@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { usePendingSync } from '@/hooks/usePendingSync';
 import { syncData, SyncResult } from '@/lib/sync';
+import { refreshCacheAfterSync } from '@/lib/cacheManager';
 import { toast } from 'sonner';
 
 interface SyncContextType {
@@ -34,6 +35,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       
       if (result.success) {
         toast.success(`Sincronizzato! ${result.synced} operazioni completate.`);
+        // Refresh cache after successful sync
+        await refreshCacheAfterSync();
+        // Trigger global reload event
+        window.dispatchEvent(new Event('dataSynced'));
       } else {
         toast.error(`Sincronizzazione parziale: ${result.synced} ok, ${result.failed} fallite.`);
       }

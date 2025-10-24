@@ -9,6 +9,7 @@ import { SyncProvider } from "@/contexts/SyncContext";
 import { BottomSheet } from "@/components/BottomSheet";
 import { TransactionForm } from "@/components/forms/TransactionForm";
 import { useEffect } from "react";
+import { preloadCache, hasCacheData } from "@/lib/cacheManager";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Transactions from "./pages/Transactions";
@@ -126,6 +127,33 @@ function AppContent() {
 }
 
 const App = () => {
+  useEffect(() => {
+    // Initialize cache on app start if user is logged in
+    const initializeCache = async () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        try {
+          const hasData = await hasCacheData();
+          if (!hasData) {
+            console.log('No cache data found, preloading...');
+            const result = await preloadCache();
+            if (result.success) {
+              console.log('Cache preloaded successfully:', result);
+            } else {
+              console.error('Cache preload failed:', result.error);
+            }
+          } else {
+            console.log('Cache data already available');
+          }
+        } catch (error) {
+          console.error('Cache initialization failed:', error);
+        }
+      }
+    };
+
+    initializeCache();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

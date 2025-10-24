@@ -330,7 +330,7 @@ All colors MUST be HSL.
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    padding-bottom: 87px; /* Space for bottom nav con padding (+20px) */
+    padding-bottom: 100px; /* Space for bottom nav con nuova altezza */
     padding-top: env(safe-area-inset-top, 0px); /* Space for status bar */
   }
 
@@ -408,16 +408,15 @@ All colors MUST be HSL.
   }
 
 
-  /* iOS-style bottom navigation */
+  /* iOS-style bottom navigation with simple curved effect */
   .ios-bottom-nav {
     @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
-    @apply rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)];
     @apply px-6 w-full; /* Larghezza completa, senza max-width */
     padding-top: 18px !important; /* +10px from pt-2 (8px to 18px) */
     padding-bottom: 26px !important; /* +10px from 16px to 26px */
     margin-bottom: 0 !important; /* ZERO margin bottom */
-    min-height: 87px; /* Altezza aumentata per il padding (+20px) */
-    height: 87px !important; /* Forza altezza con padding */
+    min-height: 100px; /* Altezza aumentata per il bottone più sporgente */
+    height: 100px !important; /* Forza altezza con padding */
     position: fixed !important;
     bottom: 0 !important;
     left: 0 !important;
@@ -425,19 +424,40 @@ All colors MUST be HSL.
     z-index: 50; /* Sotto i modal/bottom sheets (z-index: 200) e toast (z-index: 9999) */
     transform: translateZ(0) !important; /* Force hardware acceleration */
     will-change: transform;
+    
+    /* Simple curved top edge */
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    
+    /* Enhanced shadow for depth */
+    box-shadow: 
+      0 -4px 24px rgba(0,0,0,0.4),
+      0 -8px 40px rgba(0,0,0,0.2),
+      inset 0 1px 0 rgba(255,255,255,0.1);
   }
 
-  /* Pulsante centrale floating */
+  /* Pulsante centrale floating con effetto avvolgente */
   .nav-btn-primary {
-    @apply w-[60px] h-[60px] rounded-full;
-    @apply gradient-blue shadow-[0_4px_24px_rgba(59,130,246,0.4)];
+    @apply w-[80px] h-[80px] rounded-full;
+    @apply gradient-blue;
     @apply border-2 border-white/20;
     @apply flex items-center justify-center;
     @apply transition-all duration-200 active:scale-95;
     @apply cursor-pointer;
-    transform: translateY(-15px); /* Ridotto proporzionalmente */
+    transform: translateY(-35px); /* Sporgenza maggiore per effetto più visibile */
     min-height: 44px; /* iOS minimum touch target */
     min-width: 44px;
+    position: relative;
+    z-index: 10; /* Sopra la barra */
+    
+    /* Enhanced shadow for floating effect */
+    box-shadow: 
+      0 12px 40px rgba(59, 130, 246, 0.5),
+      0 6px 20px rgba(59, 130, 246, 0.4),
+      0 3px 10px rgba(59, 130, 246, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
   }
 
   /* Icone laterali */
