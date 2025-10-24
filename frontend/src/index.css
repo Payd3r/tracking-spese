@@ -380,13 +380,14 @@ All colors MUST be HSL.
     backdrop-filter: blur(20px) saturate(180%);
   }
 
-  /* Posizione centrata per toast */
+  /* Posizione centrata orizzontalmente per toast */
   [data-sonner-toaster] {
     position: fixed !important;
-    top: 50% !important;
+    top: env(safe-area-inset-top, 16px) !important;
     left: 50% !important;
-    transform: translate(-50%, -50%) !important;
+    transform: translateX(-50%) !important;
     z-index: 9999 !important;
+    padding-top: 8px !important;
     max-width: 420px !important;
     width: calc(100% - 32px) !important;
   }
