@@ -10,6 +10,8 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Category } from "@/types/api";
 import { toast } from "sonner";
+import { useSync } from "@/contexts/SyncContext";
+import { db } from "@/lib/db";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +29,7 @@ interface CategoryWithStats extends Category {
 }
 
 export default function ManageCategories() {
+  const { isFullyOnline } = useSync();
   const [viewType, setViewType] = useState<"expense" | "income">("expense");
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryWithStats[]>([]);
@@ -43,8 +46,31 @@ export default function ManageCategories() {
 
   const loadCategories = async () => {
     try {
-      const response = await api.categories.getAll(viewType);
-      setCategories(Array.isArray(response.data.categories) ? response.data.categories : []);
+      // SEMPRE caricare dalla cache prima
+      const cachedCategories = await db.cachedCategories
+        .where('type')
+        .equals(viewType)
+        .toArray();
+      
+      // Mostrare subito i dati dalla cache
+      setCategories(cachedCategories);
+      
+      // POI, se online E server raggiungibile, aggiornare in background
+      if (isFullyOnline) {
+        try {
+          const response = await api.categories.getAll(viewType);
+          const categoriesData = Array.isArray(response.data.categories) ? response.data.categories : [];
+          
+          // Aggiornare cache
+          await db.cachedCategories.bulkPut(categoriesData);
+          
+          // Aggiornare stato con dati freschi
+          setCategories(categoriesData);
+        } catch (err) {
+          // Ignorare errori di rete - abbiamo già i dati dalla cache
+          console.log("Background refresh failed, using cached data");
+        }
+      }
     } catch (err: any) {
       console.error("Failed to load categories:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento delle categorie");

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { preloadCache } from "@/lib/cacheManager";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -57,6 +58,16 @@ export default function Auth() {
         localStorage.setItem("user", JSON.stringify(user));
         
         toast.success(`Benvenuto, ${user.name || user.email}!`);
+        
+        // Preload cache for offline support
+        try {
+          await preloadCache();
+          console.log("Cache preloaded successfully");
+        } catch (error) {
+          console.error("Failed to preload cache:", error);
+          // Don't block login if cache fails
+        }
+        
         navigate("/");
       } else {
         const response = await api.auth.register({
@@ -72,6 +83,16 @@ export default function Auth() {
         localStorage.setItem("user", JSON.stringify(user));
         
         toast.success("Account creato con successo!");
+        
+        // Preload cache for offline support
+        try {
+          await preloadCache();
+          console.log("Cache preloaded successfully");
+        } catch (error) {
+          console.error("Failed to preload cache:", error);
+          // Don't block registration if cache fails
+        }
+        
         navigate("/");
       }
     } catch (err: any) {

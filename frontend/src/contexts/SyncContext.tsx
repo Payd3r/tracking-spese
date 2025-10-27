@@ -3,7 +3,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { usePendingSync } from '@/hooks/usePendingSync';
 import { syncData, SyncResult } from '@/lib/sync';
 import { refreshCacheAfterSync } from '@/lib/cacheManager';
-import { isServerReachable, isFullyOnline } from '@/lib/api';
+import { isServerReachable, isFullyOnline, checkServerHealth } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface SyncContextType {
@@ -26,21 +26,46 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [serverReachable, setServerReachable] = useState(true);
   
-  // Update server reachability state
+  // Periodic server health check (every 30 seconds)
   useEffect(() => {
-    const updateServerStatus = () => {
+    let intervalId: NodeJS.Timeout;
+    
+    const performHealthCheck = async () => {
+      await checkServerHealth();
       setServerReachable(isServerReachable());
     };
     
-    // Update on focus/visibility change
+    // Initial check
+    performHealthCheck();
+    
+    // Set up periodic checks
+    intervalId = setInterval(() => {
+      performHealthCheck();
+    }, 30000); // Check every 30 seconds
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, []);
+  
+  // Update server reachability state on focus/visibility change
+  useEffect(() => {
+    const updateServerStatus = async () => {
+      await checkServerHealth();
+      setServerReachable(isServerReachable());
+    };
+    
     const handleFocus = () => updateServerStatus();
-    const handleVisibilityChange = () => updateServerStatus();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        updateServerStatus();
+      }
+    };
     
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Initial check
-    updateServerStatus();
     
     return () => {
       window.removeEventListener('focus', handleFocus);

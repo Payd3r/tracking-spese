@@ -165,6 +165,32 @@ export function isFullyOnline(): boolean {
   return isOnline() && isServerReachable();
 }
 
+// Health check function to verify server reachability
+export async function checkServerHealth(): Promise<boolean> {
+  if (!isOnline()) {
+    serverReachable = false;
+    return false;
+  }
+
+  try {
+    // Use a lightweight endpoint to check server health
+    await apiClient.get('/auth/me', {
+      timeout: 3000,
+      validateStatus: (status) => status < 500, // Accept 4xx as "server is reachable"
+    });
+    serverReachable = true;
+    return true;
+  } catch (error: any) {
+    if (isNetworkError(error)) {
+      serverReachable = false;
+    } else {
+      // Server responded (even with error), so it's reachable
+      serverReachable = true;
+    }
+    return serverReachable;
+  }
+}
+
 // Helper function to detect network errors
 function isNetworkError(error: AxiosError): boolean {
   // No response means network error

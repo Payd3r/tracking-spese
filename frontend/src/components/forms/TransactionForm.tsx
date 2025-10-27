@@ -3,7 +3,7 @@ import { IconRenderer } from "@/components/IconRenderer";
 import { AmountInput } from "@/components/AmountInput";
 import { MobileDateInput } from "@/components/MobileDateInput";
 import { NoteInput } from "@/components/NoteInput";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, Wifi, WifiOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -21,7 +21,7 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
-  const { isOnline } = useSync();
+  const { isFullyOnline, isOnline, isServerReachable } = useSync();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
@@ -43,49 +43,51 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     try {
       setLoading(true);
       
-      if (isOnline) {
-        // Online: fetch from API and cache the data
-        const [categoriesResponse, accountsResponse] = await Promise.all([
-          api.categories.getAll(type),
-          api.accounts.getAll()
-        ]);
-        
-        const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
-        const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-        
-        // Cache data for offline use
-        await db.cachedCategories.bulkPut(categoriesData);
-        await db.cachedAccounts.bulkPut(accountsData);
-        
-        setCategories(categoriesData);
-        setAccounts(accountsData);
-        
-        // Always select first account if available and nothing is selected
-        if (accountsData.length > 0 && selectedAccount === null) {
-          setSelectedAccount(accountsData[0].id);
-        }
-      } else {
-        // Offline: load from cache
-        const cachedCategories = await db.cachedCategories
-          .where('type')
-          .equals(type)
-          .toArray();
-        const cachedAccounts = await db.cachedAccounts.toArray();
-        
-        setCategories(cachedCategories);
-        setAccounts(cachedAccounts);
-        
-        // Always select first account if available and nothing is selected
-        if (cachedAccounts.length > 0 && selectedAccount === null) {
-          setSelectedAccount(cachedAccounts[0].id);
+      // SEMPRE caricare dalla cache prima
+      const cachedCategories = await db.cachedCategories
+        .where('type')
+        .equals(type)
+        .toArray();
+      const cachedAccounts = await db.cachedAccounts.toArray();
+      
+      // Mostrare subito i dati dalla cache
+      setCategories(cachedCategories);
+      setAccounts(cachedAccounts);
+      
+      if (cachedAccounts.length > 0 && selectedAccount === null) {
+        setSelectedAccount(cachedAccounts[0].id);
+      }
+      
+      setLoading(false);
+      
+      // POI, se online E server raggiungibile, aggiornare in background
+      if (isFullyOnline) {
+        try {
+          const [categoriesResponse, accountsResponse] = await Promise.all([
+            api.categories.getAll(type),
+            api.accounts.getAll()
+          ]);
+          
+          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+          const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
+          
+          // Aggiornare cache e stato
+          await db.cachedCategories.bulkPut(categoriesData);
+          await db.cachedAccounts.bulkPut(accountsData);
+          
+          setCategories(categoriesData);
+          setAccounts(accountsData);
+        } catch (err) {
+          // Ignorare errori di rete - abbiamo già i dati dalla cache
+          console.log("Background refresh failed, using cached data");
         }
       }
     } catch (err: any) {
+      // Se anche la cache fallisce, mostrare errore
       console.error("Failed to load data:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento dei dati");
       setCategories([]);
       setAccounts([]);
-    } finally {
       setLoading(false);
     }
   };
@@ -104,7 +106,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : type === 'income' ? 'Entrata' : 'Uscita';
       
-      if (!isOnline) {
+      if (!isFullyOnline) {
         // Offline: save to pending queue
         const user = localStorage.getItem('user');
         const userId = user ? JSON.parse(user).id : '';
@@ -189,6 +191,27 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
           Entrata
         </button>
       </GlassCard>
+
+      {/* Status Indicator */}
+      {!isFullyOnline && (
+        <div className={`glass-card p-3 rounded-2xl flex items-center gap-2 ${
+          !isOnline 
+            ? 'border border-orange-500/50 bg-orange-500/10' 
+            : 'border border-orange-500/50 bg-orange-500/10'
+        }`}>
+          {!isOnline ? (
+            <>
+              <WifiOff className="w-4 h-4 text-orange-400" />
+              <span className="text-xs text-orange-400">Modalità offline - Le transazioni verranno sincronizzate quando torni online</span>
+            </>
+          ) : !isServerReachable ? (
+            <>
+              <WifiOff className="w-4 h-4 text-orange-400" />
+              <span className="text-xs text-orange-400">Server non raggiungibile - Le transazioni verranno sincronizzate automaticamente</span>
+            </>
+          ) : null}
+        </div>
+      )}
 
       {/* Amount */}
       <AmountInput

@@ -384,13 +384,14 @@ All colors MUST be HSL.
   [data-sonner-toaster] {
     position: fixed !important;
     top: env(safe-area-inset-top, 16px) !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    left: 2.5% !important;  /* (100% - 95%) / 2 = 2.5% per lato */
+    right: 2.5% !important;
+    transform: none !important;  /* Rimuovere transform che causa problemi */
     z-index: 9999 !important;
     padding-top: 8px !important;
-    max-width: 95% !important;
-    width: 95% !important;
-    margin: 0 auto !important;
+    width: auto !important;  /* Lasciare che left/right determinino la larghezza */
+    max-width: none !important;
+    margin: 0 !important;
   }
 
   /* Animazioni fluide per toast */

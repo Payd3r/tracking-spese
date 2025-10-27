@@ -10,6 +10,8 @@ import { api } from "@/lib/api";
 import { Account } from "@/types/api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { useSync } from "@/contexts/SyncContext";
+import { db } from "@/lib/db";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +25,7 @@ import {
 
 export default function ManageAccounts() {
   const location = useLocation();
+  const { isFullyOnline } = useSync();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -43,13 +46,34 @@ export default function ManageAccounts() {
   const loadAccounts = async () => {
     try {
       setLoading(true);
-      const response = await api.accounts.getAll();
-      setAccounts(Array.isArray(response.data.accounts) ? response.data.accounts : []);
+      
+      // SEMPRE caricare dalla cache prima
+      const cachedAccounts = await db.cachedAccounts.toArray();
+      
+      // Mostrare subito i dati dalla cache
+      setAccounts(cachedAccounts);
+      setLoading(false);
+      
+      // POI, se online E server raggiungibile, aggiornare in background
+      if (isFullyOnline) {
+        try {
+          const response = await api.accounts.getAll();
+          const accountsData = Array.isArray(response.data.accounts) ? response.data.accounts : [];
+          
+          // Aggiornare cache
+          await db.cachedAccounts.bulkPut(accountsData);
+          
+          // Aggiornare stato con dati freschi
+          setAccounts(accountsData);
+        } catch (err) {
+          // Ignorare errori di rete - abbiamo già i dati dalla cache
+          console.log("Background refresh failed, using cached data");
+        }
+      }
     } catch (err: any) {
       console.error("Failed to load accounts:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento dei conti");
       setAccounts([]);
-    } finally {
       setLoading(false);
     }
   };
