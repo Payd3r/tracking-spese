@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 // Helper function to format chart labels based on period
 const formatChartLabel = (date: string, period: string, index: number): string => {
@@ -119,6 +120,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userName, setUserName] = useState("User");
+  const [displayLimit, setDisplayLimit] = useState(50);
+  const [allTransactionsData, setAllTransactionsData] = useState<Transaction[]>([]);
 
   const loadUserName = async () => {
     try {
@@ -137,13 +140,22 @@ export default function Home() {
       const dateRange = getDateRange(period);
       const transactionType = viewType === "spending" ? "expense" : "income";
       
-      // CACHE-FIRST STRATEGY: Always try cache first
-      const cachedTransactions = await db.cachedTransactions
+      // CACHE-FIRST STRATEGY: Load ALL transactions of the type (not limited)
+      const allCachedTransactions = await db.cachedTransactions
         .where('type')
         .equals(transactionType)
-        .reverse()
-        .limit(10)
         .toArray();
+      
+      // Filter by date range
+      const cachedTransactionsInPeriod = allCachedTransactions.filter(tx => {
+        const txDate = new Date(tx.transactionDate);
+        return txDate >= new Date(dateRange.startDate) && txDate <= new Date(dateRange.endDate);
+      });
+      
+      // Sort by date descending
+      cachedTransactionsInPeriod.sort((a, b) => 
+        new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+      );
       
       // Load pending transactions
       const pendingTxs = await db.pendingTransactions
@@ -151,8 +163,14 @@ export default function Home() {
         .equals(transactionType)
         .toArray();
       
+      // Filter pending by date range
+      const pendingInPeriod = pendingTxs.filter(pt => {
+        const txDate = new Date(pt.transactionDate);
+        return txDate >= new Date(dateRange.startDate) && txDate <= new Date(dateRange.endDate);
+      });
+      
       // Combine cached + pending transactions
-      const allTransactions = [...cachedTransactions, ...pendingTxs.map(pt => ({
+      const allTransactionsInPeriod = [...cachedTransactionsInPeriod, ...pendingInPeriod.map(pt => ({
         ...pt,
         id: parseInt(pt.tempId.replace(/\D/g, '')), // Convert tempId to number
         accountName: pt.accountName || 'Account sconosciuto',
@@ -164,8 +182,11 @@ export default function Home() {
         updatedAt: pt.createdAt // Use createdAt as updatedAt for pending
       }))];
       
-      // Calculate stats from all data
-      const totalAmount = allTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+      // Save ALL transactions for pagination
+      setAllTransactionsData(allTransactionsInPeriod);
+      
+      // Calculate stats from ALL transactions in period
+      const totalAmount = allTransactionsInPeriod.reduce((sum, tx) => sum + tx.amount, 0);
       
       // Calculate local trend from cached transactions
       const calculateLocalTrend = (transactions: Transaction[], period: 'day' | 'week' | 'month' | 'year') => {
@@ -209,7 +230,7 @@ export default function Home() {
         }));
       };
 
-      const localTrend = calculateLocalTrend(allTransactions, period);
+      const localTrend = calculateLocalTrend(allTransactionsInPeriod, period);
       
       setStats({
         currency: 'EUR',
@@ -225,7 +246,8 @@ export default function Home() {
         trend: localTrend
       });
       
-      setRecentTransactions(allTransactions.slice(0, 10));
+      // Show only first displayLimit transactions for recent transactions display
+      setRecentTransactions(allTransactionsInPeriod.slice(0, displayLimit));
       
       // If online, try to fetch fresh data in background
       if (isOnline) {
@@ -265,7 +287,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [period, viewType]); // REMOVED isOnline from dependencies to fix infinite loop
+  }, [period, viewType, displayLimit]); // Added displayLimit to dependencies
 
   useEffect(() => {
     loadUserName();
@@ -274,6 +296,11 @@ export default function Home() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    // Reset display limit when period or viewType changes
+    setDisplayLimit(50);
+  }, [period, viewType]);
 
   useEffect(() => {
     // Listen for transaction created event
@@ -293,6 +320,12 @@ export default function Home() {
       window.removeEventListener('dataSynced', handleDataSynced);
     };
   }, [loadData]);
+
+  const handleLoadMore = () => {
+    const newLimit = displayLimit + 50;
+    setDisplayLimit(newLimit);
+    setRecentTransactions(allTransactionsData.slice(0, newLimit));
+  };
 
   const chartData = stats?.trend || [];
   const totalAmount = viewType === "income" ? stats?.period?.totalIncome || 0 : stats?.period?.totalExpense || 0;
@@ -475,6 +508,19 @@ export default function Home() {
                   </div>
                 </Link>
               ))}
+            </div>
+          )}
+          
+          {/* Show More Button */}
+          {allTransactionsData.length > displayLimit && (
+            <div className="text-center mt-3">
+              <Button
+                onClick={handleLoadMore}
+                variant="outline"
+                className="w-full"
+              >
+                Mostra altri ({allTransactionsData.length - displayLimit} rimanenti)
+              </Button>
             </div>
           )}
         </GlassCard>
