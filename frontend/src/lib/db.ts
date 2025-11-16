@@ -79,6 +79,42 @@ export interface CachedCategory {
   createdAt: string;
 }
 
+export interface CachedLoan {
+  id: number;
+  userId: string;
+  title: string;
+  amount: number;
+  currency: string;
+  fromAccountId: number;
+  categoryId: number;
+  loanDate: string;
+  status: 'active' | 'closed';
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Joined data
+  fromAccountName?: string;
+  fromAccountCurrency?: string;
+  categoryName?: string;
+  categoryIcon?: string;
+  categoryColor?: string;
+  totalRepaid?: number;
+}
+
+export interface CachedLoanRepayment {
+  id: number;
+  loanId: number;
+  amount: number;
+  currency: string;
+  toAccountId: number;
+  repaymentDate: string;
+  description?: string;
+  createdAt: string;
+  // Joined data
+  toAccountName?: string;
+  toAccountCurrency?: string;
+}
+
 export interface Metadata {
   key: string;
   value: any;
@@ -91,6 +127,8 @@ export class TrackingSpeseDB extends Dexie {
   cachedAccounts!: Table<CachedAccount, number>;
   cachedTransactions!: Table<CachedTransaction, number>;
   cachedCategories!: Table<CachedCategory, number>;
+  cachedLoans!: Table<CachedLoan, number>;
+  cachedLoanRepayments!: Table<CachedLoanRepayment, number>;
   metadata!: Table<Metadata, string>;
 
   constructor() {
@@ -113,6 +151,18 @@ export class TrackingSpeseDB extends Dexie {
       cachedAccounts: 'id, userId',
       cachedTransactions: 'id, userId, transactionDate, accountId, type',
       cachedCategories: 'id, userId, type',
+      metadata: 'key'
+    });
+
+    this.version(3).stores({
+      pendingTransactions: 'tempId, userId, createdAt, type',
+      pendingUpdates: 'id, entity, timestamp',
+      pendingDeletes: 'id, entity, timestamp',
+      cachedAccounts: 'id, userId',
+      cachedTransactions: 'id, userId, transactionDate, accountId, type',
+      cachedCategories: 'id, userId, type',
+      cachedLoans: 'id, userId, status, loanDate',
+      cachedLoanRepayments: 'id, loanId, repaymentDate',
       metadata: 'key'
     });
   }
@@ -154,7 +204,9 @@ export async function clearAllCache(): Promise<void> {
   await Promise.all([
     db.cachedAccounts.clear(),
     db.cachedTransactions.clear(),
-    db.cachedCategories.clear()
+    db.cachedCategories.clear(),
+    db.cachedLoans.clear(),
+    db.cachedLoanRepayments.clear()
   ]);
 }
 

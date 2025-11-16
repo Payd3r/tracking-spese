@@ -1,9 +1,9 @@
 import { GlassCard } from "@/components/GlassCard";
-import { IconRenderer } from "@/components/IconRenderer";
 import { AmountInput } from "@/components/AmountInput";
 import { MobileDateInput } from "@/components/MobileDateInput";
 import { NoteInput } from "@/components/NoteInput";
-import { Loader2, ChevronDown, ChevronUp, Wifi, WifiOff } from "lucide-react";
+import { IconRenderer } from "@/components/IconRenderer";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -12,66 +12,51 @@ import { Account, Category } from "@/types/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
-import { addPendingTransaction } from "@/lib/sync";
 import { db } from "@/lib/db";
 
-interface TransactionFormProps {
+interface LoanFormProps {
   onSuccess: () => void;
 }
 
-export function TransactionForm({ onSuccess }: TransactionFormProps) {
-  const { isFullyOnline, isOnline, isServerReachable } = useSync();
-  const [type, setType] = useState<"income" | "expense">("expense");
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
+export function LoanForm({ onSuccess }: LoanFormProps) {
+  const { isFullyOnline } = useSync();
   const [amount, setAmount] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [loanDate, setLoanDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [note, setNote] = useState("");
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
-  const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
 
-  const getDefaultAccountId = (list: Account[]) => {
-    if (!list.length) return null;
-    const cash = list.find(
-      (a) => a.name.toLowerCase() === "contanti" || a.name.toLowerCase() === "cash",
-    );
-    return (cash ?? list[0]).id;
-  };
-
-  const getDefaultCategoryId = (list: Category[]) => {
-    if (!list.length) return null;
-    const other = list.find((c) => c.name.toLowerCase() === "altro");
-    return (other ?? list[0]).id;
-  };
-
   useEffect(() => {
     loadData();
-  }, [type]);
+  }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
       
       // SEMPRE caricare dalla cache prima
+      const cachedAccounts = await db.cachedAccounts.toArray();
       const cachedCategories = await db.cachedCategories
         .where('type')
-        .equals(type)
+        .equals('expense')
         .toArray();
-      const cachedAccounts = await db.cachedAccounts.toArray();
       
       // Mostrare subito i dati dalla cache
-      setCategories(cachedCategories);
       setAccounts(cachedAccounts);
+      setCategories(cachedCategories);
       
       if (cachedAccounts.length > 0 && selectedAccount === null) {
-        setSelectedAccount(getDefaultAccountId(cachedAccounts));
+        setSelectedAccount(cachedAccounts[0].id);
       }
       if (cachedCategories.length > 0 && selectedCategory === null) {
-        setSelectedCategory(getDefaultCategoryId(cachedCategories));
+        const other = cachedCategories.find((c) => c.name.toLowerCase() === "altro");
+        setSelectedCategory(other ? other.id : cachedCategories[0].id);
       }
       
       setLoading(false);
@@ -79,92 +64,79 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       // POI, se online E server raggiungibile, aggiornare in background
       if (isFullyOnline) {
         try {
-          const [categoriesResponse, accountsResponse] = await Promise.all([
-            api.categories.getAll(type),
-            api.accounts.getAll()
+          const [accountsResponse, categoriesResponse] = await Promise.all([
+            api.accounts.getAll(),
+            api.categories.getAll('expense')
           ]);
           
-          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
           const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
+          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
           
           // Aggiornare cache e stato
-          await db.cachedCategories.bulkPut(categoriesData);
           await db.cachedAccounts.bulkPut(accountsData);
+          await db.cachedCategories.bulkPut(categoriesData);
           
-          setCategories(categoriesData);
           setAccounts(accountsData);
+          setCategories(categoriesData);
         } catch (err) {
-          // Ignorare errori di rete - abbiamo già i dati dalla cache
           console.log("Background refresh failed, using cached data");
         }
       }
     } catch (err: any) {
-      // Se anche la cache fallisce, mostrare errore
       console.error("Failed to load data:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento dei dati");
-      setCategories([]);
-      setAccounts([]);
       setLoading(false);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!amount || !selectedCategory || !selectedAccount) {
-      toast.error("Compila tutti i campi obbligatori");
+  const selectedAccountData = accounts.find(a => a.id === selectedAccount);
+  const selectedCategoryData = categories.find(c => c.id === selectedCategory);
+  const currency = selectedAccountData?.currency || 'EUR';
+
+  const handleCreate = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      toast.error("Inserisci un importo valido");
+      return;
+    }
+
+    if (!selectedAccount) {
+      toast.error("Seleziona un conto");
+      return;
+    }
+
+    if (!selectedCategory) {
+      toast.error("Seleziona una categoria");
+      return;
+    }
+
+    if (!note.trim()) {
+      toast.error("Inserisci una nota per il prestito");
       return;
     }
 
     try {
       setSubmitting(true);
-      
-      const selectedCategoryData = categories.find(c => c.id === selectedCategory);
-      const title = selectedCategoryData 
-        ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
-        : type === 'income' ? 'Entrata' : 'Uscita';
-      
-      if (!isFullyOnline) {
-        // Offline: save to pending queue
-        const user = localStorage.getItem('user');
-        const userId = user ? JSON.parse(user).id : '';
-        
-        await addPendingTransaction(userId, {
-          accountId: selectedAccount,
-          categoryId: selectedCategory,
-          amount: parseFloat(amount),
-          type,
-          title,
-          note: note || undefined,
-          transactionDate: new Date(date).toISOString(),
-        });
+      await api.loans.create({
+        title: note.trim(), // Usa la nota come titolo
+        amount: parseFloat(amount),
+        currency,
+        fromAccountId: selectedAccount,
+        categoryId: selectedCategory,
+        loanDate: new Date(loanDate).toISOString(),
+        note: note.trim()
+      });
 
-        toast.success("Transazione salvata offline! Verrà sincronizzata quando torni online.");
-      } else {
-        // Online: create directly via API
-        await api.transactions.create({
-          accountId: selectedAccount,
-          categoryId: selectedCategory,
-          amount: parseFloat(amount),
-          type,
-          title,
-          note: note || undefined,
-          transactionDate: new Date(date).toISOString(),
-        });
-
-        toast.success("Transazione creata con successo!");
-      }
+      toast.success("Prestito creato con successo!");
       
       // Reset form
       setAmount("");
       setNote("");
-      setSelectedCategory(null);
-      setSelectedAccount(null);
-      setDate(format(new Date(), 'yyyy-MM-dd'));
-      setType("expense");
+      setLoanDate(format(new Date(), 'yyyy-MM-dd'));
       
       onSuccess();
     } catch (err: any) {
-      console.error("Failed to create transaction:", err);
-      toast.error(err.response?.data?.message || "Errore nella creazione della transazione");
+      console.error("Failed to create loan:", err);
+      toast.error(err.response?.data?.message || "Errore nella creazione del prestito");
     } finally {
       setSubmitting(false);
     }
@@ -172,7 +144,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div className="flex justify-center items-center py-20">
         <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
@@ -180,61 +152,18 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
 
   return (
     <div className="space-y-3">
-      {/* Type Selector */}
-      <GlassCard className="p-2 flex gap-2">
-        <button
-          onClick={() => {
-            setType("expense");
-            setSelectedCategory(null);
-            setCategoriesExpanded(false);
-          }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-            type === "expense" ? "pill-active" : "text-muted-foreground"
-          }`}
-        >
-          Uscita
-        </button>
-        <button
-          onClick={() => {
-            setType("income");
-            setSelectedCategory(null);
-            setCategoriesExpanded(false);
-          }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-            type === "income" ? "pill-active" : "text-muted-foreground"
-          }`}
-        >
-          Entrata
-        </button>
-      </GlassCard>
-
-      {/* Status Indicator */}
-      {!isFullyOnline && (
-        <div className="glass-card tone-warning p-3 rounded-2xl flex items-center gap-2">
-          {!isOnline ? (
-            <>
-              <WifiOff className="w-4 h-4 text-warning" />
-              <span className="text-xs text-warning">Modalità offline - Le transazioni verranno sincronizzate quando torni online</span>
-            </>
-          ) : !isServerReachable ? (
-            <>
-              <WifiOff className="w-4 h-4 text-warning" />
-              <span className="text-xs text-warning">Server non raggiungibile - Le transazioni verranno sincronizzate automaticamente</span>
-            </>
-          ) : null}
-        </div>
-      )}
-
-      {/* Amount */}
+      {/* Amount Input */}
       <AmountInput
         value={amount}
         onChange={setAmount}
-        currency={selectedAccount ? accounts.find(a => a.id === selectedAccount)?.currency : 'EUR'}
-        type={type}
+        currency={currency}
       />
 
       {/* Date */}
-      <MobileDateInput value={date} onChange={setDate} />
+      <MobileDateInput
+        value={loanDate}
+        onChange={setLoanDate}
+      />
 
       {/* Category */}
       <GlassCard className="p-4">
@@ -329,26 +258,26 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         )}
       </GlassCard>
 
-      {/* Note */}
+      {/* Note Input */}
       <NoteInput
         value={note}
         onChange={setNote}
-        placeholder="Note opzionali..."
+        placeholder="Note del prestito..."
       />
 
       {/* Submit Button */}
       <Button 
-        onClick={handleSubmit} 
-        disabled={submitting}
+        onClick={handleCreate} 
+        disabled={submitting || !selectedCategory || !note.trim()}
         className="w-full h-11 rounded-2xl font-semibold text-base pill-active"
       >
         {submitting ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            Salvataggio...
+            Creazione...
           </>
         ) : (
-          "Aggiungi Transazione"
+          "Crea Prestito"
         )}
       </Button>
     </div>

@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Loader2, Wifi, WifiOff, Clock } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Loader2, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
@@ -11,6 +11,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { setStartupSnapshot, getStartupSnapshot } from "@/lib/cacheManager";
 
 // Helper function to format chart labels based on period
 const formatChartLabel = (date: string, period: string, index: number): string => {
@@ -122,11 +123,25 @@ export default function Home() {
   const [userName, setUserName] = useState("User");
   const [displayLimit, setDisplayLimit] = useState(50);
   const [allTransactionsData, setAllTransactionsData] = useState<Transaction[]>([]);
+  const [hasInitialData, setHasInitialData] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [snapshotTimestamp, setSnapshotTimestamp] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const loadUserName = async () => {
     try {
       const response = await api.auth.me();
-      setUserName(response.data.user.name || "User");
+      const name = response.data.user.name || "User";
+      setUserName(name);
+      
+      // Aggiorna lo snapshot con il nome utente se esiste già
+      const snapshot = getStartupSnapshot();
+      if (snapshot) {
+        setStartupSnapshot({
+          ...snapshot,
+          userName: name
+        });
+      }
     } catch (err) {
       console.error("Failed to load user:", err);
     }
@@ -134,7 +149,12 @@ export default function Home() {
 
   const loadData = useCallback(async () => {
     try {
-      setLoading(true);
+      // Se abbiamo già i dati iniziali, non mostrare il loader ma mostra indicatore di refresh
+      if (!hasInitialData) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       setError(null);
       
       const dateRange = getDateRange(period);
@@ -247,7 +267,20 @@ export default function Home() {
       });
       
       // Show only first displayLimit transactions for recent transactions display
-      setRecentTransactions(allTransactionsInPeriod.slice(0, displayLimit));
+      const displayedTransactions = allTransactionsInPeriod.slice(0, displayLimit);
+      setRecentTransactions(displayedTransactions);
+      
+      // Salva lo snapshot locale con i dati caricati da cache
+      const cacheTimestamp = new Date().toISOString();
+      setStartupSnapshot({
+        stats,
+        recentTransactions: displayedTransactions,
+        period,
+        viewType,
+        lastUpdatedAt: cacheTimestamp,
+        userName
+      });
+      setSnapshotTimestamp(cacheTimestamp);
       
       // If online, try to fetch fresh data in background
       if (isOnline) {
@@ -266,7 +299,8 @@ export default function Home() {
           setStats(statsResponse.data);
           
           const transactions = transactionsResponse.data.transactions || [];
-          setRecentTransactions(Array.isArray(transactions) ? transactions : []);
+          const freshTransactions = Array.isArray(transactions) ? transactions : [];
+          setRecentTransactions(freshTransactions);
           
           // Cache fresh transactions
           if (Array.isArray(transactions)) {
@@ -275,9 +309,25 @@ export default function Home() {
             const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
             await db.cachedTransactions.bulkPut(txsWithUser);
           }
+          
+          // Aggiorna lo snapshot con i dati freschi dal server
+          const newTimestamp = new Date().toISOString();
+          setStartupSnapshot({
+            stats: statsResponse.data,
+            recentTransactions: freshTransactions,
+            period,
+            viewType,
+            lastUpdatedAt: newTimestamp,
+            userName
+          });
+          setSnapshotTimestamp(newTimestamp);
+          setSyncError(null); // Reset error se la sync riesce
         } catch (networkErr: any) {
           // Network failed, but we already have cache data - no error shown
           console.log("Network fetch failed, using cached data:", networkErr);
+          if (isOnline) {
+            setSyncError("Impossibile aggiornare i dati. Verifica la connessione.");
+          }
         }
       }
     } catch (err: any) {
@@ -286,10 +336,27 @@ export default function Home() {
       setRecentTransactions([]);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
+      setHasInitialData(false); // Reset dopo il primo caricamento
     }
-  }, [period, viewType, displayLimit]); // Added displayLimit to dependencies
+  }, [period, viewType, displayLimit, hasInitialData]); // Added hasInitialData to dependencies
 
+  // Carica lo snapshot all'avvio per mostrare subito i dati
   useEffect(() => {
+    const snapshot = getStartupSnapshot();
+    if (snapshot) {
+      // Inizializza lo stato con i dati dello snapshot
+      setStats(snapshot.stats);
+      setRecentTransactions(snapshot.recentTransactions);
+      setPeriod(snapshot.period);
+      setViewType(snapshot.viewType);
+      if (snapshot.userName) {
+        setUserName(snapshot.userName);
+      }
+      setSnapshotTimestamp(snapshot.lastUpdatedAt);
+      setHasInitialData(true);
+      setLoading(false); // Non mostrare il loader, abbiamo già i dati
+    }
     loadUserName();
   }, []);
 
@@ -308,15 +375,23 @@ export default function Home() {
       loadData();
     };
 
+    // Listen for transaction updated event
+    const handleTransactionUpdated = () => {
+      loadData();
+    };
+
     // Listen for data synced event
     const handleDataSynced = () => {
+      // Quando i dati vengono sincronizzati, ricarica e aggiorna lo snapshot
       loadData();
     };
 
     window.addEventListener('transactionCreated', handleTransactionCreated);
+    window.addEventListener('transactionUpdated', handleTransactionUpdated);
     window.addEventListener('dataSynced', handleDataSynced);
     return () => {
       window.removeEventListener('transactionCreated', handleTransactionCreated);
+      window.removeEventListener('transactionUpdated', handleTransactionUpdated);
       window.removeEventListener('dataSynced', handleDataSynced);
     };
   }, [loadData]);
@@ -348,7 +423,7 @@ export default function Home() {
   };
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
+    <div className="px-3 pt-4 pb-28 max-w-md mx-auto">
 
       {loading && (
         <div className="flex justify-center items-center py-20">
@@ -362,6 +437,25 @@ export default function Home() {
         </div>
       )}
 
+      {/* Messaggio di errore sync con pulsante retry */}
+      {syncError && isOnline && (
+        <div className="glass-card p-3 mb-4 flex items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground flex-1">{syncError}</p>
+          <Button
+            onClick={() => {
+              setSyncError(null);
+              loadData();
+            }}
+            size="sm"
+            variant="outline"
+            className="flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Riprova</span>
+          </Button>
+        </div>
+      )}
+
       {!loading && !error && (
         <>
           {/* Balance Card */}
@@ -370,7 +464,7 @@ export default function Home() {
               <button 
                 onClick={() => setViewType("spending")}
                 className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-                  viewType === "spending" ? "gradient-blue text-white" : "text-muted-foreground"
+                  viewType === "spending" ? "pill-active" : "text-muted-foreground"
                 }`}
               >
                 Uscite
@@ -378,7 +472,7 @@ export default function Home() {
               <button 
                 onClick={() => setViewType("income")}
                 className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-                  viewType === "income" ? "gradient-blue text-white" : "text-muted-foreground"
+                  viewType === "income" ? "pill-active" : "text-muted-foreground"
                 }`}
               >
                 Entrate
@@ -395,9 +489,9 @@ export default function Home() {
                   : 'border-destructive/40 bg-destructive/25 text-destructive-foreground'
               }`}>
                 {isOnline ? (
-                  <Wifi className="w-5 h-5" />
+                  <Wifi className="w-5 h-5 text-green-400" />
                 ) : (
-                  <WifiOff className="w-5 h-5" />
+                  <WifiOff className="w-5 h-5 text-red-400" />
                 )}
               </div>
             </div>
@@ -495,13 +589,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-semibold text-sm ${
-                          transaction.isPending 
-                            ? 'text-warning' 
-                            : transaction.type === 'income' 
-                              ? 'text-success' 
-                              : 'text-destructive'
-                        }`}>
+                        <p className="font-semibold text-sm text-white">
                           {transaction.type === 'income' ? <ArrowUpRight className="inline w-4 h-4 mb-0.5" /> : <ArrowDownRight className="inline w-4 h-4 mb-0.5" />}
                           {' '}{getCurrencySymbol(transaction.accountCurrency || stats?.currency)} {formatCurrency(transaction.amount)}
                         </p>

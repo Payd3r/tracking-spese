@@ -15,6 +15,7 @@ import categoryRoutes from './routes/categories.js';
 import transactionRoutes from './routes/transactions.js';
 import statsRoutes from './routes/stats.js';
 import currencyRoutes from './routes/currencies.js';
+import loanRoutes from './routes/loans.js';
 
 // Load environment variables from project root
 const __filename = fileURLToPath(import.meta.url);
@@ -99,6 +100,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/currencies', currencyRoutes);
+app.use('/api/loans', loanRoutes);
 
 // 404 handler
 app.use((req, res) => {

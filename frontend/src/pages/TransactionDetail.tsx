@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Calendar, FileText, Wallet, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Wallet, Loader2, ChevronDown, ChevronUp, WifiOff } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { getCategoryStyle } from "@/utils/categoryColors";
 import { formatCurrency } from "@/lib/utils";
+import { useSync } from "@/contexts/SyncContext";
+import { db } from "@/lib/db";
+import { addPendingDelete, addPendingUpdate } from "@/lib/sync";
 
 // Convert currency code to symbol
 const getCurrencySymbol = (code: string = "EUR"): string => {
@@ -54,6 +57,7 @@ import {
 export default function TransactionDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { isFullyOnline, isOnline, isServerReachable } = useSync();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -75,30 +79,82 @@ export default function TransactionDetail() {
       loadTransaction();
     }
   }, [id]);
-
   const loadTransaction = async () => {
     if (!id) return;
     
     try {
       setLoading(true);
-      const response = await api.transactions.getOne(parseInt(id));
-      const txn = response.data;
-      setTransaction(txn);
-      
-      // Set form values
-      setAmount(txn.amount.toString());
-      setSelectedCategory(txn.categoryId);
-      setSelectedAccount(txn.accountId);
-      setDate(format(new Date(txn.transactionDate), 'yyyy-MM-dd'));
-      setNote(txn.note || "");
-      
-      // Load categories and accounts
-      const [categoriesRes, accountsRes] = await Promise.all([
-        api.categories.getAll(txn.type),
-        api.accounts.getAll()
-      ]);
-      setCategories(Array.isArray(categoriesRes.data.categories) ? categoriesRes.data.categories : []);
-      setAccounts(Array.isArray(accountsRes.data) ? accountsRes.data : []);
+      const numericId = parseInt(id);
+
+      // 1) Prova a caricare prima dalla cache
+      const cachedTx = await db.cachedTransactions.get(numericId);
+
+      if (cachedTx) {
+        const txn = cachedTx as unknown as Transaction;
+        setTransaction(txn);
+
+        // Set form values dalla cache
+        setAmount(txn.amount.toString());
+        setSelectedCategory(txn.categoryId);
+        setSelectedAccount(txn.accountId);
+        setDate(format(new Date(txn.transactionDate), "yyyy-MM-dd"));
+        setNote(txn.note || "");
+
+        // Carica categorie e conti dalla cache
+        const [cachedCategories, cachedAccounts] = await Promise.all([
+          db.cachedCategories.where("type").equals(txn.type).toArray(),
+          db.cachedAccounts.toArray(),
+        ]);
+
+        setCategories(cachedCategories as unknown as Category[]);
+        setAccounts(cachedAccounts as unknown as Account[]);
+      }
+
+      // Se non abbiamo nulla in cache e non siamo pienamente online, non possiamo procedere
+      if (!cachedTx && !isFullyOnline) {
+        toast.error("Transazione non disponibile offline");
+        navigate(-1);
+        return;
+      }
+
+      // 2) Se siamo pienamente online, aggiorna da API e refresh cache
+      if (isFullyOnline) {
+        const response = await api.transactions.getOne(numericId);
+        const txn = response.data as Transaction;
+        setTransaction(txn);
+
+        // Aggiorna form con i dati più freschi
+        setAmount(txn.amount.toString());
+        setSelectedCategory(txn.categoryId);
+        setSelectedAccount(txn.accountId);
+        setDate(format(new Date(txn.transactionDate), "yyyy-MM-dd"));
+        setNote(txn.note || "");
+
+        // Load categories and accounts da API
+        const [categoriesRes, accountsRes] = await Promise.all([
+          api.categories.getAll(txn.type),
+          api.accounts.getAll(),
+        ]);
+
+        const categoriesData = Array.isArray(categoriesRes.data.categories)
+          ? categoriesRes.data.categories
+          : [];
+        const accountsData = Array.isArray((accountsRes.data as any).accounts)
+          ? (accountsRes.data as any).accounts
+          : Array.isArray(accountsRes.data)
+          ? (accountsRes.data as any)
+          : [];
+
+        setCategories(categoriesData);
+        setAccounts(accountsData);
+
+        // Aggiorna cache
+        const user = localStorage.getItem("user");
+        const userId = user ? JSON.parse(user).id : "";
+        await db.cachedTransactions.put({ ...(txn as any), userId });
+        await db.cachedCategories.bulkPut(categoriesData as any);
+        await db.cachedAccounts.bulkPut(accountsData as any);
+      }
     } catch (err: any) {
       console.error("Failed to load transaction:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento della transazione");
@@ -117,19 +173,75 @@ export default function TransactionDetail() {
       const title = selectedCategoryData 
         ? `${transaction.type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : transaction.type === 'income' ? 'Entrata' : 'Uscita';
-      
-      await api.transactions.update(parseInt(id), {
+
+      const payload = {
         title,
         amount: parseFloat(amount),
         categoryId: selectedCategory!,
         accountId: selectedAccount!,
         transactionDate: new Date(date).toISOString(),
-        note: note || undefined
-      });
-      
-      toast.success("Transazione aggiornata con successo!");
-      setIsEditing(false);
-      loadTransaction();
+        note: note || undefined,
+      };
+
+      const selectedAccountData = accounts.find(a => a.id === selectedAccount);
+
+      if (!isFullyOnline) {
+        // OFFLINE / SERVER NON RAGGIUNGIBILE: metti in coda e aggiorna cache + stato locale
+        await addPendingUpdate("transaction", transaction.id, payload);
+
+        const updatedTransaction: Transaction = {
+          ...transaction,
+          ...payload,
+          accountName: selectedAccountData?.name || transaction.accountName,
+          accountCurrency: selectedAccountData?.currency || transaction.accountCurrency,
+          categoryName: selectedCategoryData?.name || transaction.categoryName,
+          categoryIcon: selectedCategoryData?.icon || transaction.categoryIcon,
+          categoryColor: selectedCategoryData?.color || transaction.categoryColor,
+          updatedAt: new Date().toISOString(),
+        };
+
+        const existing: any = transaction as any;
+        await db.cachedTransactions.put({
+          ...existing,
+          ...updatedTransaction,
+          userId: existing.userId,
+        });
+
+        setTransaction(updatedTransaction);
+        setIsEditing(false);
+        toast.success("Transazione aggiornata offline! Verrà sincronizzata quando torni online.");
+      } else {
+        // ONLINE: aggiorna via API e poi cache
+        const response = await api.transactions.update(parseInt(id), payload);
+        const apiTx = response.data as Transaction | undefined;
+
+        const mergedTx: Transaction = apiTx
+          ? apiTx
+          : {
+              ...transaction,
+              ...payload,
+              accountName: selectedAccountData?.name || transaction.accountName,
+              accountCurrency: selectedAccountData?.currency || transaction.accountCurrency,
+              categoryName: selectedCategoryData?.name || transaction.categoryName,
+              categoryIcon: selectedCategoryData?.icon || transaction.categoryIcon,
+              categoryColor: selectedCategoryData?.color || transaction.categoryColor,
+              updatedAt: new Date().toISOString(),
+            };
+
+        const existing: any = transaction as any;
+        await db.cachedTransactions.put({
+          ...existing,
+          ...mergedTx,
+          userId: existing.userId,
+        });
+
+        setTransaction(mergedTx);
+        setIsEditing(false);
+        toast.success("Transazione aggiornata con successo!");
+      }
+
+      // Notifica il resto dell'app che i dati sono cambiati
+      window.dispatchEvent(new Event("transactionUpdated"));
     } catch (err: any) {
       console.error("Failed to update transaction:", err);
       toast.error(err.response?.data?.message || "Errore nell'aggiornamento della transazione");
@@ -137,11 +249,27 @@ export default function TransactionDetail() {
   };
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || !transaction) return;
     
     try {
-      await api.transactions.delete(parseInt(id));
-      toast.success("Transazione eliminata con successo!");
+      const numericId = parseInt(id);
+
+      if (!isFullyOnline) {
+        // OFFLINE / SERVER NON RAGGIUNGIBILE: metti in coda e rimuovi dalla cache
+        await addPendingDelete("transaction", numericId);
+        await db.cachedTransactions.delete(transaction.id);
+
+        toast.success("Transazione eliminata offline! Verrà sincronizzata quando torni online.");
+      } else {
+        // ONLINE: elimina via API e poi dalla cache
+        await api.transactions.delete(numericId);
+        await db.cachedTransactions.delete(transaction.id);
+
+        toast.success("Transazione eliminata con successo!");
+      }
+
+      // Notifica il resto dell'app che i dati sono cambiati
+      window.dispatchEvent(new Event("transactionUpdated"));
       navigate("/");
     } catch (err: any) {
       console.error("Failed to delete transaction:", err);
@@ -174,6 +302,23 @@ export default function TransactionDetail() {
         </button>
         <h1 className="text-xl font-bold">Dettaglio Transazione</h1>
       </div>
+
+      {/* Status Indicator */}
+      {!isFullyOnline && (
+        <div className="glass-card tone-warning p-3 mb-4 rounded-2xl flex items-center gap-2">
+          {!isOnline ? (
+            <>
+              <WifiOff className="w-4 h-4 text-warning" />
+              <span className="text-xs text-warning">Modalità offline - Le modifiche verranno sincronizzate quando torni online</span>
+            </>
+          ) : !isServerReachable ? (
+            <>
+              <WifiOff className="w-4 h-4 text-warning" />
+              <span className="text-xs text-warning">Server non raggiungibile - Le modifiche verranno sincronizzate automaticamente</span>
+            </>
+          ) : null}
+        </div>
+      )}
 
       {/* Transaction Type Badge */}
       <GlassCard className={`p-3 mb-4 text-center ${
@@ -225,19 +370,13 @@ export default function TransactionDetail() {
                 <>
                   <div className="grid grid-cols-4 gap-2 mt-3">
                     {visibleCategories.map((category) => {
-                      const { className: colorClass, style: colorStyle } = getCategoryStyle(
-                        category.color, 
-                        selectedCategory === category.id
-                      );
-                      
                       return (
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategory(category.id)}
-                          className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
-                            selectedCategory === category.id ? colorClass : ""
+                          className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
+                            selectedCategory === category.id ? "pill-active" : ""
                           }`}
-                          style={colorStyle}
                         >
                           <IconRenderer icon={category.icon} size={24} />
                           <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
@@ -288,8 +427,8 @@ export default function TransactionDetail() {
               <button
                 key={account.id}
                 onClick={() => setSelectedAccount(account.id)}
-                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl ${
-                  selectedAccount === account.id ? "gradient-blue" : ""
+                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
+                  selectedAccount === account.id ? "pill-active" : ""
                 }`}
               >
                 <IconRenderer icon={account.icon} size={24} />
@@ -362,9 +501,9 @@ export default function TransactionDetail() {
             >
               Annulla
             </Button>
-            <Button 
-              onClick={handleUpdate} 
-              className="flex-1 gradient-blue text-white h-11 text-sm rounded-2xl"
+            <Button
+              onClick={handleUpdate}
+              className="flex-1 h-11 text-sm rounded-2xl"
             >
               Salva
             </Button>
@@ -381,9 +520,9 @@ export default function TransactionDetail() {
             >
               Modifica
             </Button>
-            <Button 
-              variant="destructive" 
-              className="flex-1 h-11 text-sm rounded-2xl"
+            <Button
+              variant="destructive"
+              className="flex-1 h-11 text-sm rounded-2xl pill-active"
               onClick={() => setDeleteDialogOpen(true)}
             >
               Elimina

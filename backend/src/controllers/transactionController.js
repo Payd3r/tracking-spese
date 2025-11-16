@@ -11,6 +11,7 @@ export const getTransactions = async (req, res, next) => {
       type, 
       startDate, 
       endDate, 
+      search,
       limit = 50,
       offset = 0 
     } = req.query;
@@ -50,6 +51,12 @@ export const getTransactions = async (req, res, next) => {
       paramIndex++;
     }
     
+    if (search) {
+      whereClause += ` AND (t.title ILIKE $${paramIndex} OR COALESCE(t.note, '') ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+    
     // Count total transactions matching filters
     const countQuery = `
       SELECT COUNT(*) as total
@@ -59,6 +66,16 @@ export const getTransactions = async (req, res, next) => {
     
     const countResult = await pool.query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
+    
+    // Calculate total amount of all transactions matching filters
+    const totalAmountQuery = `
+      SELECT COALESCE(SUM(ABS(t.amount)), 0) as total_amount
+      FROM transactions t
+      ${whereClause}
+    `;
+    
+    const totalAmountResult = await pool.query(totalAmountQuery, params);
+    const totalAmount = parseFloat(totalAmountResult.rows[0].total_amount) || 0;
     
     // Get paginated transactions
     let query = `
@@ -112,7 +129,7 @@ export const getTransactions = async (req, res, next) => {
       updatedAt: t.updated_at
     }));
     
-    res.json({ transactions, total });
+    res.json({ transactions, total, totalAmount });
   } catch (error) {
     next(error);
   }

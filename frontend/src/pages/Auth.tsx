@@ -129,12 +129,12 @@ export default function Auth() {
   };
 
   return (
-    <div className="h-full flex items-center justify-center px-3 py-8 bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="h-full flex items-center justify-center px-3 py-8 bg-background">
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-6">
-          <div className="inline-block p-3 rounded-3xl gradient-purple mb-3">
-            <DollarSign className="w-10 h-10 text-white" />
+          <div className="inline-block p-3 rounded-3xl glass-card mb-3">
+            <DollarSign className="w-10 h-10 text-foreground" />
           </div>
           <h1 className="text-3xl font-bold mb-1">Tracking Spese</h1>
           <p className="text-sm text-muted-foreground">
@@ -143,21 +143,21 @@ export default function Auth() {
         </div>
 
         {/* Auth Card */}
-        <GlassCard className="p-5">
+          <GlassCard className="p-5">
           {/* Mode Toggle */}
           <div className="flex gap-2 p-2 glass-card rounded-2xl mb-5">
             <button
               onClick={() => setMode("login")}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
-                mode === "login" ? "gradient-blue text-white" : "text-muted-foreground"
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
+                mode === "login" ? "pill-active" : "text-muted-foreground"
               }`}
             >
               Login
             </button>
             <button
               onClick={() => setMode("register")}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
-                mode === "register" ? "gradient-blue text-white" : "text-muted-foreground"
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
+                mode === "register" ? "pill-active" : "text-muted-foreground"
               }`}
             >
               Registrati
@@ -181,7 +181,7 @@ export default function Auth() {
             <div>
               <GlassCard>
                 <div className="flex items-center gap-3 p-4">
-                  <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
                     <Mail className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
@@ -207,7 +207,7 @@ export default function Auth() {
             <div>
               <GlassCard>
                 <div className="flex items-center gap-3 p-4">
-                  <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
                     <Lock className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
@@ -242,9 +242,9 @@ export default function Auth() {
                       key={currency}
                       type="button"
                       onClick={() => setDefaultCurrency(currency)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all interactive-press ${
                         defaultCurrency === currency
-                          ? 'gradient-blue text-white'
+                          ? 'pill-active'
                           : 'glass-card text-muted-foreground hover:text-foreground'
                       }`}
                     >
@@ -254,9 +254,9 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => setDefaultCurrency('')}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all interactive-press ${
                       defaultCurrency === ''
-                        ? 'gradient-blue text-white'
+                        ? 'pill-active'
                         : 'glass-card text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -267,7 +267,7 @@ export default function Auth() {
                   <div className="mt-2">
                     <GlassCard>
                       <div className="flex items-center gap-3 p-4">
-                        <div className="w-10 h-10 rounded-xl gradient-green flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
                           <DollarSign className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
@@ -293,7 +293,7 @@ export default function Auth() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl gradient-blue text-white font-semibold text-base shadow-lg mt-2"
+              className="w-full h-11 rounded-xl font-semibold text-base mt-2"
             >
               {loading ? (
                 <>

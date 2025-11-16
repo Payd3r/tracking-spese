@@ -1,5 +1,6 @@
 import { db } from './db';
 import { api } from './api';
+import { DashboardStats, Transaction } from '@/types/api';
 
 export interface CachePreloadResult {
   success: boolean;
@@ -7,6 +8,24 @@ export interface CachePreloadResult {
   accounts: number;
   transactions: number;
   error?: string;
+}
+
+/**
+ * Snapshot locale per avvio istantaneo della PWA
+ * Contiene i dati necessari per mostrare subito la Home senza attendere il fetch
+ */
+export interface StartupSnapshot {
+  // Dati delle stats per la Home
+  stats: DashboardStats | null;
+  // Ultime transazioni visualizzate (quelle mostrate nella Home)
+  recentTransactions: Transaction[];
+  // Periodo e viewType corrente
+  period: 'day' | 'week' | 'month' | 'year';
+  viewType: 'income' | 'spending';
+  // Timestamp ultimo aggiornamento
+  lastUpdatedAt: string;
+  // Nome utente
+  userName?: string;
 }
 
 /**
@@ -112,6 +131,9 @@ export async function getCachedTransactions(filters?: {
   limit?: number;
   accountId?: number;
   categoryId?: number;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
 }) {
   // Get all transactions first, then filter and sort in memory
   let transactions = await db.cachedTransactions.toArray();
@@ -127,6 +149,40 @@ export async function getCachedTransactions(filters?: {
 
   if (filters?.categoryId) {
     transactions = transactions.filter(tx => tx.categoryId === filters.categoryId);
+  }
+
+  // Apply date filters
+  if (filters?.startDate) {
+    const startDate = new Date(filters.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    if (filters?.endDate) {
+      // Range filter: >= startDate AND <= endDate
+      const endDate = new Date(filters.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      transactions = transactions.filter(tx => {
+        const txDate = new Date(tx.transactionDate);
+        return txDate >= startDate && txDate <= endDate;
+      });
+    } else {
+      // Single date filter: >= startDate AND < startDate + 1 day
+      const nextDay = new Date(startDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      transactions = transactions.filter(tx => {
+        const txDate = new Date(tx.transactionDate);
+        return txDate >= startDate && txDate < nextDay;
+      });
+    }
+  }
+
+  // Apply search filter (case-insensitive, partial match)
+  if (filters?.search) {
+    const searchTerm = filters.search.toLowerCase();
+    transactions = transactions.filter(tx => {
+      const titleMatch = tx.title?.toLowerCase().includes(searchTerm) || false;
+      const noteMatch = (tx.note || '').toLowerCase().includes(searchTerm);
+      return titleMatch || noteMatch;
+    });
   }
 
   // Sort by transactionDate descending (newest first)
@@ -166,5 +222,55 @@ export async function refreshCacheAfterSync(): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to refresh cache after sync:', error);
+  }
+}
+
+/**
+ * Salva lo snapshot locale per l'avvio istantaneo
+ * Usa localStorage per lettura sincrona all'avvio
+ */
+export function setStartupSnapshot(snapshot: StartupSnapshot): void {
+  try {
+    const serialized = JSON.stringify(snapshot);
+    localStorage.setItem('startupSnapshot', serialized);
+  } catch (error) {
+    console.error('Failed to save startup snapshot:', error);
+  }
+}
+
+/**
+ * Carica lo snapshot locale per l'avvio istantaneo
+ * Ritorna null se non esiste o è invalido
+ */
+export function getStartupSnapshot(): StartupSnapshot | null {
+  try {
+    const serialized = localStorage.getItem('startupSnapshot');
+    if (!serialized) {
+      return null;
+    }
+    
+    const snapshot = JSON.parse(serialized) as StartupSnapshot;
+    
+    // Validazione base dello snapshot
+    if (!snapshot.lastUpdatedAt || !snapshot.period || !snapshot.viewType) {
+      console.warn('Invalid startup snapshot format');
+      return null;
+    }
+    
+    return snapshot;
+  } catch (error) {
+    console.error('Failed to load startup snapshot:', error);
+    return null;
+  }
+}
+
+/**
+ * Rimuove lo snapshot locale
+ */
+export function clearStartupSnapshot(): void {
+  try {
+    localStorage.removeItem('startupSnapshot');
+  } catch (error) {
+    console.error('Failed to clear startup snapshot:', error);
   }
 }

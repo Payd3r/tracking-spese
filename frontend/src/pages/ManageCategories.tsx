@@ -141,16 +141,16 @@ export default function ManageCategories() {
         <div className="flex gap-2">
           <button
             onClick={() => setViewType("expense")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all ${
-              viewType === "expense" ? "gradient-blue text-white font-medium" : "text-muted-foreground"
+            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${
+              viewType === "expense" ? "pill-active" : "text-muted-foreground"
             }`}
           >
             Uscite
           </button>
           <button
             onClick={() => setViewType("income")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all ${
-              viewType === "income" ? "gradient-blue text-white font-medium" : "text-muted-foreground"
+            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${
+              viewType === "income" ? "pill-active" : "text-muted-foreground"
             }`}
           >
             Entrate
@@ -162,7 +162,7 @@ export default function ManageCategories() {
       <div className="px-1.5 mb-4">
         <Button 
           onClick={() => setCreateSheetOpen(true)}
-          className="w-full gap-2 h-11"
+          className="w-full gap-2 h-11 pill-active"
         >
           <Plus className="w-4 h-4" />
           Aggiungi Categoria

@@ -1,8 +1,8 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Filter, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Filter, Clock, Search } from "lucide-react";
 import { Link, Link as RouterLink } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { Category, Transaction, Account } from "@/types/api";
 import { format } from "date-fns";
@@ -18,15 +18,23 @@ export default function Transactions() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<number | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<number | null>(null);
+  const [selectedStartDate, setSelectedStartDate] = useState<string>("");
+  const [selectedEndDate, setSelectedEndDate] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchInputValue, setSearchInputValue] = useState<string>("");
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Temporary filter states (before applying)
   const [tempAccountFilter, setTempAccountFilter] = useState<number | null>(null);
   const [tempCategoryFilter, setTempCategoryFilter] = useState<number | null>(null);
+  const [tempStartDate, setTempStartDate] = useState<string>("");
+  const [tempEndDate, setTempEndDate] = useState<string>("");
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalTransactions, setTotalTransactions] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -34,22 +42,82 @@ export default function Transactions() {
   
   const LIMIT = 50;
 
+  // Debounce search query
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(searchInputValue);
+    }, 300); // 300ms delay
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchInputValue]);
+
+  // Track previous search query to detect if only search changed
+  const prevSearchQueryRef = useRef<string>("");
+  const prevFiltersRef = useRef({
+    viewType,
+    selectedAccountFilter,
+    selectedCategoryFilter,
+    selectedStartDate,
+    selectedEndDate
+  });
+
   useEffect(() => {
     setOffset(0); // Reset offset when filters change
-    loadData(true);
-  }, [viewType, selectedAccountFilter, selectedCategoryFilter]);
+    
+    // Check if only search query changed
+    const onlySearchChanged = 
+      prevSearchQueryRef.current !== searchQuery &&
+      prevFiltersRef.current.viewType === viewType &&
+      prevFiltersRef.current.selectedAccountFilter === selectedAccountFilter &&
+      prevFiltersRef.current.selectedCategoryFilter === selectedCategoryFilter &&
+      prevFiltersRef.current.selectedStartDate === selectedStartDate &&
+      prevFiltersRef.current.selectedEndDate === selectedEndDate;
+    
+    // Update refs
+    prevSearchQueryRef.current = searchQuery;
+    prevFiltersRef.current = {
+      viewType,
+      selectedAccountFilter,
+      selectedCategoryFilter,
+      selectedStartDate,
+      selectedEndDate
+    };
+    
+    // If only search changed, don't show full loading
+    if (onlySearchChanged) {
+      loadData(true, 0, false); // reset=true, offset=0, showLoading=false
+    } else {
+      loadData(true);
+    }
+  }, [viewType, selectedAccountFilter, selectedCategoryFilter, selectedStartDate, selectedEndDate, searchQuery]);
   
   const applyFilters = () => {
     setSelectedAccountFilter(tempAccountFilter);
     setSelectedCategoryFilter(tempCategoryFilter);
+    setSelectedStartDate(tempStartDate);
+    setSelectedEndDate(tempEndDate);
     setFiltersExpanded(false);
   };
   
   const clearFilters = () => {
     setTempAccountFilter(null);
     setTempCategoryFilter(null);
+    setTempStartDate("");
+    setTempEndDate("");
     setSelectedAccountFilter(null);
     setSelectedCategoryFilter(null);
+    setSelectedStartDate("");
+    setSelectedEndDate("");
+    setSearchQuery("");
+    setSearchInputValue("");
   };
   
   const loadMoreTransactions = async () => {
@@ -58,16 +126,22 @@ export default function Transactions() {
     await loadData(false, newOffset);
   };
 
-  const loadData = async (reset: boolean = true, customOffset?: number) => {
+  const loadData = async (reset: boolean = true, customOffset?: number, showLoading: boolean = true) => {
     try {
       const currentOffset = customOffset !== undefined ? customOffset : (reset ? 0 : offset);
       
-      if (reset) {
+      if (reset && showLoading) {
         setLoading(true);
-      } else {
+      } else if (!reset) {
         setLoadingMore(true);
       }
       setError(null);
+      
+      // If only startDate is present (no endDate), filter only that specific date
+      // by setting endDate = startDate
+      const effectiveEndDate = selectedStartDate && !selectedEndDate 
+        ? selectedStartDate 
+        : selectedEndDate;
       
       if (isOnline) {
         // Online: fetch from API and cache
@@ -80,6 +154,9 @@ export default function Transactions() {
               type: viewType,
               accountId: selectedAccountFilter || undefined,
               categoryId: selectedCategoryFilter || undefined,
+              startDate: selectedStartDate || undefined,
+              endDate: effectiveEndDate || undefined,
+              search: searchQuery || undefined,
               limit: LIMIT,
               offset: currentOffset
             })
@@ -90,11 +167,13 @@ export default function Transactions() {
           const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
           const transactions = transactionsResponse.data.transactions || [];
           const total = transactionsResponse.data.total || 0;
+          const totalAmountFromApi = transactionsResponse.data.totalAmount || 0;
           
           setCategories(categoriesData);
           setAccounts(accountsData);
           setTransactions(Array.isArray(transactions) ? transactions : []);
           setTotalTransactions(total);
+          setTotalAmount(totalAmountFromApi);
           
           // Cache data for offline use
           await db.cachedCategories.bulkPut(categoriesData);
@@ -112,15 +191,20 @@ export default function Transactions() {
             type: viewType,
             accountId: selectedAccountFilter || undefined,
             categoryId: selectedCategoryFilter || undefined,
+            startDate: selectedStartDate || undefined,
+            endDate: effectiveEndDate || undefined,
+            search: searchQuery || undefined,
             limit: LIMIT,
             offset: currentOffset
           });
           
           const newTransactions = transactionsResponse.data.transactions || [];
           const total = transactionsResponse.data.total || 0;
+          const totalAmountFromApi = transactionsResponse.data.totalAmount || 0;
           
           setTransactions(prev => [...prev, ...(Array.isArray(newTransactions) ? newTransactions : [])]);
           setTotalTransactions(total);
+          setTotalAmount(totalAmountFromApi);
           
           // Cache new transactions
           if (Array.isArray(newTransactions)) {
@@ -132,28 +216,48 @@ export default function Transactions() {
         }
       } else {
         // Offline: load from cache using cacheManager
-        const cachedTransactions = await getCachedTransactions({
-          type: viewType,
-          accountId: selectedAccountFilter || undefined,
-          categoryId: selectedCategoryFilter || undefined,
-          limit: LIMIT
-        });
-        
-        const total = cachedTransactions.length;
-        const paginatedTransactions = cachedTransactions.slice(currentOffset, currentOffset + LIMIT);
-        
         if (reset) {
+          // Get ALL cached transactions (without limit) to calculate total amount
+          const allCachedTransactions = await getCachedTransactions({
+            type: viewType,
+            accountId: selectedAccountFilter || undefined,
+            categoryId: selectedCategoryFilter || undefined,
+            startDate: selectedStartDate || undefined,
+            endDate: selectedEndDate || undefined,
+            search: searchQuery || undefined
+            // No limit - get all to calculate total
+          });
+          
+          const total = allCachedTransactions.length;
+          const paginatedTransactions = allCachedTransactions.slice(currentOffset, currentOffset + LIMIT);
+          
+          // Calculate total amount from all cached transactions
+          const cachedTotalAmount = allCachedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+          
           const cachedCategories = await getCachedCategories(viewType);
           const cachedAccounts = await getCachedAccounts();
           
           setCategories(cachedCategories);
           setAccounts(cachedAccounts);
           setTransactions(paginatedTransactions);
+          setTotalTransactions(total);
+          setTotalAmount(cachedTotalAmount);
         } else {
+          // Load more: get all transactions to slice correctly, but don't recalculate totalAmount
+          const allCachedTransactions = await getCachedTransactions({
+            type: viewType,
+            accountId: selectedAccountFilter || undefined,
+            categoryId: selectedCategoryFilter || undefined,
+            startDate: selectedStartDate || undefined,
+            endDate: selectedEndDate || undefined,
+            search: searchQuery || undefined
+            // No limit - need all to slice correctly
+          });
+          
+          const paginatedTransactions = allCachedTransactions.slice(currentOffset, currentOffset + LIMIT);
           setTransactions(prev => [...prev, ...paginatedTransactions]);
+          // totalAmount and totalTransactions remain unchanged during loadMore
         }
-        
-        setTotalTransactions(total);
       }
 
       // Load pending transactions and merge with current transactions
@@ -175,12 +279,16 @@ export default function Transactions() {
           updatedAt: pt.createdAt // Use createdAt as updatedAt for pending
         }));
 
+        // Calculate total amount from pending transactions
+        const pendingTotalAmount = pendingTxs.reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
+
         if (reset) {
           setTransactions(prev => [...mergedPendingTxs, ...prev]);
         } else {
           setTransactions(prev => [...prev, ...mergedPendingTxs]);
         }
         setTotalTransactions(prev => prev + pendingTxs.length);
+        setTotalAmount(prev => prev + pendingTotalAmount);
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
@@ -191,7 +299,9 @@ export default function Transactions() {
         setTransactions([]);
       }
     } finally {
-      setLoading(false);
+      if (reset && showLoading) {
+        setLoading(false);
+      }
       setLoadingMore(false);
     }
   };
@@ -201,13 +311,18 @@ export default function Transactions() {
     const handleDataSynced = () => {
       loadData(true); // Reload all data after sync
     };
+
+    const handleTransactionUpdated = () => {
+      loadData(true); // Reload data after an update/delete on a single transaction
+    };
+
     window.addEventListener('dataSynced', handleDataSynced);
+    window.addEventListener('transactionUpdated', handleTransactionUpdated);
     return () => {
       window.removeEventListener('dataSynced', handleDataSynced);
+      window.removeEventListener('transactionUpdated', handleTransactionUpdated);
     };
-  }, [viewType, selectedAccountFilter, selectedCategoryFilter]);
-
-  const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  }, [viewType, selectedAccountFilter, selectedCategoryFilter, selectedStartDate, selectedEndDate, searchQuery]);
 
   if (loading) {
     return (
@@ -218,7 +333,7 @@ export default function Transactions() {
   }
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
+    <div className="px-3 pt-4 pb-28 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/" className="p-1.5 glass-card rounded-2xl interactive-press">
@@ -244,7 +359,7 @@ export default function Transactions() {
         <button 
           onClick={() => setViewType("expense")}
           className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-            viewType === "expense" ? "gradient-blue text-white" : "text-muted-foreground"
+            viewType === "expense" ? "pill-active" : "text-muted-foreground"
           }`}
         >
           Uscite
@@ -252,12 +367,28 @@ export default function Transactions() {
         <button 
           onClick={() => setViewType("income")}
           className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-            viewType === "income" ? "gradient-blue text-white" : "text-muted-foreground"
+            viewType === "income" ? "pill-active" : "text-muted-foreground"
           }`}
         >
           Entrate
         </button>
       </GlassCard>
+
+      {/* Search Input - Compact */}
+      <div className="mb-4">
+        <GlassCard className="p-2">
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <input
+              type="text"
+              value={searchInputValue}
+              onChange={(e) => setSearchInputValue(e.target.value)}
+              placeholder="Cerca per descrizione..."
+              className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/50"
+            />
+          </div>
+        </GlassCard>
+      </div>
 
       {/* Expandable Filters */}
       {filtersExpanded && (
@@ -272,7 +403,7 @@ export default function Transactions() {
                 onClick={() => setTempAccountFilter(null)}
                 className={`px-3 py-1.5 rounded-lg text-xs transition-all interactive-press ${
                   tempAccountFilter === null 
-                    ? "bg-primary text-white" 
+                    ? "pill-active" 
                     : "glass-card text-white/70"
                 }`}
               >
@@ -284,7 +415,7 @@ export default function Transactions() {
                   onClick={() => setTempAccountFilter(account.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs transition-all interactive-press ${
                     tempAccountFilter === account.id 
-                      ? "bg-primary text-white" 
+                      ? "pill-active" 
                       : "glass-card text-white/70"
                   }`}
                 >
@@ -302,7 +433,7 @@ export default function Transactions() {
                 onClick={() => setTempCategoryFilter(null)}
                 className={`px-3 py-1.5 rounded-lg text-xs transition-all interactive-press ${
                   tempCategoryFilter === null 
-                    ? "bg-primary text-white" 
+                    ? "pill-active" 
                     : "glass-card text-white/70"
                 }`}
               >
@@ -314,7 +445,7 @@ export default function Transactions() {
                   onClick={() => setTempCategoryFilter(category.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all interactive-press ${
                     tempCategoryFilter === category.id 
-                      ? "bg-primary text-white" 
+                      ? "pill-active" 
                       : "glass-card text-white/70"
                   }`}
                 >
@@ -322,6 +453,37 @@ export default function Transactions() {
                   {category.name}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Date Filters - Inline Compact */}
+          <div className="mb-4">
+            <label className="text-xs text-muted-foreground mb-2 block">Filtri data</label>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground mb-1 block">Data inizio</label>
+                <div className="glass-card px-2 py-1.5 rounded-lg">
+                  <input
+                    type="date"
+                    value={tempStartDate}
+                    onChange={(e) => setTempStartDate(e.target.value)}
+                    className="w-full bg-transparent border-none outline-none text-xs text-white"
+                    style={{ fontSize: '12px', WebkitAppearance: 'none' }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground mb-1 block">Data fine (opz.)</label>
+                <div className="glass-card px-2 py-1.5 rounded-lg">
+                  <input
+                    type="date"
+                    value={tempEndDate}
+                    onChange={(e) => setTempEndDate(e.target.value)}
+                    className="w-full bg-transparent border-none outline-none text-xs text-white"
+                    style={{ fontSize: '12px', WebkitAppearance: 'none' }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -338,7 +500,7 @@ export default function Transactions() {
             <Button
               onClick={applyFilters}
               size="sm"
-              className="flex-1 gradient-blue text-white text-xs h-8"
+              className="flex-1 text-xs h-8"
             >
               Applica
             </Button>
@@ -347,7 +509,7 @@ export default function Transactions() {
       )}
 
       {/* Active Filters Display */}
-      {(selectedAccountFilter || selectedCategoryFilter) && (
+      {(selectedAccountFilter || selectedCategoryFilter || selectedStartDate || selectedEndDate) && (
         <div className="mb-3 flex gap-2 flex-wrap">
           {selectedAccountFilter && (
             <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
@@ -359,6 +521,18 @@ export default function Transactions() {
             <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
               <span>Categoria: {categories.find(c => c.id === selectedCategoryFilter)?.name}</span>
               <button onClick={() => setSelectedCategoryFilter(null)} className="text-destructive">×</button>
+            </div>
+          )}
+          {selectedStartDate && (
+            <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
+              <span>Dal: {format(new Date(selectedStartDate), 'dd/MM/yyyy')}</span>
+              <button onClick={() => setSelectedStartDate("")} className="text-destructive">×</button>
+            </div>
+          )}
+          {selectedEndDate && (
+            <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
+              <span>Al: {format(new Date(selectedEndDate), 'dd/MM/yyyy')}</span>
+              <button onClick={() => setSelectedEndDate("")} className="text-destructive">×</button>
             </div>
           )}
         </div>

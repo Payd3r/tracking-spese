@@ -102,10 +102,8 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
               <button
                 key={curr}
                 onClick={() => setCurrency(curr)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  currency === curr
-                    ? "gradient-blue text-white ring-2 ring-white/30"
-                    : "bg-white/5 hover:bg-white/10"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
+                  currency === curr ? "pill-active" : "bg-white/5 hover:bg-white/10 text-white"
                 }`}
               >
                 {curr}
@@ -113,10 +111,8 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
             ))}
             <button
               onClick={() => setCustomDialogOpen(true)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                !mainCurrencies.includes(currency)
-                  ? "gradient-blue text-white ring-2 ring-white/30"
-                  : "bg-white/5 hover:bg-white/10"
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
+                !mainCurrencies.includes(currency) ? "pill-active" : "bg-white/5 hover:bg-white/10 text-white"
               }`}
             >
               {!mainCurrencies.includes(currency) ? currency : <Plus className="w-4 h-4" />}
@@ -129,7 +125,7 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
       <Button 
         onClick={handleCreate} 
         disabled={submitting}
-        className="w-full h-12 rounded-2xl gradient-blue text-white font-semibold shadow-lg"
+        className="w-full h-12 rounded-2xl font-semibold pill-active"
       >
         {submitting ? (
           <>
@@ -174,7 +170,7 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
               </Button>
               <Button 
                 onClick={handleCustomCurrency}
-                className="flex-1 gradient-blue text-white"
+                className="flex-1 pill-active"
                 disabled={customCurrency.length !== 3}
               >
                 Conferma

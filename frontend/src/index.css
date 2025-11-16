@@ -173,54 +173,43 @@ All colors MUST be HSL.
     transform: scale(0.985);
   }
   
-  /* Gradient surfaces */
+  /* Solid monochrome surfaces (ex-badges) */
   [class*="gradient-"] {
     position: relative;
     border-radius: calc(var(--radius) / 1.5);
     border: 1px solid hsl(var(--glass-border));
-    background-size: 220% 220%;
+    background-color: hsl(0 0% 10%);
     color: hsl(var(--foreground));
     overflow: hidden;
     isolation: isolate;
     box-shadow: var(--shadow-glow);
-    transition: background-position var(--transition-quick), transform var(--transition-quick), box-shadow var(--transition-quick), border-color var(--transition-quick), color var(--transition-quick);
+    transition: transform var(--transition-quick), box-shadow var(--transition-quick), border-color var(--transition-quick), color var(--transition-quick), background-color var(--transition-quick);
   }
   
   [class*="gradient-"]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 20% -20%, hsl(0 0% 100% / 0.35), transparent 55%);
-    opacity: 0.4;
-    z-index: -1;
-    transition: opacity var(--transition-quick);
+    content: none;
   }
   
   [class*="gradient-"]:hover {
-    background-position: 100% 50%;
     box-shadow: var(--shadow-strong);
     border-color: hsl(0 0% 100% / 0.18);
-  }
-  
-  [class*="gradient-"]:hover::after {
-    opacity: 0.7;
   }
   
   [class*="gradient-"]:active {
     transform: scale(0.97);
   }
   
-  .gradient-blue { background: var(--gradient-blue); }
-  .gradient-purple { background: var(--gradient-purple); }
-  .gradient-green { background: var(--gradient-green); }
-  .gradient-pink { background: var(--gradient-pink); }
-  .gradient-teal { background: var(--gradient-teal); }
-  .gradient-orange { background: var(--gradient-orange); }
-  .gradient-red { background: var(--gradient-red); }
-  .gradient-yellow { background: var(--gradient-yellow); }
-  .gradient-cyan { background: var(--gradient-cyan); }
-  .gradient-indigo { background: var(--gradient-indigo); }
-  .gradient-gray { background: var(--gradient-gray); }
+  .gradient-blue { background-color: hsl(0 0% 16%); }
+  .gradient-purple { background-color: hsl(0 0% 18%); }
+  .gradient-green { background-color: hsl(0 0% 14%); }
+  .gradient-pink { background-color: hsl(0 0% 20%); }
+  .gradient-teal { background-color: hsl(0 0% 12%); }
+  .gradient-orange { background-color: hsl(0 0% 22%); }
+  .gradient-red { background-color: hsl(0 0% 24%); }
+  .gradient-yellow { background-color: hsl(0 0% 26%); }
+  .gradient-cyan { background-color: hsl(0 0% 18%); }
+  .gradient-indigo { background-color: hsl(0 0% 21%); }
+  .gradient-gray { background-color: hsl(0 0% 15%); }
   
   .tone-success {
     background-color: hsl(var(--success) / 0.12) !important;
@@ -238,6 +227,14 @@ All colors MUST be HSL.
     background-color: hsl(var(--destructive) / 0.22) !important;
     border-color: hsl(var(--destructive) / 0.5) !important;
     color: hsl(var(--destructive-foreground));
+  }
+  
+  /* White active pill used across buttons/badge-like elements */
+  .pill-active {
+    background-color: hsl(0 0% 100%);
+    color: hsl(0 0% 0%);
+    border-color: hsl(0 0% 100% / 0.6);
+    box-shadow: none !important;
   }
   
   /* Neon Chart Container */
@@ -459,7 +456,7 @@ All colors MUST be HSL.
   .nav-btn-primary {
     @apply w-[80px] h-[80px] rounded-full flex items-center justify-center cursor-pointer;
     border: 1px solid hsl(var(--glass-border));
-    background: radial-gradient(circle at 30% 30%, hsl(0 0% 100% / 0.85), hsl(0 0% 65% / 0.65));
+    background: hsl(0 0% 100%);
     color: hsl(0 0% 0%);
     transform: translateY(-35px);
     min-height: 44px;
@@ -472,7 +469,7 @@ All colors MUST be HSL.
 
   .nav-btn-primary:hover {
     transform: translateY(-38px) scale(1.02);
-    box-shadow: 0 0 55px hsl(0 0% 100% / 0.45);
+    box-shadow: 0 0 45px hsl(0 0% 100% / 0.6);
   }
 
   .nav-btn-primary:active {

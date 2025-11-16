@@ -101,6 +101,7 @@ export const api = {
       type?: 'income' | 'expense';
       startDate?: string;
       endDate?: string;
+      search?: string;
       limit?: number;
       offset?: number;
     }) =>
@@ -147,6 +148,36 @@ export const api = {
       apiClient.get('/currencies'),
     convert: (amount: number, from: string, to: string) =>
       apiClient.get('/currencies/convert', { params: { amount, from, to } }),
+  },
+  
+  // Loans
+  loans: {
+    getAll: (params?: { status?: 'active' | 'closed' }) =>
+      apiClient.get('/loans', { params }),
+    getOne: (id: number) =>
+      apiClient.get(`/loans/${id}`),
+    create: (data: {
+      title: string;
+      amount: number;
+      currency: string;
+      fromAccountId: number;
+      categoryId: number;
+      loanDate: string;
+      note?: string;
+    }) =>
+      apiClient.post('/loans', data),
+    addRepayment: (id: number, data: {
+      amount: number;
+      currency: string;
+      toAccountId: number;
+      repaymentDate: string;
+      description?: string;
+    }) =>
+      apiClient.post(`/loans/${id}/repayments`, data),
+    close: (id: number) =>
+      apiClient.post(`/loans/${id}/close`),
+    delete: (id: number) =>
+      apiClient.delete(`/loans/${id}`),
   },
 };
 

@@ -58,16 +58,16 @@ export function CategoryForm({ onSuccess, initialType = "expense" }: CategoryFor
         <div className="flex gap-2">
           <button
             onClick={() => setType("expense")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all ${
-              type === "expense" ? "gradient-pink text-white font-medium" : "text-muted-foreground"
+            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${
+              type === "expense" ? "pill-active font-medium" : "text-muted-foreground"
             }`}
           >
             Uscita
           </button>
           <button
             onClick={() => setType("income")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all ${
-              type === "income" ? "gradient-green text-white font-medium" : "text-muted-foreground"
+            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${
+              type === "income" ? "pill-active font-medium" : "text-muted-foreground"
             }`}
           >
             Entrata
@@ -102,7 +102,7 @@ export function CategoryForm({ onSuccess, initialType = "expense" }: CategoryFor
       <Button 
         onClick={handleCreate} 
         disabled={submitting}
-        className="w-full h-12 rounded-2xl gradient-blue text-white font-semibold shadow-lg"
+        className="w-full h-12 rounded-2xl font-semibold pill-active"
       >
         {submitting ? (
           <>

@@ -1,5 +1,5 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut, Wifi, WifiOff, CloudUpload, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut, Wifi, WifiOff, CloudUpload, Loader2, HandCoins } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -9,6 +9,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { getLastSyncTime } from "@/lib/db";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { clearCache, clearStartupSnapshot } from "@/lib/cacheManager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ const settingsGroups = [
       { icon: Wallet, label: "Conti", path: "/settings/accounts" },
       { icon: Tag, label: "Categorie", path: "/settings/categories" },
       { icon: RefreshCw, label: "Trasferimenti", path: "/settings/transfers" },
+      { icon: HandCoins, label: "Prestiti", path: "/settings/loans" },
     ],
   },
   {
@@ -69,6 +71,10 @@ export default function Settings() {
       localStorage.removeItem("authToken");
       localStorage.removeItem("user");
       
+      // Clear cache and startup snapshot
+      await clearCache();
+      clearStartupSnapshot();
+      
       toast.success("Logout effettuato con successo");
       navigate("/auth", { replace: true });
     }
@@ -94,9 +100,9 @@ export default function Settings() {
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/5">
               <div className="flex items-center gap-2">
                 {isOnline ? (
-                  <Wifi className="w-4 h-4 text-success" />
+                  <Wifi className="w-4 h-4 text-green-400" />
                 ) : (
-                  <WifiOff className="w-4 h-4 text-destructive" />
+                  <WifiOff className="w-4 h-4 text-red-400" />
                 )}
                 <span className="text-sm font-medium">Stato</span>
               </div>
@@ -172,8 +178,7 @@ export default function Settings() {
 
       {/* Logout Button */}
       <Button
-        variant="destructive"
-        className="w-full mt-4 mb-4 gap-2 h-10 text-sm"
+        className="w-full mt-4 mb-4 gap-2 h-10 text-sm pill-active"
         onClick={() => setLogoutDialogOpen(true)}
       >
         <LogOut className="w-3.5 h-3.5" />

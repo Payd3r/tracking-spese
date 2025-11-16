@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import ManageAccounts from "./pages/ManageAccounts";
 import ManageCategories from "./pages/ManageCategories";
 import ManageTransfers from "./pages/ManageTransfers";
+import ManageLoans from "./pages/ManageLoans";
 import Profile from "./pages/Profile";
 import TransactionDetail from "./pages/TransactionDetail";
 import NotFound from "./pages/NotFound";
@@ -89,6 +90,14 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <ManageTransfers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/loans"
+                element={
+                  <ProtectedRoute>
+                    <ManageLoans />
                   </ProtectedRoute>
                 }
               />

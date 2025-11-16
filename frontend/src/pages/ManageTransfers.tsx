@@ -186,7 +186,7 @@ export default function ManageTransfers() {
             Nessun conto disponibile. Crea almeno due conti per effettuare trasferimenti.
           </p>
           <Button 
-            className="w-full gradient-blue text-white"
+            className="w-full pill-active"
             onClick={() => navigate('/manage-accounts')}
           >
             Vai ai Conti
@@ -217,8 +217,8 @@ export default function ManageTransfers() {
                 key={account.id}
                 onClick={() => setFromAccount(account.id)}
                 disabled={loading}
-                className={`w-full glass-card p-2.5 flex justify-between items-center transition-all rounded-2xl ${
-                  fromAccount === account.id ? "gradient-pink" : ""
+                className={`w-full p-2.5 flex justify-between items-center transition-all rounded-2xl interactive-press ${
+                  fromAccount === account.id ? "pill-active" : "glass-card"
                 } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <span className="font-medium text-xs">{account.name}</span>
@@ -237,8 +237,8 @@ export default function ManageTransfers() {
                 key={account.id}
                 onClick={() => setToAccount(account.id)}
                 disabled={loading}
-                className={`w-full glass-card p-2.5 flex justify-between items-center transition-all rounded-2xl ${
-                  toAccount === account.id ? "gradient-green" : ""
+                className={`w-full p-2.5 flex justify-between items-center transition-all rounded-2xl interactive-press ${
+                  toAccount === account.id ? "pill-active" : "glass-card"
                 } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <span className="font-medium text-xs">{account.name}</span>
@@ -258,7 +258,7 @@ export default function ManageTransfers() {
         </div>
 
         <Button 
-          className="w-full gradient-blue text-white h-10 text-sm"
+          className="w-full h-10 text-sm pill-active"
           onClick={handleCreateTransfer}
           disabled={loading}
         >

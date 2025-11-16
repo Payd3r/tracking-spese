@@ -73,6 +73,48 @@ export interface Transfer {
   toAccountName?: string;
 }
 
+// Loan types
+export interface Loan {
+  id: number;
+  userId: string;
+  title: string;
+  amount: number;
+  currency: string;
+  fromAccountId: number;
+  categoryId: number;
+  loanDate: string;
+  status: 'active' | 'closed';
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Joined data
+  fromAccountName?: string;
+  fromAccountCurrency?: string;
+  categoryName?: string;
+  categoryIcon?: string;
+  categoryColor?: string;
+  totalRepaid?: number;
+}
+
+export interface LoanRepayment {
+  id: number;
+  loanId: number;
+  amount: number;
+  currency: string;
+  toAccountId: number;
+  repaymentDate: string;
+  description?: string;
+  createdAt: string;
+  // Joined data
+  toAccountName?: string;
+  toAccountCurrency?: string;
+}
+
+export interface LoanDetail extends Loan {
+  repayments: LoanRepayment[];
+  totalRepaid: number;
+}
+
 // Dashboard stats types
 export interface DashboardStats {
   totalBalance: number;
