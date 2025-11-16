@@ -79,7 +79,7 @@ export default function Settings() {
     <div className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <Link to="/" className="p-1.5 glass-card rounded-2xl">
+        <Link to="/" className="p-1.5 glass-card rounded-2xl interactive-press">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold">Impostazioni</h1>
@@ -94,13 +94,13 @@ export default function Settings() {
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/5">
               <div className="flex items-center gap-2">
                 {isOnline ? (
-                  <Wifi className="w-4 h-4 text-green-400" />
+                  <Wifi className="w-4 h-4 text-success" />
                 ) : (
-                  <WifiOff className="w-4 h-4 text-red-400" />
+                  <WifiOff className="w-4 h-4 text-destructive" />
                 )}
                 <span className="text-sm font-medium">Stato</span>
               </div>
-              <span className={`text-sm font-medium ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
+              <span className={`text-sm font-medium ${isOnline ? 'text-success' : 'text-destructive'}`}>
                 {isOnline ? 'Online' : 'Offline'}
               </span>
             </div>
@@ -116,7 +116,7 @@ export default function Settings() {
             {/* Pending Operations */}
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium">Operazioni in attesa</span>
-              <span className={`text-sm font-medium ${hasPending ? 'text-yellow-400' : 'text-muted-foreground'}`}>
+              <span className={`text-sm font-medium ${hasPending ? 'text-warning' : 'text-muted-foreground'}`}>
                 {pendingCount}
               </span>
             </div>
@@ -153,7 +153,7 @@ export default function Settings() {
                 <Link
                   key={itemIndex}
                   to={item.path}
-                  className="flex items-center justify-between p-3 hover:bg-white/5 transition-colors first:rounded-t-3xl last:rounded-b-3xl"
+                  className="flex items-center justify-between p-3 hover:bg-white/5 transition-colors first:rounded-t-3xl last:rounded-b-3xl interactive-press"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg gradient-blue flex items-center justify-center">

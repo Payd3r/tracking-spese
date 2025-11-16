@@ -172,7 +172,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             setSelectedCategory(null);
             setCategoriesExpanded(false);
           }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
             type === "expense" ? "gradient-blue text-white" : "text-muted-foreground"
           }`}
         >
@@ -184,7 +184,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             setSelectedCategory(null);
             setCategoriesExpanded(false);
           }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
             type === "income" ? "gradient-blue text-white" : "text-muted-foreground"
           }`}
         >
@@ -194,20 +194,16 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
 
       {/* Status Indicator */}
       {!isFullyOnline && (
-        <div className={`glass-card p-3 rounded-2xl flex items-center gap-2 ${
-          !isOnline 
-            ? 'border border-orange-500/50 bg-orange-500/10' 
-            : 'border border-orange-500/50 bg-orange-500/10'
-        }`}>
+        <div className="glass-card tone-warning p-3 rounded-2xl flex items-center gap-2">
           {!isOnline ? (
             <>
-              <WifiOff className="w-4 h-4 text-orange-400" />
-              <span className="text-xs text-orange-400">Modalità offline - Le transazioni verranno sincronizzate quando torni online</span>
+              <WifiOff className="w-4 h-4 text-warning" />
+              <span className="text-xs text-warning">Modalità offline - Le transazioni verranno sincronizzate quando torni online</span>
             </>
           ) : !isServerReachable ? (
             <>
-              <WifiOff className="w-4 h-4 text-orange-400" />
-              <span className="text-xs text-orange-400">Server non raggiungibile - Le transazioni verranno sincronizzate automaticamente</span>
+              <WifiOff className="w-4 h-4 text-warning" />
+              <span className="text-xs text-warning">Server non raggiungibile - Le transazioni verranno sincronizzate automaticamente</span>
             </>
           ) : null}
         </div>
@@ -254,7 +250,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategory(category.id)}
-                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl ${
+                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
                             selectedCategory === category.id ? colorClass : "glass-card"
                           }`}
                           style={colorStyle}
@@ -269,7 +265,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                   {hasMoreCategories && (
                     <button
                       onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10"
+                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10 interactive-press"
                     >
                       {categoriesExpanded ? (
                         <>
@@ -307,7 +303,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
               <button
                 key={account.id}
                 onClick={() => setSelectedAccount(account.id)}
-                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl ${
+                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
                   selectedAccount === account.id ? "gradient-blue" : ""
                 }`}
               >

@@ -221,20 +221,20 @@ export default function Transactions() {
     <div className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <Link to="/" className="p-1.5 glass-card rounded-2xl">
+        <Link to="/" className="p-1.5 glass-card rounded-2xl interactive-press">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold flex-1">Tutte le transazioni</h1>
         <button 
           onClick={() => setFiltersExpanded(!filtersExpanded)}
-          className="p-1.5 glass-card rounded-2xl transition-all"
+          className="p-1.5 glass-card rounded-2xl transition-all interactive-press"
         >
           {filtersExpanded ? <ChevronUp className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
         </button>
       </div>
 
       {error && (
-        <div className="glass-card p-4 mb-6 bg-red-500/20 border border-red-500/50">
+        <div className="glass-card p-4 mb-6 tone-danger">
           <p className="text-sm">{error}</p>
         </div>
       )}
@@ -243,7 +243,7 @@ export default function Transactions() {
       <GlassCard className="p-2 mb-4 flex gap-2">
         <button 
           onClick={() => setViewType("expense")}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
             viewType === "expense" ? "gradient-blue text-white" : "text-muted-foreground"
           }`}
         >
@@ -251,7 +251,7 @@ export default function Transactions() {
         </button>
         <button 
           onClick={() => setViewType("income")}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
             viewType === "income" ? "gradient-blue text-white" : "text-muted-foreground"
           }`}
         >
@@ -270,7 +270,7 @@ export default function Transactions() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setTempAccountFilter(null)}
-                className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs transition-all interactive-press ${
                   tempAccountFilter === null 
                     ? "bg-primary text-white" 
                     : "glass-card text-white/70"
@@ -282,7 +282,7 @@ export default function Transactions() {
                 <button
                   key={account.id}
                   onClick={() => setTempAccountFilter(account.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all interactive-press ${
                     tempAccountFilter === account.id 
                       ? "bg-primary text-white" 
                       : "glass-card text-white/70"
@@ -300,7 +300,7 @@ export default function Transactions() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setTempCategoryFilter(null)}
-                className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs transition-all interactive-press ${
                   tempCategoryFilter === null 
                     ? "bg-primary text-white" 
                     : "glass-card text-white/70"
@@ -312,7 +312,7 @@ export default function Transactions() {
                 <button
                   key={category.id}
                   onClick={() => setTempCategoryFilter(category.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all interactive-press ${
                     tempCategoryFilter === category.id 
                       ? "bg-primary text-white" 
                       : "glass-card text-white/70"
@@ -352,13 +352,13 @@ export default function Transactions() {
           {selectedAccountFilter && (
             <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
               <span>Conto: {accounts.find(a => a.id === selectedAccountFilter)?.name}</span>
-              <button onClick={() => setSelectedAccountFilter(null)} className="text-red-400">×</button>
+              <button onClick={() => setSelectedAccountFilter(null)} className="text-destructive">×</button>
             </div>
           )}
           {selectedCategoryFilter && (
             <div className="glass-card px-3 py-1.5 text-xs flex items-center gap-2">
               <span>Categoria: {categories.find(c => c.id === selectedCategoryFilter)?.name}</span>
-              <button onClick={() => setSelectedCategoryFilter(null)} className="text-red-400">×</button>
+              <button onClick={() => setSelectedCategoryFilter(null)} className="text-destructive">×</button>
             </div>
           )}
         </div>
@@ -380,7 +380,7 @@ export default function Transactions() {
             <div className="space-y-2">
               {transactions.map((transaction) => (
                 <RouterLink key={transaction.id} to={`/transaction/${transaction.id}`}>
-                  <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5">
+                  <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5 interactive-press">
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
                         <IconRenderer icon={transaction.categoryIcon} size={16} />
@@ -394,10 +394,10 @@ export default function Transactions() {
                     </div>
                     <span className={`font-semibold text-sm ${
                       transaction.isPending 
-                        ? 'text-orange-400'  // Pending = arancione
+                        ? 'text-warning'
                         : transaction.type === 'income' 
                           ? 'text-success' 
-                          : 'text-red-400'
+                          : 'text-destructive'
                     }`}>
                       {transaction.type === 'income' ? '+' : '-'}€ {formatCurrency(transaction.amount)}
                     </span>

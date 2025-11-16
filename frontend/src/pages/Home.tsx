@@ -357,7 +357,7 @@ export default function Home() {
       )}
 
       {error && (
-        <div className="glass-card p-4 mb-6 bg-red-500/20 border border-red-500/50">
+        <div className="glass-card p-4 mb-6 tone-danger">
           <p className="text-sm">{error}</p>
         </div>
       )}
@@ -369,7 +369,7 @@ export default function Home() {
             <div className="p-2 glass-card flex gap-2 mb-4">
               <button 
                 onClick={() => setViewType("spending")}
-                className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+                className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
                   viewType === "spending" ? "gradient-blue text-white" : "text-muted-foreground"
                 }`}
               >
@@ -377,7 +377,7 @@ export default function Home() {
               </button>
               <button 
                 onClick={() => setViewType("income")}
-                className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+                className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
                   viewType === "income" ? "gradient-blue text-white" : "text-muted-foreground"
                 }`}
               >
@@ -389,8 +389,10 @@ export default function Home() {
                 {getCurrencySymbol(stats?.currency)} {formatCurrency(totalAmount)}
               </h2>
               {/* Online/Offline Badge */}
-              <div className={`flex items-center justify-center w-9 h-9 rounded-full ${
-                isOnline ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+              <div className={`flex items-center justify-center w-9 h-9 rounded-full border ${
+                isOnline 
+                  ? 'border-success/40 bg-success/15 text-success-foreground' 
+                  : 'border-destructive/40 bg-destructive/25 text-destructive-foreground'
               }`}>
                 {isOnline ? (
                   <Wifi className="w-5 h-5" />
@@ -447,7 +449,7 @@ export default function Home() {
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={`flex-1 py-1.5 rounded-xl text-xs transition-all capitalize ${
+                  className={`flex-1 py-1.5 rounded-xl text-xs transition-all capitalize interactive-press ${
                     period === p 
                       ? "bg-white/20 text-white font-medium backdrop-blur-sm" 
                       : "text-white/70 hover:text-white/90"
@@ -466,7 +468,7 @@ export default function Home() {
         <GlassCard className="p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-semibold">Transazioni Recenti</h3>
-            <Link to="/transactions" className="flex items-center gap-1 group">
+            <Link to="/transactions" className="flex items-center gap-1 group interactive-press rounded-xl px-2 py-1">
               <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
             </Link>
           </div>
@@ -479,7 +481,7 @@ export default function Home() {
             <div className="space-y-2 gap-2">
               {recentTransactions.map((transaction) => (
                 <Link key={transaction.id} to={`/transaction/${transaction.id}`}>
-                  <div className="glass-card p-2.5 hover:scale-[1.01] transition-transform cursor-pointer rounded-xl mb-2">
+                  <div className="glass-card p-2.5 interactive-press cursor-pointer rounded-xl mb-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div className={`w-10 h-10 rounded-xl ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
@@ -495,10 +497,10 @@ export default function Home() {
                       <div className="text-right">
                         <p className={`font-semibold text-sm ${
                           transaction.isPending 
-                            ? 'text-orange-400'  // Pending = arancione
+                            ? 'text-warning' 
                             : transaction.type === 'income' 
                               ? 'text-success' 
-                              : 'text-red-400'
+                              : 'text-destructive'
                         }`}>
                           {transaction.type === 'income' ? <ArrowUpRight className="inline w-4 h-4 mb-0.5" /> : <ArrowDownRight className="inline w-4 h-4 mb-0.5" />}
                           {' '}{getCurrencySymbol(transaction.accountCurrency || stats?.currency)} {formatCurrency(transaction.amount)}

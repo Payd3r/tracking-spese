@@ -12,7 +12,7 @@ interface IconRendererProps {
  * Falls back to a default icon if the icon is not found
  */
 export function IconRenderer({ icon, className = '', size = 24 }: IconRendererProps) {
-  const glowClassName = 'drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]';
+  const glowClassName = 'drop-shadow-[0_0_8px_hsl(0_0%_100%/_0.6)]';
   const combinedClassName = `${glowClassName} ${className}`.trim();
   
   if (!icon) {

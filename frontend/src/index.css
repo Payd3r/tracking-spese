@@ -8,71 +8,88 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Liquid Glass Design System - Dark Theme */
-    --background: 240 25% 8%;
-    --foreground: 0 0% 98%;
+    /* Monochrome Liquid Glass Design System */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 240 20% 12%;
-    --card-foreground: 0 0% 98%;
+    --surface: 0 0% 6%;
+    --surface-raised: 0 0% 10%;
+    --surface-highlight: 0 0% 14%;
 
-    --popover: 240 20% 12%;
-    --popover-foreground: 0 0% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 100%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 100%;
 
-    --secondary: 270 70% 65%;
-    --secondary-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 3%;
 
-    --muted: 240 15% 20%;
-    --muted-foreground: 240 5% 65%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 90%;
 
-    --accent: 270 70% 65%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 65%;
 
-    --destructive: 0 85% 60%;
+    --accent: 0 0% 82%;
+    --accent-foreground: 0 0% 5%;
+
+    --destructive: 0 0% 22%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 70% 50%;
-    --success-foreground: 0 0% 100%;
+    --success: 0 0% 85%;
+    --success-foreground: 0 0% 5%;
 
-    --warning: 30 95% 60%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 0 0% 60%;
+    --warning-foreground: 0 0% 0%;
 
-    --border: 240 15% 20%;
-    --input: 240 15% 20%;
-    --ring: 217 91% 60%;
+    --border: 0 0% 18%;
+    --input: 0 0% 10%;
+    --ring: 0 0% 100%;
 
-    --radius: 1.5rem;
+    --radius: 1.25rem;
 
-    /* Glass morphism effects */
-    --glass-bg: 240 20% 12% / 0.7;
-    --glass-border: 0 0% 100% / 0.1;
-    
-    /* Gradients */
-    --gradient-blue: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(200 90% 55%) 100%);
-    --gradient-purple: linear-gradient(135deg, hsl(270 70% 65%) 0%, hsl(290 70% 60%) 100%);
-    --gradient-green: linear-gradient(135deg, hsl(160 70% 50%) 0%, hsl(140 65% 55%) 100%);
-    --gradient-pink: linear-gradient(135deg, hsl(340 75% 65%) 0%, hsl(350 70% 60%) 100%);
-    --gradient-teal: linear-gradient(135deg, hsl(180 70% 50%) 0%, hsl(170 65% 55%) 100%);
-    
-    /* Category colors */
-    --category-food: 160 70% 50%;
-    --category-transport: 340 75% 65%;
-    --category-shopping: 270 70% 65%;
-    --category-bills: 200 90% 55%;
-    --category-entertainment: 290 70% 60%;
-    
-  /* Chart colors */
-  --chart-1: 217 91% 60%;
-  --chart-2: 270 70% 65%;
-  --chart-3: 160 70% 50%;
-  --chart-4: 340 75% 65%;
-  --chart-5: 200 90% 55%;
-  
-  /* Neon effect colors */
-  --neon-blue: 217 91% 60%;
-  --neon-glow: 217 91% 60% / 0.4;
+    /* Glow + depth system */
+    --glass-bg: 0 0% 8% / 0.9;
+    --glass-border: 0 0% 100% / 0.08;
+    --shadow-soft: 0 35px 80px -35px hsl(0 0% 0% / 0.85);
+    --shadow-glow: 0 0 30px hsl(0 0% 100% / 0.18);
+    --shadow-strong: 0 0 45px hsl(0 0% 100% / 0.28), inset 0 0 18px hsl(0 0% 100% / 0.08);
+    --shadow-line: 0 0 0 1px hsl(0 0% 100% / 0.08);
+
+    /* Motion tokens */
+    --transition-quick: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-micro: 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Monochrome gradients */
+    --gradient-blue: linear-gradient(135deg, hsl(0 0% 16%) 0%, hsl(0 0% 2%) 100%);
+    --gradient-purple: linear-gradient(135deg, hsl(0 0% 18%) 0%, hsl(0 0% 5%) 100%);
+    --gradient-green: linear-gradient(135deg, hsl(0 0% 14%) 0%, hsl(0 0% 0%) 100%);
+    --gradient-pink: linear-gradient(135deg, hsl(0 0% 20%) 0%, hsl(0 0% 4%) 100%);
+    --gradient-teal: linear-gradient(135deg, hsl(0 0% 12%) 0%, hsl(0 0% 0%) 100%);
+    --gradient-orange: linear-gradient(135deg, hsl(0 0% 22%) 0%, hsl(0 0% 6%) 100%);
+    --gradient-red: linear-gradient(135deg, hsl(0 0% 24%) 0%, hsl(0 0% 8%) 100%);
+    --gradient-yellow: linear-gradient(135deg, hsl(0 0% 26%) 0%, hsl(0 0% 10%) 100%);
+    --gradient-cyan: linear-gradient(135deg, hsl(0 0% 18%) 0%, hsl(0 0% 3%) 100%);
+    --gradient-indigo: linear-gradient(135deg, hsl(0 0% 21%) 0%, hsl(0 0% 5%) 100%);
+    --gradient-gray: linear-gradient(135deg, hsl(0 0% 15%) 0%, hsl(0 0% 0%) 100%);
+
+    /* Category + chart neutrals */
+    --category-food: 0 0% 95%;
+    --category-transport: 0 0% 80%;
+    --category-shopping: 0 0% 65%;
+    --category-bills: 0 0% 50%;
+    --category-entertainment: 0 0% 35%;
+
+    --chart-1: 0 0% 95%;
+    --chart-2: 0 0% 80%;
+    --chart-3: 0 0% 65%;
+    --chart-4: 0 0% 45%;
+    --chart-5: 0 0% 30%;
+
+    /* Neon effect colors */
+    --neon-blue: 0 0% 100%;
+    --neon-glow: 0 0% 100% / 0.3;
   }
 }
 
@@ -133,63 +150,99 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* Glass Morphism */
-  .glass-card {
-    @apply bg-card/70 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl;
+  /* Glass surfaces */
+  .glass-card,
+  .glass-card-hover {
+    @apply rounded-[calc(var(--radius)*1.05)] border border-white/10 backdrop-blur-2xl;
+    background: hsl(var(--card) / 0.92);
+    box-shadow: var(--shadow-soft);
+    transition: transform var(--transition-quick), box-shadow var(--transition-quick), border-color var(--transition-quick), background-color var(--transition-quick);
   }
   
   .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_20px_60px_-15px_rgba(59,130,246,0.3)];
+    cursor: pointer;
   }
   
-  /* Gradients */
-  .gradient-blue {
-    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(200 90% 55%) 100%);
+  .glass-card-hover:hover {
+    box-shadow: var(--shadow-strong);
+    border-color: hsl(0 0% 100% / 0.18);
+    transform: translateY(-2px) scale(1.01);
   }
   
-  .gradient-purple {
-    background: linear-gradient(135deg, hsl(270 70% 65%) 0%, hsl(290 70% 60%) 100%);
+  .glass-card-hover:active {
+    transform: scale(0.985);
   }
   
-  .gradient-green {
-    background: linear-gradient(135deg, hsl(160 70% 50%) 0%, hsl(140 65% 55%) 100%);
+  /* Gradient surfaces */
+  [class*="gradient-"] {
+    position: relative;
+    border-radius: calc(var(--radius) / 1.5);
+    border: 1px solid hsl(var(--glass-border));
+    background-size: 220% 220%;
+    color: hsl(var(--foreground));
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow: var(--shadow-glow);
+    transition: background-position var(--transition-quick), transform var(--transition-quick), box-shadow var(--transition-quick), border-color var(--transition-quick), color var(--transition-quick);
   }
   
-  .gradient-pink {
-    background: linear-gradient(135deg, hsl(340 75% 65%) 0%, hsl(350 70% 60%) 100%);
+  [class*="gradient-"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% -20%, hsl(0 0% 100% / 0.35), transparent 55%);
+    opacity: 0.4;
+    z-index: -1;
+    transition: opacity var(--transition-quick);
   }
   
-  .gradient-teal {
-    background: linear-gradient(135deg, hsl(180 70% 50%) 0%, hsl(170 65% 55%) 100%);
+  [class*="gradient-"]:hover {
+    background-position: 100% 50%;
+    box-shadow: var(--shadow-strong);
+    border-color: hsl(0 0% 100% / 0.18);
   }
   
-  .gradient-orange {
-    background: linear-gradient(135deg, hsl(30 95% 60%) 0%, hsl(20 90% 55%) 100%);
+  [class*="gradient-"]:hover::after {
+    opacity: 0.7;
   }
   
-  .gradient-red {
-    background: linear-gradient(135deg, hsl(0 85% 60%) 0%, hsl(350 80% 55%) 100%);
+  [class*="gradient-"]:active {
+    transform: scale(0.97);
   }
   
-  .gradient-yellow {
-    background: linear-gradient(135deg, hsl(45 95% 60%) 0%, hsl(35 90% 55%) 100%);
+  .gradient-blue { background: var(--gradient-blue); }
+  .gradient-purple { background: var(--gradient-purple); }
+  .gradient-green { background: var(--gradient-green); }
+  .gradient-pink { background: var(--gradient-pink); }
+  .gradient-teal { background: var(--gradient-teal); }
+  .gradient-orange { background: var(--gradient-orange); }
+  .gradient-red { background: var(--gradient-red); }
+  .gradient-yellow { background: var(--gradient-yellow); }
+  .gradient-cyan { background: var(--gradient-cyan); }
+  .gradient-indigo { background: var(--gradient-indigo); }
+  .gradient-gray { background: var(--gradient-gray); }
+  
+  .tone-success {
+    background-color: hsl(var(--success) / 0.12) !important;
+    border-color: hsl(var(--success) / 0.45) !important;
+    color: hsl(var(--success-foreground));
   }
   
-  .gradient-cyan {
-    background: linear-gradient(135deg, hsl(180 70% 50%) 0%, hsl(190 65% 55%) 100%);
+  .tone-warning {
+    background-color: hsl(var(--warning) / 0.12) !important;
+    border-color: hsl(var(--warning) / 0.4) !important;
+    color: hsl(var(--warning-foreground));
   }
   
-  .gradient-indigo {
-    background: linear-gradient(135deg, hsl(240 70% 65%) 0%, hsl(250 65% 60%) 100%);
-  }
-  
-  .gradient-gray {
-    background: linear-gradient(135deg, hsl(240 15% 50%) 0%, hsl(240 10% 45%) 100%);
+  .tone-danger {
+    background-color: hsl(var(--destructive) / 0.22) !important;
+    border-color: hsl(var(--destructive) / 0.5) !important;
+    color: hsl(var(--destructive-foreground));
   }
   
   /* Neon Chart Container */
   .neon-chart-container {
-    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(200 90% 55%) 100%);
+    background: linear-gradient(135deg, hsl(0 0% 14%) 0%, hsl(0 0% 0%) 100%);
     border-radius: 1rem;
     padding: 1rem;
     box-shadow: 
@@ -205,38 +258,33 @@ All colors MUST be HSL.
   .neon-chart-container::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: linear-gradient(135deg, 
-      rgba(255, 255, 255, 0.1) 0%, 
-      rgba(255, 255, 255, 0.05) 50%, 
-      rgba(255, 255, 255, 0.1) 100%);
+      hsla(0, 0%, 100%, 0.12) 0%, 
+      hsla(0, 0%, 100%, 0.05) 50%, 
+      hsla(0, 0%, 100%, 0.12) 100%);
     pointer-events: none;
   }
   
-  /* Neon glow effect for chart lines - now animated */
-  
   /* Chart labels */
-  .chart-label {
-    color: white;
-    font-size: 11px;
+  .chart-label,
+  .chart-label-year {
+    color: hsl(var(--foreground));
     font-weight: 500;
     opacity: 0.9;
   }
   
-  /* Smaller labels for year view */
+  .chart-label {
+    font-size: 11px;
+  }
+  
   .chart-label-year {
-    color: white;
     font-size: 9px;
-    font-weight: 500;
-    opacity: 0.9;
   }
   
   /* Smooth transitions for chart updates */
   .chart-transition {
-    transition: all 0.3s ease-in-out;
+    transition: all var(--transition-quick);
   }
   
   /* Pulsating glow animation */
@@ -257,7 +305,6 @@ All colors MUST be HSL.
     }
   }
   
-  /* Apply pulsating animation to chart line */
   .neon-glow {
     animation: neon-pulse 3s ease-in-out infinite;
   }
@@ -288,33 +335,13 @@ All colors MUST be HSL.
   }
   
   /* Mobile typography */
-  .text-mobile-xs {
-    font-size: 11px;
-  }
-  
-  .text-mobile-sm {
-    font-size: 13px;
-  }
-  
-  .text-mobile-base {
-    font-size: 15px;
-  }
-  
-  .text-mobile-lg {
-    font-size: 17px;
-  }
-  
-  .text-mobile-xl {
-    font-size: 20px;
-  }
-  
-  .text-mobile-2xl {
-    font-size: 24px;
-  }
-  
-  .text-mobile-3xl {
-    font-size: 28px;
-  }
+  .text-mobile-xs { font-size: 11px; }
+  .text-mobile-sm { font-size: 13px; }
+  .text-mobile-base { font-size: 15px; }
+  .text-mobile-lg { font-size: 17px; }
+  .text-mobile-xl { font-size: 20px; }
+  .text-mobile-2xl { font-size: 24px; }
+  .text-mobile-3xl { font-size: 28px; }
   
   /* Page container for fixed layout */
   .page-container {
@@ -330,7 +357,7 @@ All colors MUST be HSL.
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    padding-bottom: 80px; /* Space for bottom nav - ridotto per evitare scorrimento fantasma */
+    padding-bottom: 80px; /* Space for bottom nav */
     padding-top: env(safe-area-inset-top, 0px); /* Space for status bar */
   }
 
@@ -348,7 +375,7 @@ All colors MUST be HSL.
     touch-action: manipulation;
   }
 
-  /* Force navbar to bottom - NO SPACING */
+  /* Lock navbar */
   .ios-bottom-nav {
     margin: 0 !important;
     padding-bottom: 0 !important;
@@ -356,7 +383,6 @@ All colors MUST be HSL.
     transform: translateY(0) !important;
   }
 
-  /* NUCLEAR OPTION: Force navbar to absolute bottom */
   .ios-bottom-nav {
     position: fixed !important;
     bottom: 0 !important;
@@ -371,8 +397,8 @@ All colors MUST be HSL.
 
   /* Center navbar content but keep full width */
   .ios-bottom-nav .flex {
-    max-width: 448px; /* max-w-md equivalent */
-    margin: 0 auto; /* Center the content */
+    max-width: 448px;
+    margin: 0 auto;
   }
 
   /* Toast customizzati con safe area */
@@ -380,23 +406,22 @@ All colors MUST be HSL.
     backdrop-filter: blur(20px) saturate(180%);
   }
 
-  /* Toast allargato */
   [data-sonner-toaster] {
     position: fixed !important;
     top: env(safe-area-inset-top, 16px) !important;
-    left: 2.5% !important;  /* (100% - 95%) / 2 = 2.5% per lato */
+    left: 2.5% !important;
     right: 2.5% !important;
-    transform: none !important;  /* Rimuovere transform che causa problemi */
+    transform: none !important;
     z-index: 9999 !important;
     padding-top: 8px !important;
-    width: auto !important;  /* Lasciare che left/right determinino la larghezza */
+    width: auto !important;
     max-width: none !important;
     margin: 0 !important;
   }
 
-  /* Animazioni fluide per toast */
   [data-sonner-toast] {
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition: all var(--transition-micro) !important;
+    will-change: transform, opacity;
   }
 
   /* Prevent iOS bounce scroll completely */
@@ -409,69 +434,92 @@ All colors MUST be HSL.
     -webkit-overflow-scrolling: auto;
   }
 
-
-  /* iOS-style bottom navigation with simple curved effect */
+  /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
-    @apply bg-card/90 backdrop-blur-2xl border-t border-white/15;
-    @apply px-6 w-full; /* Larghezza completa, senza max-width */
-    padding-top: 18px !important; /* +10px from pt-2 (8px to 18px) */
-    padding-bottom: 26px !important; /* +10px from 16px to 26px */
-    margin-bottom: 0 !important; /* ZERO margin bottom */
-    min-height: 100px; /* Altezza aumentata per il bottone più sporgente */
-    height: 100px !important; /* Forza altezza con padding */
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 50; /* Sotto i modal/bottom sheets (z-index: 200) e toast (z-index: 9999) */
-    transform: translateZ(0) !important; /* Force hardware acceleration */
-    will-change: transform;
-    
-    /* Simple curved top edge */
+    @apply px-6 w-full;
+    padding-top: 18px !important;
+    padding-bottom: 26px !important;
+    min-height: 100px;
+    height: 100px !important;
+    z-index: 50;
     border-top-left-radius: 24px;
     border-top-right-radius: 24px;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    
-    /* Enhanced shadow for depth */
+    background: linear-gradient(180deg, hsl(0 0% 8% / 0.95) 0%, hsl(0 0% 0% / 0.92) 100%);
+    border-top: 1px solid hsl(var(--glass-border));
     box-shadow: 
-      0 -4px 24px rgba(0,0,0,0.4),
-      0 -8px 40px rgba(0,0,0,0.2),
-      inset 0 1px 0 rgba(255,255,255,0.1);
+      0 -6px 24px hsl(0 0% 0% / 0.65),
+      0 -10px 36px hsl(0 0% 0% / 0.4),
+      inset 0 1px 0 hsl(0 0% 100% / 0.08);
+    backdrop-filter: blur(30px) saturate(180%);
+    transition: box-shadow var(--transition-quick), transform var(--transition-quick);
   }
 
-  /* Pulsante centrale floating con effetto avvolgente */
   .nav-btn-primary {
-    @apply w-[80px] h-[80px] rounded-full;
-    @apply gradient-blue;
-    @apply border-2 border-white/20;
-    @apply flex items-center justify-center;
-    @apply transition-all duration-200 active:scale-95;
-    @apply cursor-pointer;
-    transform: translateY(-35px); /* Sporgenza maggiore per effetto più visibile */
-    min-height: 44px; /* iOS minimum touch target */
+    @apply w-[80px] h-[80px] rounded-full flex items-center justify-center cursor-pointer;
+    border: 1px solid hsl(var(--glass-border));
+    background: radial-gradient(circle at 30% 30%, hsl(0 0% 100% / 0.85), hsl(0 0% 65% / 0.65));
+    color: hsl(0 0% 0%);
+    transform: translateY(-35px);
+    min-height: 44px;
     min-width: 44px;
     position: relative;
-    z-index: 10; /* Sopra la barra */
-    
-    /* Enhanced shadow for floating effect */
-    box-shadow: 
-      0 12px 40px rgba(59, 130, 246, 0.5),
-      0 6px 20px rgba(59, 130, 246, 0.4),
-      0 3px 10px rgba(59, 130, 246, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    z-index: 10;
+    box-shadow: var(--shadow-strong);
+    transition: transform var(--transition-micro), box-shadow var(--transition-quick), border-color var(--transition-quick);
   }
 
-  /* Icone laterali */
+  .nav-btn-primary:hover {
+    transform: translateY(-38px) scale(1.02);
+    box-shadow: 0 0 55px hsl(0 0% 100% / 0.45);
+  }
+
+  .nav-btn-primary:active {
+    transform: translateY(-30px) scale(0.96);
+  }
+
   .nav-btn-secondary {
-    @apply w-[40px] h-[40px] rounded-full;
-    @apply flex items-center justify-center;
-    @apply text-muted-foreground/60;
-    @apply transition-all duration-200;
-    @apply hover:text-muted-foreground/80 active:scale-95;
-    @apply cursor-pointer;
-    min-height: 44px; /* iOS minimum touch target */
-    min-width: 44px;
+    @apply w-[44px] h-[44px] rounded-full flex items-center justify-center cursor-pointer;
+    background: hsl(0 0% 8% / 0.9);
+    border: 1px solid hsl(var(--glass-border));
+    color: hsl(var(--muted-foreground));
+    transition: color var(--transition-quick), transform var(--transition-micro), box-shadow var(--transition-quick), border-color var(--transition-quick);
+  }
+
+  .nav-btn-secondary:hover {
+    color: hsl(var(--foreground));
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .nav-btn-secondary:active {
+    transform: scale(0.94);
+  }
+
+  /* Interactive micro motion */
+  .interactive-press {
+    transition: transform var(--transition-quick), box-shadow var(--transition-quick), background-color var(--transition-quick), color var(--transition-quick), border-color var(--transition-quick);
+    will-change: transform, box-shadow;
+  }
+
+  .interactive-press:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .interactive-press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .interactive-press:focus-visible,
+  .glass-card-hover:focus-visible,
+  [class*="gradient-"]:focus-visible,
+  .nav-btn-primary:focus-visible,
+  .nav-btn-secondary:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-strong);
+    border-color: hsl(var(--ring) / 0.4);
   }
 
   /* Spring animation per tap */
@@ -483,5 +531,25 @@ All colors MUST be HSL.
 
   .tap-spring {
     animation: spring-tap 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  .interactive-press,
+  [class*="gradient-"],
+  .glass-card,
+  .glass-card-hover,
+  .nav-btn-primary,
+  .nav-btn-secondary {
+    transition: none !important;
   }
 }
