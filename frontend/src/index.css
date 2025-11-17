@@ -405,9 +405,9 @@ All colors MUST be HSL.
 
   [data-sonner-toaster] {
     position: fixed !important;
-    top: env(safe-area-inset-top, 16px) !important;
-    left: 2.5% !important;
-    right: 2.5% !important;
+    top: calc(env(safe-area-inset-top, 0px) + 24px) !important;
+    left: 20px !important;
+    right: 20px !important;
     transform: none !important;
     z-index: 9999 !important;
     padding-top: 8px !important;
