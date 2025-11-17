@@ -152,7 +152,7 @@ export function BottomSheet({ isOpen, onClose, children, className }: BottomShee
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-4 pb-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-28">
           {children}
         </div>
       </div>
