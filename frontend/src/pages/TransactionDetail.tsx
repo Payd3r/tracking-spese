@@ -294,7 +294,7 @@ export default function TransactionDetail() {
   }
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
+    <div className="px-3 pt-4 pb-28 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <button onClick={() => navigate(-1)} className="p-1.5 glass-card rounded-2xl">
