@@ -30,7 +30,7 @@ export function useBottomNavPadding(minPadding: number = 160) {
       
       // Se il contenuto è più corto dello spazio disponibile, aggiungi padding
       if (contentHeight < availableHeight) {
-        const neededPadding = availableHeight - contentHeight + 20; // +20px margine di sicurezza
+        const neededPadding = availableHeight - contentHeight + 40; // +20px margine di sicurezza
         setPaddingBottom(Math.max(minPadding, neededPadding));
       } else {
         // Se il contenuto è più lungo, non serve padding extra
