@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { User as UserType } from "@/types/api";
 import { toast } from "sonner";
+import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 
 const CURRENCIES = [
   { code: 'EUR', name: 'Euro (€)' },
@@ -33,6 +34,7 @@ const CURRENCIES = [
 ];
 
 export default function Profile() {
+  const { ref, style } = useBottomNavPadding();
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,7 +137,7 @@ export default function Profile() {
   const initial = user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || "U";
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
+    <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">

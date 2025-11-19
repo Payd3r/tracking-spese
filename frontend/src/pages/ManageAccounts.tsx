@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
+import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,7 @@ import {
 export default function ManageAccounts() {
   const location = useLocation();
   const { isFullyOnline } = useSync();
+  const { ref, style } = useBottomNavPadding();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -107,7 +109,7 @@ export default function ManageAccounts() {
   }
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
+    <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">

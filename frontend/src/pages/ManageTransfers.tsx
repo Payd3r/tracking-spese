@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 
 interface Account {
   id: number;
@@ -26,6 +27,7 @@ interface Category {
 
 export default function ManageTransfers() {
   const navigate = useNavigate();
+  const { ref, style } = useBottomNavPadding();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transferCategories, setTransferCategories] = useState<{
     expense?: Category;
@@ -197,7 +199,7 @@ export default function ManageTransfers() {
   }
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
+    <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
