@@ -192,9 +192,8 @@ async function syncPendingTransfers(): Promise<{ synced: number; failed: number;
   for (const transfer of pending) {
     try {
       await retryWithBackoff(async () => {
-        const baseRequestId = transfer.id;
-        const fromReqId = `${baseRequestId}-out`;
-        const toReqId = `${baseRequestId}-in`;
+        const fromReqId = uuidv4();
+        const toReqId = uuidv4();
 
         const fromAccount = await db.cachedAccounts.get(transfer.fromAccountId);
         const toAccount = await db.cachedAccounts.get(transfer.toAccountId);

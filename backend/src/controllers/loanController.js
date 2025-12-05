@@ -265,7 +265,7 @@ export const createLoan = async (req, res, next) => {
       `INSERT INTO loans 
        (user_id, title, amount, currency, from_account_id, category_id, loan_date, note, client_request_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT ON CONSTRAINT uniq_loans_client_request
+       ON CONFLICT (user_id, client_request_id)
        DO NOTHING
        RETURNING id, title, amount, currency, from_account_id, category_id, loan_date, status, note, created_at, updated_at`,
       [userId, title, amount, currency, fromAccountId, categoryId, loanDate, note || null, clientRequestId || null]
@@ -460,7 +460,7 @@ export const addRepayment = async (req, res, next) => {
       `INSERT INTO loan_repayments 
        (loan_id, amount, currency, to_account_id, repayment_date, description, client_request_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT ON CONSTRAINT uniq_loan_repayments_client_request
+       ON CONFLICT (loan_id, client_request_id)
        DO NOTHING
        RETURNING id, loan_id, amount, currency, to_account_id, repayment_date, description, created_at`,
       [loanId, amount, currency, toAccountId, repaymentDate, description || null, clientRequestId || null]
