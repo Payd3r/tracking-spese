@@ -297,8 +297,7 @@ export const createTransaction = async (req, res, next) => {
       `INSERT INTO transactions 
        (user_id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, client_request_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       ON CONFLICT (user_id, client_request_id)
-       DO NOTHING
+       ON CONFLICT DO NOTHING
        RETURNING id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, created_at, updated_at, client_request_id`,
       [userId, accountId, categoryId, finalAmount, originalAmount, originalCurrency, type, title, note || null, transactionDate, clientRequestId || null]
     );
