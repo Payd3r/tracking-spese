@@ -259,6 +259,7 @@ async function syncPendingLoanOperations(): Promise<{ synced: number; failed: nu
             });
 
             if (op.data?.tempId) {
+              const tempId = op.data.tempId;
               await db.cachedLoans.delete(op.data.tempId);
             }
             if (response.data) {
@@ -266,6 +267,41 @@ async function syncPendingLoanOperations(): Promise<{ synced: number; failed: nu
                 ...response.data,
                 userId: op.userId
               });
+
+              // Rimappa eventuali operazioni pendenti legate al tempId verso il nuovo loanId
+              if (op.data?.tempId && response.data.id) {
+                const tempId = op.data.tempId;
+                const newId = response.data.id;
+
+                // Aggiorna altre operazioni pendenti in memoria e su Dexie
+                for (const other of pending) {
+                  if (other.id === op.id) continue;
+                  const needsUpdate =
+                    other.loanId === tempId ||
+                    other.data?.loanId === tempId;
+                  if (needsUpdate) {
+                    // Aggiorna l'oggetto in memoria per il ciclo corrente
+                    other.loanId = newId;
+                    if (other.data) {
+                      other.data = { ...other.data, loanId: newId };
+                    }
+                    await db.pendingLoanOperations.put({
+                      ...other,
+                      loanId: newId,
+                      data: { ...other.data, loanId: newId }
+                    });
+                  }
+                }
+
+                // Aggiorna restituzioni già cache-izzate con il tempId
+                const repaymentsToUpdate = await db.cachedLoanRepayments
+                  .where('loanId')
+                  .equals(tempId)
+                  .toArray();
+                for (const rep of repaymentsToUpdate) {
+                  await db.cachedLoanRepayments.put({ ...rep, loanId: newId });
+                }
+              }
             }
             break;
           }

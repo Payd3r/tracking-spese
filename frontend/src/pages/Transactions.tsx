@@ -35,6 +35,8 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalTransactions, setTotalTransactions] = useState(0);
   const [balance, setBalance] = useState(0);
+  const [incomeTotal, setIncomeTotal] = useState(0);
+  const [expenseTotal, setExpenseTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -130,6 +132,8 @@ export default function Transactions() {
     try {
       const currentOffset = customOffset !== undefined ? customOffset : (reset ? 0 : offset);
       let newBalance = balance;
+      let newIncomeTotal = incomeTotal;
+      let newExpenseTotal = expenseTotal;
       
       if (reset && showLoading) {
         setLoading(true);
@@ -196,6 +200,8 @@ export default function Transactions() {
           const incomeTotalForBalance = viewType === 'income' ? totalAmountFromApi : otherTypeTotal;
           const expenseTotalForBalance = viewType === 'expense' ? totalAmountFromApi : otherTypeTotal;
           newBalance = incomeTotalForBalance - expenseTotalForBalance;
+          newIncomeTotal = incomeTotalForBalance;
+          newExpenseTotal = expenseTotalForBalance;
           
           // Cache data for offline use
           await db.cachedCategories.bulkPut(categoriesData);
@@ -286,6 +292,8 @@ export default function Transactions() {
           const incomeTotal = incomeCached.reduce((sum, t) => sum + Math.abs(t.amount), 0);
           const expenseTotal = expenseCached.reduce((sum, t) => sum + Math.abs(t.amount), 0);
           newBalance = incomeTotal - expenseTotal;
+          newIncomeTotal = incomeTotal;
+          newExpenseTotal = expenseTotal;
         } else {
           // Load more: get all transactions to slice correctly
           const allCachedTransactions = await getCachedTransactions({
@@ -332,6 +340,11 @@ export default function Transactions() {
             .filter(pt => pt.type === 'expense')
             .reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
           newBalance += pendingIncomeTotal - pendingExpenseTotal;
+          if (viewType === 'income') {
+            newIncomeTotal += pendingIncomeTotal;
+          } else {
+            newExpenseTotal += pendingExpenseTotal;
+          }
         } else {
           setTransactions(prev => [...prev, ...mergedPendingTxs]);
         }
@@ -340,6 +353,8 @@ export default function Transactions() {
 
       if (reset) {
         setBalance(newBalance);
+        setIncomeTotal(newIncomeTotal);
+        setExpenseTotal(newExpenseTotal);
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
@@ -349,6 +364,8 @@ export default function Transactions() {
         setAccounts([]);
         setTransactions([]);
         setBalance(0);
+        setIncomeTotal(0);
+        setExpenseTotal(0);
       }
     } finally {
       if (reset && showLoading) {
@@ -375,25 +392,6 @@ export default function Transactions() {
       window.removeEventListener('transactionUpdated', handleTransactionUpdated);
     };
   }, [viewType, selectedAccountFilter, selectedCategoryFilter, selectedStartDate, selectedEndDate, searchQuery]);
-
-  const accountLabel = selectedAccountFilter 
-    ? (accounts.find(a => a.id === selectedAccountFilter)?.name || 'Conto selezionato') 
-    : 'Tutti i conti';
-
-  const categoryLabel = selectedCategoryFilter 
-    ? (categories.find(c => c.id === selectedCategoryFilter)?.name || 'Categoria selezionata') 
-    : 'Tutte le categorie';
-
-  const dateLabel = selectedStartDate
-    ? (selectedEndDate 
-        ? `Dal ${format(new Date(selectedStartDate), 'dd/MM/yyyy')} al ${format(new Date(selectedEndDate), 'dd/MM/yyyy')}`
-        : `Dal ${format(new Date(selectedStartDate), 'dd/MM/yyyy')}`)
-    : (selectedEndDate 
-        ? `Fino al ${format(new Date(selectedEndDate), 'dd/MM/yyyy')}`
-        : 'Tutte le date');
-
-  const balanceTone = balance === 0 ? 'text-white' : balance > 0 ? 'text-success' : 'text-destructive';
-  const formattedBalance = `${balance >= 0 ? '+' : '-'}€ ${formatCurrency(Math.abs(balance))}`;
 
   if (loading) {
     return (
@@ -425,17 +423,17 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Saldo filtrato */}
+      {/* Saldo sintetico */}
       <GlassCard className="p-4 mb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Saldo filtrato</p>
-            <p className="text-[11px] text-muted-foreground">
-              {accountLabel} • {categoryLabel} • {dateLabel}
-            </p>
-          </div>
-          <span className={`text-xl font-bold ${balanceTone}`}>
-            {formattedBalance}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold text-destructive">
+            -€ {formatCurrency(Math.abs(expenseTotal))}
+          </span>
+          <span className={`text-2xl font-bold ${balance === 0 ? 'text-white' : balance > 0 ? 'text-success' : 'text-destructive'}`}>
+            {`${balance >= 0 ? '+' : '-'}€ ${formatCurrency(Math.abs(balance))}`}
+          </span>
+          <span className="text-xs font-semibold text-success">
+            +€ {formatCurrency(Math.abs(incomeTotal))}
           </span>
         </div>
       </GlassCard>
