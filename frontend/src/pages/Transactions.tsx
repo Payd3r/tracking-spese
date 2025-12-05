@@ -427,13 +427,13 @@ export default function Transactions() {
       <GlassCard className="p-4 mb-4">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-semibold text-destructive">
-            -€ {formatCurrency(Math.abs(expenseTotal))}
+            € {formatCurrency(Math.abs(expenseTotal))}
           </span>
           <span className={`text-2xl font-bold ${balance === 0 ? 'text-white' : balance > 0 ? 'text-success' : 'text-destructive'}`}>
-            {`${balance >= 0 ? '+' : '-'}€ ${formatCurrency(Math.abs(balance))}`}
+            € {formatCurrency(Math.abs(balance))}
           </span>
           <span className="text-xs font-semibold text-success">
-            +€ {formatCurrency(Math.abs(incomeTotal))}
+            € {formatCurrency(Math.abs(incomeTotal))}
           </span>
         </div>
       </GlassCard>
