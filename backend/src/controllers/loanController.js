@@ -177,7 +177,8 @@ export const createLoan = async (req, res, next) => {
       fromAccountId,
       categoryId,
       loanDate,
-      note
+      note,
+      clientRequestId
     } = req.body;
     
     // Validation
@@ -190,6 +191,34 @@ export const createLoan = async (req, res, next) => {
     }
     
     await client.query('BEGIN');
+
+    // Idempotency: if already created with same request id, return it
+    if (clientRequestId) {
+      const existing = await client.query(
+        `SELECT 
+          id, title, amount, currency, from_account_id, category_id, loan_date, status, note, created_at, updated_at
+         FROM loans
+         WHERE user_id = $1 AND client_request_id = $2`,
+        [userId, clientRequestId]
+      );
+      if (existing.rows.length > 0) {
+        const loan = existing.rows[0];
+        await client.query('COMMIT');
+        return res.json({
+          id: loan.id,
+          title: loan.title,
+          amount: parseFloat(loan.amount),
+          currency: loan.currency,
+          fromAccountId: loan.from_account_id,
+          categoryId: loan.category_id,
+          loanDate: loan.loan_date,
+          status: loan.status,
+          note: loan.note,
+          createdAt: loan.created_at,
+          updatedAt: loan.updated_at
+        });
+      }
+    }
     
     // Verify account exists
     const accountResult = await client.query(
@@ -234,13 +263,26 @@ export const createLoan = async (req, res, next) => {
     // Create loan
     const result = await client.query(
       `INSERT INTO loans 
-       (user_id, title, amount, currency, from_account_id, category_id, loan_date, note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (user_id, title, amount, currency, from_account_id, category_id, loan_date, note, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (user_id, client_request_id)
+       DO NOTHING
        RETURNING id, title, amount, currency, from_account_id, category_id, loan_date, status, note, created_at, updated_at`,
-      [userId, title, amount, currency, fromAccountId, categoryId, loanDate, note || null]
+      [userId, title, amount, currency, fromAccountId, categoryId, loanDate, note || null, clientRequestId || null]
     );
-    
-    const loan = result.rows[0];
+
+    let loan = result.rows[0];
+
+    if (!loan && clientRequestId) {
+      const existing = await client.query(
+        `SELECT 
+          id, title, amount, currency, from_account_id, category_id, loan_date, status, note, created_at, updated_at
+         FROM loans
+         WHERE user_id = $1 AND client_request_id = $2`,
+        [userId, clientRequestId]
+      );
+      loan = existing.rows[0];
+    }
     
     // Create expense transaction (money leaving fromAccount)
     await client.query(
@@ -293,7 +335,8 @@ export const addRepayment = async (req, res, next) => {
       currency,
       toAccountId,
       repaymentDate,
-      description
+    description,
+    clientRequestId
     } = req.body;
     
     // Validation
@@ -307,6 +350,37 @@ export const addRepayment = async (req, res, next) => {
     
     await client.query('BEGIN');
     
+    // Idempotency: if already inserted, return it
+    if (clientRequestId) {
+      const existing = await client.query(
+        `SELECT 
+          lr.id,
+          lr.amount,
+          lr.currency,
+          lr.to_account_id,
+          lr.repayment_date,
+          lr.description,
+          lr.created_at
+         FROM loan_repayments lr
+         WHERE lr.loan_id = $1 AND lr.client_request_id = $2`,
+        [loanId, clientRequestId]
+      );
+      if (existing.rows.length > 0) {
+        const rep = existing.rows[0];
+        await client.query('COMMIT');
+        return res.status(200).json({
+          id: rep.id,
+          loanId,
+          amount: parseFloat(rep.amount),
+          currency: rep.currency,
+          toAccountId: rep.to_account_id,
+          repaymentDate: rep.repayment_date,
+          description: rep.description,
+          createdAt: rep.created_at
+        });
+      }
+    }
+
     // Verify loan exists and belongs to user
     const loanResult = await client.query(
       'SELECT id, amount, currency, status FROM loans WHERE id = $1 AND user_id = $2',
@@ -384,11 +458,26 @@ export const addRepayment = async (req, res, next) => {
     // Create repayment
     const result = await client.query(
       `INSERT INTO loan_repayments 
-       (loan_id, amount, currency, to_account_id, repayment_date, description)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (loan_id, amount, currency, to_account_id, repayment_date, description, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (loan_id, client_request_id)
+       DO NOTHING
        RETURNING id, loan_id, amount, currency, to_account_id, repayment_date, description, created_at`,
-      [loanId, amount, currency, toAccountId, repaymentDate, description || null]
+      [loanId, amount, currency, toAccountId, repaymentDate, description || null, clientRequestId || null]
     );
+
+    let repayment = result.rows[0];
+
+    if (!repayment && clientRequestId) {
+      const existing = await client.query(
+        `SELECT 
+          id, loan_id, amount, currency, to_account_id, repayment_date, description, created_at
+         FROM loan_repayments
+         WHERE loan_id = $1 AND client_request_id = $2`,
+        [loanId, clientRequestId]
+      );
+      repayment = existing.rows[0];
+    }
     
     // Create income transaction (money entering toAccount)
     await client.query(
@@ -410,8 +499,6 @@ export const addRepayment = async (req, res, next) => {
     );
     
     await client.query('COMMIT');
-    
-    const repayment = result.rows[0];
     
     res.status(201).json({
       id: repayment.id,
@@ -437,9 +524,31 @@ export const closeLoan = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const loanId = parseInt(req.params.id);
+    const { clientRequestId } = req.body || {};
     
     await client.query('BEGIN');
     
+    // Idempotency: if already closed with same request id, return success
+    if (clientRequestId) {
+      const existing = await client.query(
+        `SELECT status FROM loans WHERE id = $1 AND user_id = $2 AND client_request_id = $3`,
+        [loanId, userId, clientRequestId]
+      );
+      if (existing.rows.length > 0 && existing.rows[0].status === 'closed') {
+        await client.query('COMMIT');
+        const repaidResult = await client.query(
+          'SELECT COALESCE(SUM(amount), 0) as total_repaid FROM loan_repayments WHERE loan_id = $1',
+          [loanId]
+        );
+        const totalRepaid = parseFloat(repaidResult.rows[0].total_repaid) || 0;
+        return res.json({
+          message: 'Prestito chiuso con successo',
+          remainingAmount: 0,
+          totalRepaid
+        });
+      }
+    }
+
     // Get loan details
     const loanResult = await client.query(
       `SELECT 
@@ -469,8 +578,8 @@ export const closeLoan = async (req, res, next) => {
     
     // Update loan status
     await client.query(
-      'UPDATE loans SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      ['closed', loanId]
+      'UPDATE loans SET status = $1, updated_at = CURRENT_TIMESTAMP, client_request_id = COALESCE(client_request_id, $3) WHERE id = $2',
+      ['closed', loanId, clientRequestId || null]
     );
     
     await client.query('COMMIT');

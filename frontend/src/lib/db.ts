@@ -35,6 +35,31 @@ export interface PendingDelete {
   timestamp: string;
 }
 
+export interface PendingTransfer {
+  id: string;
+  userId: string;
+  fromAccountId: number;
+  toAccountId: number;
+  amount: number;
+  currency?: string;
+  note?: string;
+  transferDate: string;
+  createdAt: string;
+  transferExpenseCategoryId?: number;
+  transferIncomeCategoryId?: number;
+}
+
+export type LoanOperationType = 'create' | 'repayment' | 'close' | 'delete';
+
+export interface PendingLoanOperation {
+  id: string;
+  userId: string;
+  type: LoanOperationType;
+  loanId?: number;
+  data: any;
+  timestamp: string;
+}
+
 export interface CachedAccount {
   id: number;
   userId: string;
@@ -124,6 +149,8 @@ export class TrackingSpeseDB extends Dexie {
   pendingTransactions!: Table<PendingTransaction, string>;
   pendingUpdates!: Table<PendingUpdate, string>;
   pendingDeletes!: Table<PendingDelete, string>;
+  pendingTransfers!: Table<PendingTransfer, string>;
+  pendingLoanOperations!: Table<PendingLoanOperation, string>;
   cachedAccounts!: Table<CachedAccount, number>;
   cachedTransactions!: Table<CachedTransaction, number>;
   cachedCategories!: Table<CachedCategory, number>;
@@ -165,6 +192,20 @@ export class TrackingSpeseDB extends Dexie {
       cachedLoanRepayments: 'id, loanId, repaymentDate',
       metadata: 'key'
     });
+
+    this.version(4).stores({
+      pendingTransactions: 'tempId, userId, createdAt, type',
+      pendingUpdates: 'id, entity, timestamp',
+      pendingDeletes: 'id, entity, timestamp',
+      pendingTransfers: 'id, userId, createdAt',
+      pendingLoanOperations: 'id, userId, type, loanId, timestamp',
+      cachedAccounts: 'id, userId',
+      cachedTransactions: 'id, userId, transactionDate, accountId, type',
+      cachedCategories: 'id, userId, type',
+      cachedLoans: 'id, userId, status, loanDate',
+      cachedLoanRepayments: 'id, loanId, repaymentDate',
+      metadata: 'key'
+    });
   }
 }
 
@@ -181,23 +222,27 @@ export async function setLastSyncTime(date: Date): Promise<void> {
 }
 
 export async function hasPendingOperations(): Promise<boolean> {
-  const [txCount, updateCount, deleteCount] = await Promise.all([
+  const [txCount, updateCount, deleteCount, transferCount, loanOpsCount] = await Promise.all([
     db.pendingTransactions.count(),
     db.pendingUpdates.count(),
-    db.pendingDeletes.count()
+    db.pendingDeletes.count(),
+    db.pendingTransfers.count(),
+    db.pendingLoanOperations.count()
   ]);
   
-  return txCount > 0 || updateCount > 0 || deleteCount > 0;
+  return txCount > 0 || updateCount > 0 || deleteCount > 0 || transferCount > 0 || loanOpsCount > 0;
 }
 
 export async function getPendingCount(): Promise<number> {
-  const [txCount, updateCount, deleteCount] = await Promise.all([
+  const [txCount, updateCount, deleteCount, transferCount, loanOpsCount] = await Promise.all([
     db.pendingTransactions.count(),
     db.pendingUpdates.count(),
-    db.pendingDeletes.count()
+    db.pendingDeletes.count(),
+    db.pendingTransfers.count(),
+    db.pendingLoanOperations.count()
   ]);
   
-  return txCount + updateCount + deleteCount;
+  return txCount + updateCount + deleteCount + transferCount + loanOpsCount;
 }
 
 export async function clearAllCache(): Promise<void> {

@@ -117,6 +117,7 @@ export const api = {
       title: string;
       note?: string;
       transactionDate: string;
+      clientRequestId?: string;
     }) =>
       apiClient.post('/transactions', data),
     update: (id: number, data: Partial<{
@@ -164,6 +165,7 @@ export const api = {
       categoryId: number;
       loanDate: string;
       note?: string;
+      clientRequestId?: string;
     }) =>
       apiClient.post('/loans', data),
     addRepayment: (id: number, data: {
@@ -172,10 +174,11 @@ export const api = {
       toAccountId: number;
       repaymentDate: string;
       description?: string;
+      clientRequestId?: string;
     }) =>
       apiClient.post(`/loans/${id}/repayments`, data),
-    close: (id: number) =>
-      apiClient.post(`/loans/${id}/close`),
+    close: (id: number, data?: { clientRequestId?: string }) =>
+      apiClient.post(`/loans/${id}/close`, data),
     delete: (id: number) =>
       apiClient.delete(`/loans/${id}`),
   },

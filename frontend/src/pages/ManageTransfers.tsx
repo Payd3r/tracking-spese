@@ -7,6 +7,10 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
+import { db } from "@/lib/db";
+import { addPendingTransfer } from "@/lib/sync";
+import { useSync } from "@/contexts/SyncContext";
+import { v4 as uuidv4 } from "uuid";
 
 interface Account {
   id: number;
@@ -28,6 +32,7 @@ interface Category {
 export default function ManageTransfers() {
   const navigate = useNavigate();
   const { ref, style } = useBottomNavPadding();
+  const { isFullyOnline, isOnline, isServerReachable } = useSync();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transferCategories, setTransferCategories] = useState<{
     expense?: Category;
@@ -46,36 +51,64 @@ export default function ManageTransfers() {
   const loadData = async () => {
     try {
       setLoadingData(true);
-      
-      // Load accounts
-      const accountsResponse = await api.accounts.getAll();
-      setAccounts(accountsResponse.data.accounts);
-      
-      // Set default accounts if available
-      if (accountsResponse.data.accounts.length >= 2) {
-        setFromAccount(accountsResponse.data.accounts[0].id);
-        setToAccount(accountsResponse.data.accounts[1].id);
-      } else if (accountsResponse.data.accounts.length === 1) {
-        setFromAccount(accountsResponse.data.accounts[0].id);
-      }
-      
-      // Load transfer categories
-      const categoriesResponse = await api.categories.getAll();
-      const categories = categoriesResponse.data.categories;
-      
-      // Find transfer categories (system categories named "Trasferimento")
-      const expenseTransferCat = categories.find(
-        (cat: Category) => cat.name === 'Trasferimento' && cat.type === 'expense' && cat.isSystem
+      // Leggi prima dalla cache
+      const cachedAccounts = await db.cachedAccounts.toArray();
+      const cachedCategories = (await db.cachedCategories.toArray()).filter(
+        (cat) => cat.name === 'Trasferimento'
       );
-      const incomeTransferCat = categories.find(
-        (cat: Category) => cat.name === 'Trasferimento' && cat.type === 'income' && cat.isSystem
+
+      setAccounts(cachedAccounts);
+
+      const expenseTransferCat = cachedCategories.find(
+        (cat: Category) => cat.type === 'expense' && cat.isSystem
       );
-      
+      const incomeTransferCat = cachedCategories.find(
+        (cat: Category) => cat.type === 'income' && cat.isSystem
+      );
+
       setTransferCategories({
         expense: expenseTransferCat,
         income: incomeTransferCat,
       });
-      
+
+      if (cachedAccounts.length >= 2) {
+        setFromAccount(cachedAccounts[0].id);
+        setToAccount(cachedAccounts[1].id);
+      } else if (cachedAccounts.length === 1) {
+        setFromAccount(cachedAccounts[0].id);
+      }
+
+      // Se online, aggiorna i dati e la cache
+      if (isFullyOnline) {
+        try {
+          const [accountsResponse, categoriesResponse] = await Promise.all([
+            api.accounts.getAll(),
+            api.categories.getAll()
+          ]);
+
+          const accountsData = accountsResponse.data.accounts || [];
+          const categories = categoriesResponse.data.categories || [];
+
+          const refreshedExpense = categories.find(
+            (cat: Category) => cat.name === 'Trasferimento' && cat.type === 'expense' && cat.isSystem
+          );
+          const refreshedIncome = categories.find(
+            (cat: Category) => cat.name === 'Trasferimento' && cat.type === 'income' && cat.isSystem
+          );
+
+          await db.cachedAccounts.bulkPut(accountsData);
+          await db.cachedCategories.bulkPut(categories);
+
+          setAccounts(accountsData);
+          setTransferCategories({
+            expense: refreshedExpense,
+            income: refreshedIncome,
+          });
+        } catch (err) {
+          console.log("Refresh trasferimenti in background fallito, uso cache");
+        }
+      }
+
       if (!expenseTransferCat || !incomeTransferCat) {
         toast.error("Categorie di trasferimento non trovate. Esegui le migrazioni del database.");
       }
@@ -116,30 +149,50 @@ export default function ManageTransfers() {
       const transferDate = new Date().toISOString();
       const fromAccountData = accounts.find(acc => acc.id === fromAccount);
       const toAccountData = accounts.find(acc => acc.id === toAccount);
-      
-      // Create expense transaction (money leaving fromAccount)
-      await api.transactions.create({
-        accountId: fromAccount,
-        categoryId: transferCategories.expense.id,
-        amount: amountNum,
-        type: 'expense',
-        title: `Trasferimento a ${toAccountData?.name || 'conto'}`,
-        transactionDate: transferDate,
-      });
-      
-      // Create income transaction (money entering toAccount)
-      // The backend will handle currency conversion if needed
-      await api.transactions.create({
-        accountId: toAccount,
-        categoryId: transferCategories.income.id,
-        amount: amountNum,
-        currency: fromAccountData?.currency, // Use source account currency
-        type: 'income',
-        title: `Trasferimento da ${fromAccountData?.name || 'conto'}`,
-        transactionDate: transferDate,
-      });
-      
-      toast.success("Trasferimento creato con successo!");
+      const baseCurrency = fromAccountData?.currency;
+
+      if (!isFullyOnline) {
+        const user = localStorage.getItem('user');
+        const userId = user ? JSON.parse(user).id : '';
+        await addPendingTransfer(userId, {
+          fromAccountId: fromAccount,
+          toAccountId: toAccount,
+          amount: amountNum,
+          currency: baseCurrency,
+          note: `Trasferimento a ${toAccountData?.name || 'conto'}`,
+          transferDate,
+          transferExpenseCategoryId: transferCategories.expense.id,
+          transferIncomeCategoryId: transferCategories.income.id,
+        });
+        toast.success("Trasferimento salvato offline! Verrà sincronizzato automaticamente.");
+      } else {
+        // Create expense transaction (money leaving fromAccount)
+        const opId = uuidv4();
+        await api.transactions.create({
+          accountId: fromAccount,
+          categoryId: transferCategories.expense.id,
+          amount: amountNum,
+          type: 'expense',
+          title: `Trasferimento a ${toAccountData?.name || 'conto'}`,
+          transactionDate: transferDate,
+          clientRequestId: `${opId}-out`,
+        });
+        
+        // Create income transaction (money entering toAccount)
+        // The backend will handle currency conversion if needed
+        await api.transactions.create({
+          accountId: toAccount,
+          categoryId: transferCategories.income.id,
+          amount: amountNum,
+          currency: baseCurrency, // Use source account currency
+          type: 'income',
+          title: `Trasferimento da ${fromAccountData?.name || 'conto'}`,
+          transactionDate: transferDate,
+          clientRequestId: `${opId}-in`,
+        });
+        
+        toast.success("Trasferimento creato con successo!");
+      }
       
       // Reset form
       setAmount("");
@@ -210,6 +263,11 @@ export default function ManageTransfers() {
 
       {/* New Transfer Form */}
       <GlassCard className="p-4 mb-4">        
+        {!isFullyOnline && (
+          <div className="glass-card tone-warning p-3 rounded-2xl mb-3 text-xs">
+            {!isOnline ? "Offline: i trasferimenti verranno sincronizzati al ritorno online." : !isServerReachable ? "Server non raggiungibile: sincronizzeremo appena torna disponibile." : null}
+          </div>
+        )}
         {/* From Account */}
         <div className="mb-3">
           <label className="text-xs text-muted-foreground mb-2 block font-medium">Da</label>

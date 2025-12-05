@@ -49,6 +49,7 @@ export interface Transaction {
   updatedAt: string;
   // Pending flag for offline transactions
   isPending?: boolean;
+  clientRequestId?: string;
   // Joined data
   accountName?: string;
   accountCurrency?: string;
@@ -68,6 +69,8 @@ export interface Transfer {
   transferDate: string;
   note?: string;
   createdAt: string;
+  isPending?: boolean;
+  clientRequestId?: string;
   // Joined data
   fromAccountName?: string;
   toAccountName?: string;
@@ -87,6 +90,9 @@ export interface Loan {
   note?: string;
   createdAt: string;
   updatedAt: string;
+  isPending?: boolean;
+  clientRequestId?: string;
+  pendingAction?: 'create' | 'close' | 'delete';
   // Joined data
   fromAccountName?: string;
   fromAccountCurrency?: string;
@@ -105,6 +111,8 @@ export interface LoanRepayment {
   repaymentDate: string;
   description?: string;
   createdAt: string;
+  isPending?: boolean;
+  clientRequestId?: string;
   // Joined data
   toAccountName?: string;
   toAccountCurrency?: string;

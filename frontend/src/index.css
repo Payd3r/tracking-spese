@@ -421,6 +421,16 @@ All colors MUST be HSL.
     will-change: transform, opacity;
   }
 
+  /* Allarga i toast su mobile PWA */
+  @media (max-width: 540px) {
+    [data-sonner-toast] {
+      width: calc(100vw - 40px) !important;
+      max-width: none !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+  }
+
   /* Prevent iOS bounce scroll completely */
   * {
     overscroll-behavior: none;

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
+import { addPendingLoanOperation } from "@/lib/sync";
 
 interface RepaymentFormProps {
   loan: Loan;
@@ -91,15 +92,43 @@ export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
 
     try {
       setSubmitting(true);
-      await api.loans.addRepayment(loan.id, {
+      const payload = {
         amount: repaymentAmount,
         currency,
         toAccountId: selectedAccount,
         repaymentDate: new Date(repaymentDate).toISOString(),
         description: description.trim() || undefined
-      });
+      };
 
-      toast.success("Restituzione aggiunta con successo!");
+      if (!isFullyOnline) {
+        const user = localStorage.getItem('user');
+        const userId = user ? JSON.parse(user).id : '';
+        const tempId = -Date.now();
+
+        await addPendingLoanOperation(userId, {
+          type: 'repayment',
+          loanId: loan.id,
+          data: { ...payload, tempId, loanId: loan.id },
+          timestamp: new Date().toISOString()
+        });
+
+        await db.cachedLoanRepayments.put({
+          id: tempId,
+          loanId: loan.id,
+          ...payload,
+          createdAt: new Date().toISOString(),
+          isPending: true
+        });
+
+        await db.cachedLoans.update(loan.id, {
+          totalRepaid: (loan.totalRepaid || 0) + repaymentAmount
+        });
+
+        toast.success("Restituzione salvata offline! Verrà sincronizzata quando torni online.");
+      } else {
+        await api.loans.addRepayment(loan.id, payload);
+        toast.success("Restituzione aggiunta con successo!");
+      }
       
       // Reset form
       setAmount("");

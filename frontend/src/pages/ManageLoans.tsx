@@ -15,6 +15,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { addPendingLoanOperation } from "@/lib/sync";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -95,8 +96,22 @@ export default function ManageLoans() {
     if (!loanToDelete) return;
 
     try {
-      await api.loans.delete(loanToDelete);
-      toast.success("Prestito eliminato con successo!");
+      if (!isFullyOnline) {
+        const user = localStorage.getItem('user');
+        const userId = user ? JSON.parse(user).id : '';
+        await addPendingLoanOperation(userId, {
+          type: 'delete',
+          loanId: loanToDelete,
+          data: { loanId: loanToDelete },
+          timestamp: new Date().toISOString()
+        });
+        await db.cachedLoans.delete(loanToDelete);
+        await db.cachedLoanRepayments.where('loanId').equals(loanToDelete).delete();
+        toast.success("Prestito eliminato offline! Verrà sincronizzato appena possibile.");
+      } else {
+        await api.loans.delete(loanToDelete);
+        toast.success("Prestito eliminato con successo!");
+      }
       setDeleteDialogOpen(false);
       setLoanToDelete(null);
       setDetailSheetOpen(false);
@@ -111,13 +126,26 @@ export default function ManageLoans() {
     if (!loanToClose) return;
 
     try {
-      const response = await api.loans.close(loanToClose.id);
-      const remaining = response.data.remainingAmount || 0;
-      toast.success(
-        remaining > 0 
-          ? `Prestito chiuso! Residuo non restituito: ${loanToClose.currency} ${remaining.toFixed(2)}`
-          : "Prestito chiuso con successo!"
-      );
+      if (!isFullyOnline) {
+        const user = localStorage.getItem('user');
+        const userId = user ? JSON.parse(user).id : '';
+        await addPendingLoanOperation(userId, {
+          type: 'close',
+          loanId: loanToClose.id,
+          data: { loanId: loanToClose.id },
+          timestamp: new Date().toISOString()
+        });
+        await db.cachedLoans.update(loanToClose.id, { status: 'closed', pendingAction: 'close' });
+        toast.success("Chiusura prestito salvata offline, sarà sincronizzata.");
+      } else {
+        const response = await api.loans.close(loanToClose.id);
+        const remaining = response.data.remainingAmount || 0;
+        toast.success(
+          remaining > 0 
+            ? `Prestito chiuso! Residuo non restituito: ${loanToClose.currency} ${remaining.toFixed(2)}`
+            : "Prestito chiuso con successo!"
+        );
+      }
       setCloseDialogOpen(false);
       setLoanToClose(null);
       setDetailSheetOpen(false);
@@ -158,6 +186,15 @@ export default function ManageLoans() {
 
   const loadLoanDetail = async (loanId: number) => {
     try {
+      if (!isFullyOnline) {
+        const cached = await db.cachedLoans.get(loanId);
+        if (cached) {
+          const repayments = await db.cachedLoanRepayments.where('loanId').equals(loanId).toArray();
+          return { ...cached, repayments, totalRepaid: cached.totalRepaid || 0 } as LoanDetail;
+        }
+        throw new Error("Offline: dettagli non disponibili");
+      }
+
       const response = await api.loans.getOne(loanId);
       const detail = response.data;
       
@@ -250,7 +287,14 @@ export default function ManageLoans() {
                   {/* Main Info */}
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-sm mb-1">{loan.note || loan.title}</h3>
+                      <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
+                        {loan.note || loan.title}
+                        {loan.isPending && (
+                          <span className="text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full">
+                            In attesa di sync
+                          </span>
+                        )}
+                      </h3>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                         <span>{loan.fromAccountName}</span>
                         <span>•</span>

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
+import { addPendingLoanOperation } from "@/lib/sync";
 
 interface LoanFormProps {
   onSuccess: () => void;
@@ -116,7 +117,7 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
 
     try {
       setSubmitting(true);
-      await api.loans.create({
+      const payload = {
         title: note.trim(), // Usa la nota come titolo
         amount: parseFloat(amount),
         currency,
@@ -124,9 +125,33 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
         categoryId: selectedCategory,
         loanDate: new Date(loanDate).toISOString(),
         note: note.trim()
-      });
+      };
 
-      toast.success("Prestito creato con successo!");
+      if (!isFullyOnline) {
+        const user = localStorage.getItem('user');
+        const userId = user ? JSON.parse(user).id : '';
+        const tempId = -Date.now();
+        await addPendingLoanOperation(userId, {
+          type: 'create',
+          data: { ...payload, tempId },
+          timestamp: new Date().toISOString()
+        });
+        await db.cachedLoans.put({
+          id: tempId,
+          userId,
+          ...payload,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          totalRepaid: 0,
+          isPending: true,
+          pendingAction: 'create'
+        });
+        toast.success("Prestito salvato offline! Verrà sincronizzato automaticamente.");
+      } else {
+        await api.loans.create(payload);
+        toast.success("Prestito creato con successo!");
+      }
       
       // Reset form
       setAmount("");

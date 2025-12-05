@@ -209,7 +209,8 @@ export const createTransaction = async (req, res, next) => {
       type,
       title,
       note,
-      transactionDate
+      transactionDate,
+      clientRequestId
     } = req.body;
     
     // Validation
@@ -227,6 +228,35 @@ export const createTransaction = async (req, res, next) => {
     
     await client.query('BEGIN');
     
+    // Idempotency: if clientRequestId already processed, return existing
+    if (clientRequestId) {
+      const existing = await client.query(
+        `SELECT 
+          id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, created_at, updated_at
+         FROM transactions
+         WHERE user_id = $1 AND client_request_id = $2`,
+        [userId, clientRequestId]
+      );
+      if (existing.rows.length > 0) {
+        const t = existing.rows[0];
+        await client.release();
+        return res.status(200).json({
+          id: t.id,
+          accountId: t.account_id,
+          categoryId: t.category_id,
+          amount: parseFloat(t.amount),
+          originalAmount: t.original_amount ? parseFloat(t.original_amount) : null,
+          originalCurrency: t.original_currency,
+          type: t.type,
+          title: t.title,
+          note: t.note,
+          transactionDate: t.transaction_date,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at
+        });
+      }
+    }
+
     // Get account info
     const accountResult = await client.query(
       'SELECT id, currency FROM accounts WHERE id = $1 AND user_id = $2',
@@ -265,15 +295,29 @@ export const createTransaction = async (req, res, next) => {
     // Create transaction
     const result = await client.query(
       `INSERT INTO transactions 
-       (user_id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, created_at, updated_at`,
-      [userId, accountId, categoryId, finalAmount, originalAmount, originalCurrency, type, title, note || null, transactionDate]
+       (user_id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (user_id, client_request_id)
+       DO NOTHING
+       RETURNING id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, created_at, updated_at, client_request_id`,
+      [userId, accountId, categoryId, finalAmount, originalAmount, originalCurrency, type, title, note || null, transactionDate, clientRequestId || null]
     );
     
-    await client.query('COMMIT');
+    let transaction = result.rows[0];
+
+    // If conflict and no row returned, fetch existing
+    if (!transaction && clientRequestId) {
+      const existing = await client.query(
+        `SELECT 
+          id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date, created_at, updated_at, client_request_id
+         FROM transactions
+         WHERE user_id = $1 AND client_request_id = $2`,
+        [userId, clientRequestId]
+      );
+      transaction = existing.rows[0];
+    }
     
-    const transaction = result.rows[0];
+    await client.query('COMMIT');
     
     res.status(201).json({
       id: transaction.id,

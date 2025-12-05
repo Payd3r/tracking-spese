@@ -1,4 +1,4 @@
-import { db, PendingTransaction, PendingUpdate, PendingDelete, setLastSyncTime } from './db';
+import { db, PendingTransaction, PendingUpdate, PendingDelete, PendingTransfer, PendingLoanOperation, setLastSyncTime } from './db';
 import { api, isOnline, isServerReachable } from './api';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -182,6 +182,149 @@ async function syncPendingDeletes(): Promise<{ synced: number; failed: number; e
   return { synced, failed, errors };
 }
 
+// Sync pending transfers (represented as double transaction)
+async function syncPendingTransfers(): Promise<{ synced: number; failed: number; errors: string[] }> {
+  const pending = await db.pendingTransfers.toArray();
+  let synced = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const transfer of pending) {
+    try {
+      await retryWithBackoff(async () => {
+        const baseRequestId = transfer.id;
+        const fromReqId = `${baseRequestId}-out`;
+        const toReqId = `${baseRequestId}-in`;
+
+        const fromAccount = await db.cachedAccounts.get(transfer.fromAccountId);
+        const toAccount = await db.cachedAccounts.get(transfer.toAccountId);
+        const expenseCategoryId = transfer.transferExpenseCategoryId;
+        const incomeCategoryId = transfer.transferIncomeCategoryId;
+        if (!expenseCategoryId || !incomeCategoryId) {
+          throw new Error('Categorie trasferimento mancanti');
+        }
+
+        // Expense (from account)
+        await api.transactions.create({
+          accountId: transfer.fromAccountId,
+          categoryId: expenseCategoryId,
+          amount: transfer.amount,
+          currency: transfer.currency || fromAccount?.currency,
+          type: 'expense',
+          title: transfer.note || `Trasferimento a ${toAccount?.name || 'conto'}`,
+          transactionDate: transfer.transferDate,
+          clientRequestId: fromReqId
+        });
+
+        // Income (to account) - uses original currency for conversion if needed
+        await api.transactions.create({
+          accountId: transfer.toAccountId,
+          categoryId: incomeCategoryId,
+          amount: transfer.amount,
+          currency: transfer.currency || fromAccount?.currency,
+          type: 'income',
+          title: transfer.note || `Trasferimento da ${fromAccount?.name || 'conto'}`,
+          transactionDate: transfer.transferDate,
+          clientRequestId: toReqId
+        });
+
+        await db.pendingTransfers.delete(transfer.id);
+      });
+
+      synced++;
+    } catch (error: any) {
+      failed++;
+      errors.push(`Transfer ${transfer.note || transfer.id}: ${error.message}`);
+      console.error('Failed to sync transfer:', error);
+    }
+  }
+
+  return { synced, failed, errors };
+}
+
+// Sync pending loan operations
+async function syncPendingLoanOperations(): Promise<{ synced: number; failed: number; errors: string[] }> {
+  const pending = await db.pendingLoanOperations.orderBy('timestamp').toArray();
+  let synced = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const op of pending) {
+    try {
+      await retryWithBackoff(async () => {
+        switch (op.type) {
+          case 'create': {
+            const response = await api.loans.create({
+              ...op.data,
+              clientRequestId: op.id
+            });
+
+            if (op.data?.tempId) {
+              await db.cachedLoans.delete(op.data.tempId);
+            }
+            if (response.data) {
+              await db.cachedLoans.put({
+                ...response.data,
+                userId: op.userId
+              });
+            }
+            break;
+          }
+          case 'repayment': {
+            const loanId = op.loanId || op.data?.loanId;
+            if (!loanId) {
+              throw new Error('loanId mancante per la repayment');
+            }
+            const response = await api.loans.addRepayment(loanId, {
+              ...op.data,
+              clientRequestId: op.id
+            });
+
+            if (op.data?.tempId) {
+              await db.cachedLoanRepayments.delete(op.data.tempId);
+            }
+            if (response.data) {
+              await db.cachedLoanRepayments.put(response.data);
+            }
+            break;
+          }
+          case 'close': {
+            const loanId = op.loanId || op.data?.loanId;
+            if (!loanId) {
+              throw new Error('loanId mancante per la chiusura');
+            }
+            await api.loans.close(loanId, { clientRequestId: op.id });
+            await db.cachedLoans.update(loanId, { status: 'closed' });
+            break;
+          }
+          case 'delete': {
+            const loanId = op.loanId || op.data?.loanId;
+            if (!loanId) {
+              throw new Error('loanId mancante per la cancellazione');
+            }
+            await api.loans.delete(loanId);
+            await db.cachedLoans.delete(loanId);
+            await db.cachedLoanRepayments.where('loanId').equals(loanId).delete();
+            break;
+          }
+          default:
+            throw new Error(`Operazione prestito sconosciuta: ${op.type}`);
+        }
+
+        await db.pendingLoanOperations.delete(op.id);
+      });
+
+      synced++;
+    } catch (error: any) {
+      failed++;
+      errors.push(`Loan op ${op.type} (${op.loanId || op.id}): ${error.message}`);
+      console.error('Failed to sync loan operation:', error);
+    }
+  }
+
+  return { synced, failed, errors };
+}
+
 // Main sync function
 export async function syncData(): Promise<SyncResult> {
   if (!isOnline()) {
@@ -206,11 +349,13 @@ export async function syncData(): Promise<SyncResult> {
     // Sync in order: deletes -> updates -> creates
     const deleteResults = await syncPendingDeletes();
     const updateResults = await syncPendingUpdates();
+    const transferResults = await syncPendingTransfers();
+    const loanResults = await syncPendingLoanOperations();
     const transactionResults = await syncPendingTransactions();
     
-    const totalSynced = deleteResults.synced + updateResults.synced + transactionResults.synced;
-    const totalFailed = deleteResults.failed + updateResults.failed + transactionResults.failed;
-    const allErrors = [...deleteResults.errors, ...updateResults.errors, ...transactionResults.errors];
+    const totalSynced = deleteResults.synced + updateResults.synced + transferResults.synced + loanResults.synced + transactionResults.synced;
+    const totalFailed = deleteResults.failed + updateResults.failed + transferResults.failed + loanResults.failed + transactionResults.failed;
+    const allErrors = [...deleteResults.errors, ...updateResults.errors, ...transferResults.errors, ...loanResults.errors, ...transactionResults.errors];
     
     // Update last sync time
     await setLastSyncTime(new Date());
@@ -284,6 +429,39 @@ export async function addPendingDelete(
     entityId,
     timestamp: new Date().toISOString()
   });
+}
+
+// Add transfer to pending queue
+export async function addPendingTransfer(
+  userId: string,
+  transfer: Omit<PendingTransfer, 'id' | 'userId' | 'createdAt'>
+): Promise<string> {
+  const id = uuidv4();
+
+  await db.pendingTransfers.add({
+    id,
+    userId,
+    ...transfer,
+    createdAt: new Date().toISOString()
+  });
+
+  return id;
+}
+
+// Add loan operation to pending queue
+export async function addPendingLoanOperation(
+  userId: string,
+  operation: Omit<PendingLoanOperation, 'id' | 'userId'>
+): Promise<string> {
+  const id = uuidv4();
+
+  await db.pendingLoanOperations.add({
+    id,
+    userId,
+    ...operation
+  });
+
+  return id;
 }
 
 
