@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Filter, Clock, Search } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronUp, Filter, Search } from "lucide-react";
 import { Link, Link as RouterLink } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
@@ -34,7 +34,7 @@ export default function Transactions() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalTransactions, setTotalTransactions] = useState(0);
-  const [totalAmount, setTotalAmount] = useState(0);
+  const [balance, setBalance] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -129,6 +129,7 @@ export default function Transactions() {
   const loadData = async (reset: boolean = true, customOffset?: number, showLoading: boolean = true) => {
     try {
       const currentOffset = customOffset !== undefined ? customOffset : (reset ? 0 : offset);
+      let newBalance = balance;
       
       if (reset && showLoading) {
         setLoading(true);
@@ -173,7 +174,28 @@ export default function Transactions() {
           setAccounts(accountsData);
           setTransactions(Array.isArray(transactions) ? transactions : []);
           setTotalTransactions(total);
-          setTotalAmount(totalAmountFromApi);
+
+          // Calcola il saldo tenendo conto di entrate e uscite filtrate
+          const otherType = viewType === 'income' ? 'expense' : 'income';
+          const balanceFilters = {
+            accountId: selectedAccountFilter || undefined,
+            categoryId: selectedCategoryFilter || undefined,
+            startDate: selectedStartDate || undefined,
+            endDate: effectiveEndDate || undefined,
+            search: searchQuery || undefined,
+            limit: 1,
+            offset: 0
+          };
+
+          const otherTypeResponse = await api.transactions.getAll({
+            ...balanceFilters,
+            type: otherType
+          });
+
+          const otherTypeTotal = otherTypeResponse.data.totalAmount || 0;
+          const incomeTotalForBalance = viewType === 'income' ? totalAmountFromApi : otherTypeTotal;
+          const expenseTotalForBalance = viewType === 'expense' ? totalAmountFromApi : otherTypeTotal;
+          newBalance = incomeTotalForBalance - expenseTotalForBalance;
           
           // Cache data for offline use
           await db.cachedCategories.bulkPut(categoriesData);
@@ -200,11 +222,9 @@ export default function Transactions() {
           
           const newTransactions = transactionsResponse.data.transactions || [];
           const total = transactionsResponse.data.total || 0;
-          const totalAmountFromApi = transactionsResponse.data.totalAmount || 0;
           
           setTransactions(prev => [...prev, ...(Array.isArray(newTransactions) ? newTransactions : [])]);
           setTotalTransactions(total);
-          setTotalAmount(totalAmountFromApi);
           
           // Cache new transactions
           if (Array.isArray(newTransactions)) {
@@ -231,9 +251,6 @@ export default function Transactions() {
           const total = allCachedTransactions.length;
           const paginatedTransactions = allCachedTransactions.slice(currentOffset, currentOffset + LIMIT);
           
-          // Calculate total amount from all cached transactions
-          const cachedTotalAmount = allCachedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-          
           const cachedCategories = await getCachedCategories(viewType);
           const cachedAccounts = await getCachedAccounts();
           
@@ -241,9 +258,36 @@ export default function Transactions() {
           setAccounts(cachedAccounts);
           setTransactions(paginatedTransactions);
           setTotalTransactions(total);
-          setTotalAmount(cachedTotalAmount);
+
+          // Calcola il saldo offline usando le transazioni in cache
+          const effectiveEndDateOffline = selectedStartDate && !selectedEndDate 
+            ? selectedStartDate 
+            : selectedEndDate;
+
+          const [incomeCached, expenseCached] = await Promise.all([
+            getCachedTransactions({
+              type: 'income',
+              accountId: selectedAccountFilter || undefined,
+              categoryId: selectedCategoryFilter || undefined,
+              startDate: selectedStartDate || undefined,
+              endDate: effectiveEndDateOffline || undefined,
+              search: searchQuery || undefined
+            }),
+            getCachedTransactions({
+              type: 'expense',
+              accountId: selectedAccountFilter || undefined,
+              categoryId: selectedCategoryFilter || undefined,
+              startDate: selectedStartDate || undefined,
+              endDate: effectiveEndDateOffline || undefined,
+              search: searchQuery || undefined
+            })
+          ]);
+
+          const incomeTotal = incomeCached.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+          const expenseTotal = expenseCached.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+          newBalance = incomeTotal - expenseTotal;
         } else {
-          // Load more: get all transactions to slice correctly, but don't recalculate totalAmount
+          // Load more: get all transactions to slice correctly
           const allCachedTransactions = await getCachedTransactions({
             type: viewType,
             accountId: selectedAccountFilter || undefined,
@@ -256,7 +300,7 @@ export default function Transactions() {
           
           const paginatedTransactions = allCachedTransactions.slice(currentOffset, currentOffset + LIMIT);
           setTransactions(prev => [...prev, ...paginatedTransactions]);
-          // totalAmount and totalTransactions remain unchanged during loadMore
+          // totalTransactions remain unchanged during loadMore
         }
       }
 
@@ -279,16 +323,23 @@ export default function Transactions() {
           updatedAt: pt.createdAt // Use createdAt as updatedAt for pending
         }));
 
-        // Calculate total amount from pending transactions
-        const pendingTotalAmount = pendingTxs.reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
-
         if (reset) {
           setTransactions(prev => [...mergedPendingTxs, ...prev]);
+          const pendingIncomeTotal = pendingTxs
+            .filter(pt => pt.type === 'income')
+            .reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
+          const pendingExpenseTotal = pendingTxs
+            .filter(pt => pt.type === 'expense')
+            .reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
+          newBalance += pendingIncomeTotal - pendingExpenseTotal;
         } else {
           setTransactions(prev => [...prev, ...mergedPendingTxs]);
         }
         setTotalTransactions(prev => prev + pendingTxs.length);
-        setTotalAmount(prev => prev + pendingTotalAmount);
+      }
+
+      if (reset) {
+        setBalance(newBalance);
       }
     } catch (err: any) {
       console.error("Failed to load data:", err);
@@ -297,6 +348,7 @@ export default function Transactions() {
         setCategories([]);
         setAccounts([]);
         setTransactions([]);
+        setBalance(0);
       }
     } finally {
       if (reset && showLoading) {
@@ -323,6 +375,25 @@ export default function Transactions() {
       window.removeEventListener('transactionUpdated', handleTransactionUpdated);
     };
   }, [viewType, selectedAccountFilter, selectedCategoryFilter, selectedStartDate, selectedEndDate, searchQuery]);
+
+  const accountLabel = selectedAccountFilter 
+    ? (accounts.find(a => a.id === selectedAccountFilter)?.name || 'Conto selezionato') 
+    : 'Tutti i conti';
+
+  const categoryLabel = selectedCategoryFilter 
+    ? (categories.find(c => c.id === selectedCategoryFilter)?.name || 'Categoria selezionata') 
+    : 'Tutte le categorie';
+
+  const dateLabel = selectedStartDate
+    ? (selectedEndDate 
+        ? `Dal ${format(new Date(selectedStartDate), 'dd/MM/yyyy')} al ${format(new Date(selectedEndDate), 'dd/MM/yyyy')}`
+        : `Dal ${format(new Date(selectedStartDate), 'dd/MM/yyyy')}`)
+    : (selectedEndDate 
+        ? `Fino al ${format(new Date(selectedEndDate), 'dd/MM/yyyy')}`
+        : 'Tutte le date');
+
+  const balanceTone = balance === 0 ? 'text-white' : balance > 0 ? 'text-success' : 'text-destructive';
+  const formattedBalance = `${balance >= 0 ? '+' : '-'}€ ${formatCurrency(Math.abs(balance))}`;
 
   if (loading) {
     return (
@@ -353,6 +424,21 @@ export default function Transactions() {
           <p className="text-sm">{error}</p>
         </div>
       )}
+
+      {/* Saldo filtrato */}
+      <GlassCard className="p-4 mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Saldo filtrato</p>
+            <p className="text-[11px] text-muted-foreground">
+              {accountLabel} • {categoryLabel} • {dateLabel}
+            </p>
+          </div>
+          <span className={`text-xl font-bold ${balanceTone}`}>
+            {formattedBalance}
+          </span>
+        </div>
+      </GlassCard>
 
       {/* Toggle Income/Expense */}
       <GlassCard className="p-2 mb-4 flex gap-2">
@@ -540,13 +626,6 @@ export default function Transactions() {
 
       {/* Transactions List */}
       <div className="glass-card p-4 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">
-            {totalTransactions} {totalTransactions === 1 ? 'Transazione' : 'Transazioni'}
-          </h2>
-          <span className="text-base font-bold">€ {formatCurrency(totalAmount)}</span>
-        </div>
-
         {transactions.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">Nessuna transazione trovata</p>
         ) : (

@@ -10,15 +10,12 @@ ALTER TABLE loans
 ALTER TABLE loan_repayments
   ADD COLUMN IF NOT EXISTS client_request_id UUID;
 
--- Unique indexes to enforce idempotency per user/loan scope
-CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_client_request
-  ON transactions (user_id, client_request_id)
-  WHERE client_request_id IS NOT NULL;
+-- Unique constraints (no predicate) so ON CONFLICT can target them
+ALTER TABLE transactions
+  ADD CONSTRAINT IF NOT EXISTS uniq_transactions_client_request UNIQUE (user_id, client_request_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_loans_client_request
-  ON loans (user_id, client_request_id)
-  WHERE client_request_id IS NOT NULL;
+ALTER TABLE loans
+  ADD CONSTRAINT IF NOT EXISTS uniq_loans_client_request UNIQUE (user_id, client_request_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_loan_repayments_client_request
-  ON loan_repayments (loan_id, client_request_id)
-  WHERE client_request_id IS NOT NULL;
+ALTER TABLE loan_repayments
+  ADD CONSTRAINT IF NOT EXISTS uniq_loan_repayments_client_request UNIQUE (loan_id, client_request_id);
