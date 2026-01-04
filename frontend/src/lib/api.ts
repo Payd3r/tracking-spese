@@ -1,4 +1,5 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
+import { getClerkToken } from './clerkToken';
 
 // Use relative path for API calls - works in both dev and prod
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -15,11 +16,12 @@ export const apiClient = axios.create({
   timeout: 5000, // Reduced from 10000 to fail faster
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add Clerk auth token
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
+  async (config) => {
+    const token = await getClerkToken();
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -37,9 +39,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Handle 401 - unauthorized
     if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
+      (window as any).Clerk?.signOut?.({ redirectUrl: '/auth' });
     }
     
     // Check for network/connection errors
@@ -55,12 +55,6 @@ apiClient.interceptors.response.use(
 export const api = {
   // Auth
   auth: {
-    register: (data: { email: string; password: string; name?: string; defaultCurrency?: string }) =>
-      apiClient.post('/auth/register', data),
-    login: (data: { email: string; password: string }) =>
-      apiClient.post('/auth/login', data),
-    logout: () =>
-      apiClient.post('/auth/logout'),
     me: () =>
       apiClient.get('/auth/me'),
     updateProfile: (data: { name?: string; defaultCurrency?: string }) =>

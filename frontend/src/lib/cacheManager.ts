@@ -1,6 +1,7 @@
 import { db } from './db';
 import { api } from './api';
 import { DashboardStats, Transaction } from '@/types/api';
+import { getClerkUserId } from './clerkToken';
 
 export interface CachePreloadResult {
   success: boolean;
@@ -34,12 +35,10 @@ export interface StartupSnapshot {
  */
 export async function preloadCache(): Promise<CachePreloadResult> {
   try {
-    const user = localStorage.getItem('user');
-    if (!user) {
+    const userId = await getClerkUserId();
+    if (!userId) {
       return { success: false, categories: 0, accounts: 0, transactions: 0, error: 'No user found' };
     }
-
-    const userId = JSON.parse(user).id;
 
     // Load categories (both income and expense)
     const [incomeCategories, expenseCategories] = await Promise.all([

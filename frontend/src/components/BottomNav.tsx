@@ -1,38 +1,16 @@
 import { Home, Plus, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 
 interface BottomNavProps {
   onAddClick?: () => void;
 }
 
 export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem("authToken");
-      setIsAuthenticated(!!token);
-    };
-
-    checkAuth();
-
-    // Listen for storage changes
-    const handleStorageChange = () => {
-      checkAuth();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    const interval = setInterval(checkAuth, 1000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
+  const { isSignedIn } = useAuth();
 
   // Don't render if not authenticated
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return null;
   }
 

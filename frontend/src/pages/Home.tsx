@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { setStartupSnapshot, getStartupSnapshot } from "@/lib/cacheManager";
+import { useUser } from "@clerk/clerk-react";
 
 // Helper function to format chart labels based on period
 const formatChartLabel = (date: string, period: string, index: number): string => {
@@ -114,6 +115,7 @@ const getCurrencySymbol = (code: string = "EUR"): string => {
 
 export default function Home() {
   const { isOnline } = useSync();
+  const { user } = useUser();
   const [viewType, setViewType] = useState<"income" | "spending">("spending");
   const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("week");
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -128,22 +130,17 @@ export default function Home() {
   const [snapshotTimestamp, setSnapshotTimestamp] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const loadUserName = async () => {
-    try {
-      const response = await api.auth.me();
-      const name = response.data.user.name || "User";
-      setUserName(name);
-      
-      // Aggiorna lo snapshot con il nome utente se esiste già
-      const snapshot = getStartupSnapshot();
-      if (snapshot) {
-        setStartupSnapshot({
-          ...snapshot,
-          userName: name
-        });
-      }
-    } catch (err) {
-      console.error("Failed to load user:", err);
+  const loadUserName = () => {
+    const name = user?.fullName || user?.primaryEmailAddress?.emailAddress || "User";
+    setUserName(name);
+    
+    // Aggiorna lo snapshot con il nome utente se esiste già
+    const snapshot = getStartupSnapshot();
+    if (snapshot) {
+      setStartupSnapshot({
+        ...snapshot,
+        userName: name
+      });
     }
   };
 
@@ -304,9 +301,10 @@ export default function Home() {
           
           // Cache fresh transactions
           if (Array.isArray(transactions)) {
-            const user = localStorage.getItem('user');
-            const userId = user ? JSON.parse(user).id : '';
-            const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
+            const userId = user?.id;
+            const txsWithUser = userId
+              ? transactions.map(tx => ({ ...tx, userId }))
+              : transactions;
             await db.cachedTransactions.bulkPut(txsWithUser);
           }
           
@@ -358,7 +356,7 @@ export default function Home() {
       setLoading(false); // Non mostrare il loader, abbiamo già i dati
     }
     loadUserName();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadData();

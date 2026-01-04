@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { addPendingTransfer } from "@/lib/sync";
 import { useSync } from "@/contexts/SyncContext";
 import { v4 as uuidv4 } from "uuid";
+import { useUser } from "@clerk/clerk-react";
 
 interface Account {
   id: number;
@@ -33,6 +34,7 @@ export default function ManageTransfers() {
   const navigate = useNavigate();
   const { ref, style } = useBottomNavPadding();
   const { isFullyOnline, isOnline, isServerReachable } = useSync();
+  const { user } = useUser();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transferCategories, setTransferCategories] = useState<{
     expense?: Category;
@@ -152,8 +154,11 @@ export default function ManageTransfers() {
       const baseCurrency = fromAccountData?.currency;
 
       if (!isFullyOnline) {
-        const user = localStorage.getItem('user');
-        const userId = user ? JSON.parse(user).id : '';
+        const userId = user?.id;
+        if (!userId) {
+          toast.error("Utente non autenticato");
+          return;
+        }
         await addPendingTransfer(userId, {
           fromAccountId: fromAccount,
           toAccountId: toAccount,

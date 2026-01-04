@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { User as UserType } from "@/types/api";
 import { toast } from "sonner";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
+import { useUser } from "@clerk/clerk-react";
 
 const CURRENCIES = [
   { code: 'EUR', name: 'Euro (€)' },
@@ -35,7 +36,8 @@ const CURRENCIES = [
 
 export default function Profile() {
   const { ref, style } = useBottomNavPadding();
-  const [user, setUser] = useState<UserType | null>(null);
+  const { user: clerkUser, isLoaded } = useUser();
+  const [profile, setProfile] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -47,32 +49,42 @@ export default function Profile() {
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    loadUser();
-  }, []);
+    if (isLoaded) {
+      loadUser();
+    }
+  }, [isLoaded, clerkUser]);
 
   // Check for changes whenever form values change
   useEffect(() => {
-    if (user) {
-      const originalName = user.name || "";
-      const originalCurrency = user.defaultCurrency || "EUR";
-      
-      const nameChanged = name !== originalName;
-      const currencyChanged = defaultCurrency !== originalCurrency;
-      
-      setHasChanges(nameChanged || currencyChanged);
-    }
-  }, [name, defaultCurrency, user]);
+    const originalName = clerkUser?.fullName || profile?.name || "";
+    const originalCurrency = profile?.defaultCurrency || "EUR";
+    
+    const nameChanged = name !== originalName;
+    const currencyChanged = defaultCurrency !== originalCurrency;
+    
+    setHasChanges(nameChanged || currencyChanged);
+  }, [name, defaultCurrency, clerkUser, profile]);
 
   const loadUser = async () => {
     try {
       setLoading(true);
-      const response = await api.auth.me();
-      const userData = response.data.user; // Extract user from response
-      setUser(userData);
-      
-      // Initialize form with current values
-      setName(userData.name || "");
-      setDefaultCurrency(userData.defaultCurrency || "EUR");
+      let userData: UserType | null = null;
+
+      // Recupera dati specifici dal backend (es. defaultCurrency)
+      try {
+        const response = await api.auth.me();
+        userData = response.data.user;
+        setProfile(userData);
+        setDefaultCurrency(userData.defaultCurrency || "EUR");
+      } catch (err) {
+        console.error("Failed to load backend user:", err);
+      }
+
+      // Inizializza form usando Clerk come sorgente principale per nome
+      setName(clerkUser?.fullName || userData?.name || "");
+      if (!userData) {
+        setDefaultCurrency("EUR");
+      }
     } catch (err: any) {
       console.error("Failed to load user:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento del profilo");
@@ -88,19 +100,31 @@ export default function Profile() {
       setSaving(true);
       
       const updateData: { name?: string; defaultCurrency?: string } = {};
-      
-      if (name !== (user?.name || "")) {
-        updateData.name = name.trim() || null;
+      const originalName = clerkUser?.fullName || profile?.name || "";
+      const originalCurrency = profile?.defaultCurrency || "EUR";
+
+      if (name !== originalName) {
+        updateData.name = name.trim() || "";
       }
       
-      if (defaultCurrency !== (user?.defaultCurrency || "EUR")) {
+      if (defaultCurrency !== originalCurrency) {
         updateData.defaultCurrency = defaultCurrency;
       }
       
-      const response = await api.auth.updateProfile(updateData);
-      setUser(response.data);
+      // Aggiorna Clerk per il nome, se necessario
+      if (updateData.name && clerkUser) {
+        await clerkUser.update({ fullName: updateData.name });
+      }
+
+      // Aggiorna backend per i dati custom (es. defaultCurrency)
+      let updatedProfile = profile;
+      if (updateData.defaultCurrency || updateData.name) {
+        const response = await api.auth.updateProfile(updateData);
+        updatedProfile = response.data;
+        setProfile(updatedProfile);
+      }
+
       setHasChanges(false);
-      
       toast.success("Profilo aggiornato con successo!");
     } catch (err: any) {
       console.error("Failed to update profile:", err);
@@ -111,11 +135,11 @@ export default function Profile() {
   };
 
   const handleCancel = () => {
-    if (user) {
-      setName(user.name || "");
-      setDefaultCurrency(user.defaultCurrency || "EUR");
-      setHasChanges(false);
-    }
+    const originalName = clerkUser?.fullName || profile?.name || "";
+    const originalCurrency = profile?.defaultCurrency || "EUR";
+    setName(originalName);
+    setDefaultCurrency(originalCurrency);
+    setHasChanges(false);
   };
 
   if (loading) {
@@ -126,7 +150,7 @@ export default function Profile() {
     );
   }
 
-  if (!user) {
+  if (!clerkUser && !profile) {
     return (
       <div className="flex justify-center items-center py-20">
         <p>Errore nel caricamento del profilo</p>
@@ -134,7 +158,9 @@ export default function Profile() {
     );
   }
 
-  const initial = user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || "U";
+  const displayName = clerkUser?.fullName || profile?.name || "Utente";
+  const displayEmail = clerkUser?.primaryEmailAddress?.emailAddress || profile?.email || "";
+  const initial = displayName?.charAt(0)?.toUpperCase() || displayEmail?.charAt(0)?.toUpperCase() || "U";
 
   return (
     <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
@@ -152,8 +178,8 @@ export default function Profile() {
           <div className="w-20 h-20 rounded-full gradient-purple flex items-center justify-center text-3xl font-bold mb-3">
             {initial}
           </div>
-          <h2 className="text-xl font-bold">{user.name || "Utente"}</h2>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
+          <h2 className="text-xl font-bold">{displayName}</h2>
+          <p className="text-sm text-muted-foreground">{displayEmail}</p>
         </div>
 
         <div className="space-y-3">
@@ -189,7 +215,7 @@ export default function Profile() {
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Email</label>
             <div className="glass-card p-3 text-sm text-muted-foreground">
-              {user.email}
+              {displayEmail}
             </div>
           </div>
         </div>

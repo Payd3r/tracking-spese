@@ -11,9 +11,11 @@ import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { getCachedCategories, getCachedAccounts, getCachedTransactions } from "@/lib/cacheManager";
 import { formatCurrency } from "@/lib/utils";
+import { useUser } from "@clerk/clerk-react";
 
 export default function Transactions() {
   const { isOnline } = useSync();
+  const { user } = useUser();
   const [viewType, setViewType] = useState<"income" | "expense">("expense");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<number | null>(null);
@@ -208,9 +210,10 @@ export default function Transactions() {
           await db.cachedAccounts.bulkPut(accountsData);
           
           if (Array.isArray(transactions)) {
-            const user = localStorage.getItem('user');
-            const userId = user ? JSON.parse(user).id : '';
-            const txsWithUser = transactions.map(tx => ({ ...tx, userId }));
+            const userId = user?.id;
+            const txsWithUser = userId
+              ? transactions.map(tx => ({ ...tx, userId }))
+              : transactions;
             await db.cachedTransactions.bulkPut(txsWithUser);
           }
         } else {
@@ -234,9 +237,10 @@ export default function Transactions() {
           
           // Cache new transactions
           if (Array.isArray(newTransactions)) {
-            const user = localStorage.getItem('user');
-            const userId = user ? JSON.parse(user).id : '';
-            const txsWithUser = newTransactions.map(tx => ({ ...tx, userId }));
+            const userId = user?.id;
+            const txsWithUser = userId
+              ? newTransactions.map(tx => ({ ...tx, userId }))
+              : newTransactions;
             await db.cachedTransactions.bulkPut(txsWithUser);
           }
         }

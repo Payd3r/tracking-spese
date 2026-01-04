@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingLoanOperation } from "@/lib/sync";
+import { useUser } from "@clerk/clerk-react";
 
 interface LoanFormProps {
   onSuccess: () => void;
@@ -21,6 +22,7 @@ interface LoanFormProps {
 
 export function LoanForm({ onSuccess }: LoanFormProps) {
   const { isFullyOnline } = useSync();
+  const { user } = useUser();
   const [amount, setAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -128,8 +130,11 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
       };
 
       if (!isFullyOnline) {
-        const user = localStorage.getItem('user');
-        const userId = user ? JSON.parse(user).id : '';
+        const userId = user?.id;
+        if (!userId) {
+          toast.error("Utente non autenticato");
+          return;
+        }
         const tempId = -Date.now();
         await addPendingLoanOperation(userId, {
           type: 'create',

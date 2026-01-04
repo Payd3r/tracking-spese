@@ -15,6 +15,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingDelete, addPendingUpdate } from "@/lib/sync";
+import { useUser } from "@clerk/clerk-react";
 
 // Convert currency code to symbol
 const getCurrencySymbol = (code: string = "EUR"): string => {
@@ -58,6 +59,7 @@ export default function TransactionDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { isFullyOnline, isOnline, isServerReachable } = useSync();
+  const { user } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -149,9 +151,11 @@ export default function TransactionDetail() {
         setAccounts(accountsData);
 
         // Aggiorna cache
-        const user = localStorage.getItem("user");
-        const userId = user ? JSON.parse(user).id : "";
-        await db.cachedTransactions.put({ ...(txn as any), userId });
+        const userId = user?.id;
+        await db.cachedTransactions.put({
+          ...(txn as any),
+          ...(userId ? { userId } : {}),
+        });
         await db.cachedCategories.bulkPut(categoriesData as any);
         await db.cachedAccounts.bulkPut(accountsData as any);
       }

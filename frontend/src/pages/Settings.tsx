@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useSync } from "@/contexts/SyncContext";
+import { useClerk } from "@clerk/clerk-react";
 import { getLastSyncTime } from "@/lib/db";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -41,6 +42,7 @@ const settingsGroups = [
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { signOut } = useClerk();
   const { isOnline, isSyncing, pendingCount, hasPending, triggerSync } = useSync();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
@@ -61,20 +63,12 @@ export default function Settings() {
 
   const handleLogout = async () => {
     try {
-      // Call logout API
-      await api.auth.logout();
-    } catch (err) {
-      console.error("Logout error:", err);
-      // Continue with logout even if API call fails
-    } finally {
-      // Clear auth data
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("user");
-      
-      // Clear cache and startup snapshot
       await clearCache();
       clearStartupSnapshot();
-      
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      await signOut({ redirectUrl: "/auth" });
       toast.success("Logout effettuato con successo");
       navigate("/auth", { replace: true });
     }

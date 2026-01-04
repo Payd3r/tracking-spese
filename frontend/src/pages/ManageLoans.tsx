@@ -16,6 +16,7 @@ import { db } from "@/lib/db";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { addPendingLoanOperation } from "@/lib/sync";
+import { useUser } from "@clerk/clerk-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ import {
 export default function ManageLoans() {
   const location = useLocation();
   const { isFullyOnline } = useSync();
+  const { user } = useUser();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -97,8 +99,11 @@ export default function ManageLoans() {
 
     try {
       if (!isFullyOnline) {
-        const user = localStorage.getItem('user');
-        const userId = user ? JSON.parse(user).id : '';
+        const userId = user?.id;
+        if (!userId) {
+          toast.error("Utente non autenticato");
+          return;
+        }
         await addPendingLoanOperation(userId, {
           type: 'delete',
           loanId: loanToDelete,
@@ -127,8 +132,11 @@ export default function ManageLoans() {
 
     try {
       if (!isFullyOnline) {
-        const user = localStorage.getItem('user');
-        const userId = user ? JSON.parse(user).id : '';
+        const userId = user?.id;
+        if (!userId) {
+          toast.error("Utente non autenticato");
+          return;
+        }
         await addPendingLoanOperation(userId, {
           type: 'close',
           loanId: loanToClose.id,

@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { addPendingTransaction } from "@/lib/sync";
 import { db } from "@/lib/db";
+import { useUser } from "@clerk/clerk-react";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -21,6 +22,7 @@ interface TransactionFormProps {
 
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const { isFullyOnline, isOnline, isServerReachable } = useSync();
+  const { user } = useUser();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
@@ -124,8 +126,11 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       
       if (!isFullyOnline) {
         // Offline: save to pending queue
-        const user = localStorage.getItem('user');
-        const userId = user ? JSON.parse(user).id : '';
+        const userId = user?.id;
+        if (!userId) {
+          toast.error("Utente non autenticato");
+          return;
+        }
         
         await addPendingTransaction(userId, {
           accountId: selectedAccount,
