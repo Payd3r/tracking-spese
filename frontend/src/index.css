@@ -487,12 +487,12 @@ All colors MUST be HSL.
   .ios-bottom-nav {
     @apply px-6 w-full;
     padding-top: 0px !important;
-    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+    padding-bottom: 0px !important;
     min-height: auto;
-    height: calc(55px + env(safe-area-inset-bottom, 20px)) !important;
+    height: 60px !important;
     z-index: 50;
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     background: linear-gradient(180deg, hsl(0 0% 8% / 0.95) 0%, hsl(0 0% 0% / 0.92) 100%);
