@@ -1,3 +1,4 @@
+import { clerkClient } from '@clerk/backend';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 
@@ -11,7 +12,7 @@ export const authMiddleware = async (req, res, next) => {
     
     const token = authHeader.substring(7);
     
-    // Decode Clerk JWT token to extract user info
+    // Decode Clerk JWT token to get user ID (sub)
     let decoded;
     try {
       decoded = jwt.decode(token, { complete: true });
@@ -20,23 +21,51 @@ export const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'Token non valido' });
     }
     
-    if (!decoded || !decoded.payload) {
+    if (!decoded || !decoded.payload || !decoded.payload.sub) {
       return res.status(401).json({ error: 'Token non valido' });
     }
     
-    const payload = decoded.payload;
+    const clerkUserId = decoded.payload.sub;
     
-    // Extract email from Clerk JWT payload
-    // Clerk JWT structure: the email might be in various places in the payload
-    // Try common locations
-    const email = payload.email || 
-                  payload.primary_email_address?.email_address ||
-                  payload.primary_email_address ||
-                  payload.email_addresses?.[0]?.email_address;
+    // Get user from Clerk API using secret key
+    let email;
+    let userName = null;
     
-    if (!email) {
-      console.error('Email not found in payload. Payload keys:', Object.keys(payload));
-      return res.status(401).json({ error: 'Email non trovata nel token' });
+    try {
+      if (!process.env.CLERK_SECRET_KEY) {
+        throw new Error('CLERK_SECRET_KEY not configured');
+      }
+      
+      const clerk = clerkClient({ 
+        secretKey: process.env.CLERK_SECRET_KEY 
+      });
+      
+      const clerkUser = await clerk.users.getUser(clerkUserId);
+      
+      // Extract email - Clerk user object structure
+      if (clerkUser.emailAddresses && clerkUser.emailAddresses.length > 0) {
+        email = clerkUser.emailAddresses[0].emailAddress;
+      } else if (clerkUser.primaryEmailAddress) {
+        email = clerkUser.primaryEmailAddress.emailAddress;
+      }
+      
+      // Extract name
+      userName = clerkUser.firstName || 
+                 clerkUser.lastName || 
+                 clerkUser.username || 
+                 null;
+      
+      if (!email) {
+        console.error('Email not found in Clerk user object. User keys:', Object.keys(clerkUser));
+        return res.status(401).json({ error: 'Email non trovata nel profilo Clerk' });
+      }
+    } catch (error) {
+      console.error('Clerk API call failed:', error.message || error);
+      console.error('Error stack:', error.stack);
+      return res.status(401).json({ 
+        error: 'Errore durante la verifica del token Clerk',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
     
     // Find or create user in database
@@ -48,12 +77,11 @@ export const authMiddleware = async (req, res, next) => {
     let user;
     if (userResult.rows.length === 0) {
       // Create user if doesn't exist
-      // Use placeholder for password_hash since Clerk users don't have passwords
       const createResult = await pool.query(
         `INSERT INTO users (email, password_hash, name, default_currency)
          VALUES ($1, $2, $3, $4)
          RETURNING id, email, name, default_currency`,
-        [email.toLowerCase(), 'clerk_user_no_password', payload.name || payload.first_name || null, 'EUR']
+        [email.toLowerCase(), 'clerk_user_no_password', userName, 'EUR']
       );
       user = createResult.rows[0];
     } else {
@@ -61,11 +89,12 @@ export const authMiddleware = async (req, res, next) => {
     }
     
     req.user = user;
-    req.clerkUserId = payload.sub;
+    req.clerkUserId = clerkUserId;
     next();
     
   } catch (error) {
     console.error('Auth middleware error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Errore di autenticazione' });
   }
 };
