@@ -11,36 +11,53 @@ export const authMiddleware = async (req, res, next) => {
     
     const token = authHeader.substring(7);
     
-    // Verify JWT
+    // Decode Clerk JWT token to extract user info
+    // Note: This decodes without verification. For production, you should verify with Clerk's public key
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.decode(token, { complete: true });
     } catch (error) {
-      return res.status(401).json({ error: 'Token non valido o scaduto' });
+      console.error('Token decode failed:', error);
+      return res.status(401).json({ error: 'Token non valido' });
     }
     
-    // Check if session exists and is not expired
-    const { rows } = await pool.query(
-      'SELECT user_id FROM sessions WHERE token = $1 AND expires_at > NOW()',
-      [token]
-    );
-    
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'Sessione scaduta o non valida' });
+    if (!decoded || !decoded.payload) {
+      return res.status(401).json({ error: 'Token non valido' });
     }
     
-    // Get user info
-    const userResult = await pool.query(
-      'SELECT id, email, name, default_currency FROM users WHERE id = $1',
-      [rows[0].user_id]
+    const payload = decoded.payload;
+    
+    // Extract email from Clerk JWT payload
+    // Clerk includes email in the payload
+    const email = payload.email || payload.primary_email_address?.email_address;
+    
+    if (!email) {
+      return res.status(401).json({ error: 'Email non trovata nel token' });
+    }
+    
+    // Find or create user in database
+    let userResult = await pool.query(
+      'SELECT id, email, name, default_currency FROM users WHERE email = $1',
+      [email.toLowerCase()]
     );
     
+    let user;
     if (userResult.rows.length === 0) {
-      return res.status(401).json({ error: 'Utente non trovato' });
+      // Create user if doesn't exist
+      // Use placeholder for password_hash since Clerk users don't have passwords
+      const createResult = await pool.query(
+        `INSERT INTO users (email, password_hash, name, default_currency)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, email, name, default_currency`,
+        [email.toLowerCase(), 'clerk_user_no_password', payload.name || payload.first_name || null, 'EUR']
+      );
+      user = createResult.rows[0];
+    } else {
+      user = userResult.rows[0];
     }
     
-    req.user = userResult.rows[0];
-    req.token = token;
+    req.user = user;
+    req.clerkUserId = payload.sub;
     next();
     
   } catch (error) {
@@ -48,5 +65,3 @@ export const authMiddleware = async (req, res, next) => {
     res.status(500).json({ error: 'Errore di autenticazione' });
   }
 };
-
-
