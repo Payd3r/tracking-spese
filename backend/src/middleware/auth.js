@@ -1,4 +1,4 @@
-import { clerkClient } from '@clerk/backend';
+import { createClerkClient } from '@clerk/backend';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 
@@ -36,7 +36,7 @@ export const authMiddleware = async (req, res, next) => {
         throw new Error('CLERK_SECRET_KEY not configured');
       }
       
-      const clerk = clerkClient({ 
+      const clerk = createClerkClient({ 
         secretKey: process.env.CLERK_SECRET_KEY 
       });
       
