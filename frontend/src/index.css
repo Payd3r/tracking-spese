@@ -487,7 +487,7 @@ All colors MUST be HSL.
   .ios-bottom-nav {
     @apply px-6 w-full;
     padding-top: 0px !important;
-    padding-bottom: env(safe-area-inset-bottom, 15px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     min-height: auto;
     height: auto !important;
     z-index: 50;
@@ -533,13 +533,13 @@ All colors MUST be HSL.
     background: transparent;
     border: none;
     color: hsl(var(--muted-foreground));
-    transform: translateY(-24px);
+    transform: translateY(-12px);
     transition: color var(--transition-quick), transform var(--transition-micro), box-shadow var(--transition-quick), border-color var(--transition-quick);
   }
 
   .nav-btn-secondary:hover {
     color: hsl(var(--foreground));
-    transform: translateY(-26px);
+    transform: translateY(-14px);
     box-shadow: none;
   }
 
