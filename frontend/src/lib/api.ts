@@ -39,7 +39,9 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Handle 401 - unauthorized
     if (error.response?.status === 401) {
-      (window as any).Clerk?.signOut?.({ redirectUrl: '/auth' });
+      if (typeof window !== 'undefined') {
+        (window as any).Clerk?.signOut?.({ redirectUrl: '/auth' });
+      }
     }
     
     // Check for network/connection errors

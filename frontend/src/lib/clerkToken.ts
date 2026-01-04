@@ -1,5 +1,5 @@
 // Helper per ottenere token e utente da Clerk fuori dai componenti React
-type WindowWithClerk = typeof window & {
+type WindowWithClerk = Window & {
   Clerk?: {
     load: () => Promise<void>;
     session?: {
@@ -17,6 +17,7 @@ type WindowWithClerk = typeof window & {
 };
 
 async function getClerk() {
+  if (typeof window === 'undefined') return null;
   const wnd = window as WindowWithClerk;
   const clerk = wnd.Clerk;
   if (!clerk) return null;
