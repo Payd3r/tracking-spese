@@ -486,10 +486,10 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    padding-top: 12px !important;
-    padding-bottom: 24px !important;
-    min-height: 60px;
-    height: 60px !important;
+    padding-top: 10px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 5px) !important;
+    min-height: auto;
+    height: auto !important;
     z-index: 50;
     border-top-left-radius: 24px;
     border-top-right-radius: 24px;
@@ -533,12 +533,13 @@ All colors MUST be HSL.
     background: hsl(0 0% 8% / 0.9);
     border: 1px solid hsl(var(--glass-border));
     color: hsl(var(--muted-foreground));
+    transform: translateY(-8px);
     transition: color var(--transition-quick), transform var(--transition-micro), box-shadow var(--transition-quick), border-color var(--transition-quick);
   }
 
   .nav-btn-secondary:hover {
     color: hsl(var(--foreground));
-    transform: translateY(-2px);
+    transform: translateY(-10px);
     box-shadow: var(--shadow-glow);
   }
 
