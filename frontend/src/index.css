@@ -115,8 +115,10 @@ All colors MUST be HSL.
     @apply bg-background text-foreground antialiased;
     height: 100%;
     height: 100dvh;
-    overflow: hidden; /* Disable body scroll */
-    position: fixed; /* Completely prevent any scrolling */
+    overflow: hidden;
+    /* Disable body scroll */
+    position: fixed;
+    /* Completely prevent any scrolling */
     width: 100%;
     top: 0;
     left: 0;
@@ -136,6 +138,7 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+
   /* Glass surfaces */
   .glass-card,
   .glass-card-hover {
@@ -144,21 +147,21 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-soft);
     transition: transform var(--transition-quick), box-shadow var(--transition-quick), border-color var(--transition-quick), background-color var(--transition-quick);
   }
-  
+
   .glass-card-hover {
     cursor: pointer;
   }
-  
+
   .glass-card-hover:hover {
     box-shadow: var(--shadow-strong);
     border-color: hsl(0 0% 100% / 0.18);
     transform: translateY(-2px) scale(1.01);
   }
-  
+
   .glass-card-hover:active {
     transform: scale(0.985);
   }
-  
+
   /* Solid monochrome surfaces (ex-badges) */
   [class*="gradient-"] {
     position: relative;
@@ -171,50 +174,82 @@ All colors MUST be HSL.
     box-shadow: var(--shadow-glow);
     transition: transform var(--transition-quick), box-shadow var(--transition-quick), border-color var(--transition-quick), color var(--transition-quick), background-color var(--transition-quick);
   }
-  
+
   [class*="gradient-"]::after {
     content: none;
   }
-  
+
   [class*="gradient-"]:hover {
     box-shadow: var(--shadow-strong);
     border-color: hsl(0 0% 100% / 0.18);
   }
-  
+
   [class*="gradient-"]:active {
     transform: scale(0.97);
   }
-  
-  .gradient-blue { background-color: hsl(0 0% 16%); }
-  .gradient-purple { background-color: hsl(0 0% 18%); }
-  .gradient-green { background-color: hsl(0 0% 14%); }
-  .gradient-pink { background-color: hsl(0 0% 20%); }
-  .gradient-teal { background-color: hsl(0 0% 12%); }
-  .gradient-orange { background-color: hsl(0 0% 22%); }
-  .gradient-red { background-color: hsl(0 0% 24%); }
-  .gradient-yellow { background-color: hsl(0 0% 26%); }
-  .gradient-cyan { background-color: hsl(0 0% 18%); }
-  .gradient-indigo { background-color: hsl(0 0% 21%); }
-  .gradient-gray { background-color: hsl(0 0% 15%); }
-  
+
+  .gradient-blue {
+    background-color: hsl(0 0% 16%);
+  }
+
+  .gradient-purple {
+    background-color: hsl(0 0% 18%);
+  }
+
+  .gradient-green {
+    background-color: hsl(0 0% 14%);
+  }
+
+  .gradient-pink {
+    background-color: hsl(0 0% 20%);
+  }
+
+  .gradient-teal {
+    background-color: hsl(0 0% 12%);
+  }
+
+  .gradient-orange {
+    background-color: hsl(0 0% 22%);
+  }
+
+  .gradient-red {
+    background-color: hsl(0 0% 24%);
+  }
+
+  .gradient-yellow {
+    background-color: hsl(0 0% 26%);
+  }
+
+  .gradient-cyan {
+    background-color: hsl(0 0% 18%);
+  }
+
+  .gradient-indigo {
+    background-color: hsl(0 0% 21%);
+  }
+
+  .gradient-gray {
+    background-color: hsl(0 0% 15%);
+  }
+
   .tone-success {
     background-color: hsl(var(--success) / 0.12) !important;
     border-color: hsl(var(--success) / 0.45) !important;
     color: hsl(var(--success-foreground));
   }
-  
+
   .tone-warning {
     background-color: hsl(var(--warning) / 0.12) !important;
     border-color: hsl(var(--warning) / 0.4) !important;
     color: hsl(var(--warning-foreground));
   }
-  
+
   .tone-danger {
     background-color: hsl(var(--destructive) / 0.22) !important;
     border-color: hsl(var(--destructive) / 0.5) !important;
     color: hsl(var(--destructive-foreground));
   }
-  
+
   /* White active pill used across buttons/badge-like elements */
   .pill-active {
     background-color: hsl(0 0% 100%);
@@ -222,13 +257,13 @@ All colors MUST be HSL.
     border-color: hsl(0 0% 100% / 0.6);
     box-shadow: none !important;
   }
-  
+
   /* Neon Chart Container */
   .neon-chart-container {
     background: linear-gradient(135deg, hsl(0 0% 14%) 0%, hsl(0 0% 0%) 100%);
     border-radius: 1rem;
     padding: 1rem;
-    box-shadow: 
+    box-shadow:
       0 0 30px hsl(var(--neon-glow)),
       0 0 60px hsl(var(--neon-glow) / 0.7),
       0 0 120px hsl(var(--neon-glow) / 0.5),
@@ -237,18 +272,18 @@ All colors MUST be HSL.
     position: relative;
     overflow: hidden;
   }
-  
+
   .neon-chart-container::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, 
-      hsla(0, 0%, 100%, 0.12) 0%, 
-      hsla(0, 0%, 100%, 0.05) 50%, 
-      hsla(0, 0%, 100%, 0.12) 100%);
+    background: linear-gradient(135deg,
+        hsla(0, 0%, 100%, 0.12) 0%,
+        hsla(0, 0%, 100%, 0.05) 50%,
+        hsla(0, 0%, 100%, 0.12) 100%);
     pointer-events: none;
   }
-  
+
   /* Chart labels */
   .chart-label,
   .chart-label-year {
@@ -256,76 +291,93 @@ All colors MUST be HSL.
     font-weight: 500;
     opacity: 0.9;
   }
-  
+
   .chart-label {
     font-size: 11px;
   }
-  
+
   .chart-label-year {
     font-size: 9px;
   }
-  
+
   /* Smooth transitions for chart updates */
   .chart-transition {
     transition: all var(--transition-quick);
   }
-  
+
   /* Pulsating glow animation */
   @keyframes neon-pulse {
-    0%, 100% {
-      filter: 
-        drop-shadow(0 0 8px hsl(var(--neon-blue) / 1))
-        drop-shadow(0 0 16px hsl(var(--neon-blue) / 0.8))
-        drop-shadow(0 0 32px hsl(var(--neon-blue) / 0.6))
-        drop-shadow(0 0 64px hsl(var(--neon-blue) / 0.4));
+
+    0%,
+    100% {
+      filter:
+        drop-shadow(0 0 8px hsl(var(--neon-blue) / 1)) drop-shadow(0 0 16px hsl(var(--neon-blue) / 0.8)) drop-shadow(0 0 32px hsl(var(--neon-blue) / 0.6)) drop-shadow(0 0 64px hsl(var(--neon-blue) / 0.4));
     }
+
     50% {
-      filter: 
-        drop-shadow(0 0 12px hsl(var(--neon-blue) / 1))
-        drop-shadow(0 0 24px hsl(var(--neon-blue) / 0.9))
-        drop-shadow(0 0 48px hsl(var(--neon-blue) / 0.7))
-        drop-shadow(0 0 96px hsl(var(--neon-blue) / 0.5));
+      filter:
+        drop-shadow(0 0 12px hsl(var(--neon-blue) / 1)) drop-shadow(0 0 24px hsl(var(--neon-blue) / 0.9)) drop-shadow(0 0 48px hsl(var(--neon-blue) / 0.7)) drop-shadow(0 0 96px hsl(var(--neon-blue) / 0.5));
     }
   }
-  
+
   .neon-glow {
     animation: neon-pulse 3s ease-in-out infinite;
   }
-  
+
   /* Mobile-optimized spacing */
   .mobile-container {
     @apply px-3 max-w-md mx-auto;
   }
-  
+
   .mobile-spacing-sm {
     @apply mb-3;
   }
-  
+
   .mobile-spacing-md {
     @apply mb-4;
   }
-  
+
   .mobile-spacing-lg {
     @apply mb-5;
   }
-  
+
   .mobile-gap-sm {
     @apply gap-2;
   }
-  
+
   .mobile-gap-md {
     @apply gap-3;
   }
-  
+
   /* Mobile typography */
-  .text-mobile-xs { font-size: 11px; }
-  .text-mobile-sm { font-size: 13px; }
-  .text-mobile-base { font-size: 15px; }
-  .text-mobile-lg { font-size: 17px; }
-  .text-mobile-xl { font-size: 20px; }
-  .text-mobile-2xl { font-size: 24px; }
-  .text-mobile-3xl { font-size: 28px; }
-  
+  .text-mobile-xs {
+    font-size: 11px;
+  }
+
+  .text-mobile-sm {
+    font-size: 13px;
+  }
+
+  .text-mobile-base {
+    font-size: 15px;
+  }
+
+  .text-mobile-lg {
+    font-size: 17px;
+  }
+
+  .text-mobile-xl {
+    font-size: 20px;
+  }
+
+  .text-mobile-2xl {
+    font-size: 24px;
+  }
+
+  .text-mobile-3xl {
+    font-size: 28px;
+  }
+
   /* Page container for fixed layout */
   .page-container {
     flex: 1;
@@ -339,9 +391,12 @@ All colors MUST be HSL.
   .scrollable-content {
     flex: 1;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    padding-bottom: 80px; /* Space for bottom nav */
-    padding-top: env(safe-area-inset-top, 0px); /* Space for status bar */
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scrolling on iOS */
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+    padding-top: env(safe-area-inset-top, 0px);
+    /* Space for status bar */
   }
 
   /* Safe area padding for page content */
@@ -375,7 +430,8 @@ All colors MUST be HSL.
     width: 100% !important;
     margin: 0 !important;
     box-sizing: border-box !important;
-    transform: translateZ(0); /* Hardware acceleration */
+    transform: translateZ(0);
+    /* Hardware acceleration */
   }
 
   /* Center navbar content but keep full width */
@@ -430,10 +486,10 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    padding-top: 18px !important;
-    padding-bottom: 26px !important;
-    min-height: 100px;
-    height: 100px !important;
+    padding-top: 12px !important;
+    padding-bottom: 24px !important;
+    min-height: 60px;
+    height: 60px !important;
     z-index: 50;
     border-top-left-radius: 24px;
     border-top-right-radius: 24px;
@@ -441,7 +497,7 @@ All colors MUST be HSL.
     border-bottom-right-radius: 0;
     background: linear-gradient(180deg, hsl(0 0% 8% / 0.95) 0%, hsl(0 0% 0% / 0.92) 100%);
     border-top: 1px solid hsl(var(--glass-border));
-    box-shadow: 
+    box-shadow:
       0 -6px 24px hsl(0 0% 0% / 0.65),
       0 -10px 36px hsl(0 0% 0% / 0.4),
       inset 0 1px 0 hsl(0 0% 100% / 0.08);
@@ -517,9 +573,17 @@ All colors MUST be HSL.
 
   /* Spring animation per tap */
   @keyframes spring-tap {
-    0% { transform: scale(1); }
-    50% { transform: scale(0.92); }
-    100% { transform: scale(1); }
+    0% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(0.92);
+    }
+
+    100% {
+      transform: scale(1);
+    }
   }
 
   .tap-spring {
@@ -528,6 +592,7 @@ All colors MUST be HSL.
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
