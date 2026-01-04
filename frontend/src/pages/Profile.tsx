@@ -111,12 +111,7 @@ export default function Profile() {
         updateData.defaultCurrency = defaultCurrency;
       }
       
-      // Aggiorna Clerk per il nome, se necessario
-      if (updateData.name && clerkUser) {
-        await clerkUser.update({ fullName: updateData.name });
-      }
-
-      // Aggiorna backend per i dati custom (es. defaultCurrency)
+      // Aggiorna backend per i dati custom (es. defaultCurrency e name)
       let updatedProfile = profile;
       if (updateData.defaultCurrency || updateData.name) {
         const response = await api.auth.updateProfile(updateData);
