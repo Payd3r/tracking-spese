@@ -118,8 +118,10 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground antialiased;
 
-    /* Standard PWA height */
-    min-height: 100dvh;
+    /* Use fixed viewport height to prevent reflow on keyboard */
+    min-height: 100vh;
+    max-height: 100vh;
+    height: 100vh;
     width: 100%;
 
     /* Re-enable scrolling so viewport behaves naturally */
@@ -129,17 +131,24 @@ All colors MUST be HSL.
     margin: 0 !important;
     padding: 0 !important;
     z-index: 0;
+    
+    /* Prevent iOS from adjusting when keyboard appears */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
   }
 
   #root {
     width: 100%;
-    /* Ensure root fills body */
-    min-height: 100%;
-
+    height: 100%;
+    
     display: flex;
     flex-direction: column;
     position: relative;
     z-index: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 }
 
