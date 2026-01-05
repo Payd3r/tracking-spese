@@ -37,10 +37,16 @@ export const useKeyboardOpen = () => {
 
                     // Refresh the stable height var so the layout re-expands after keyboard close
                     const fullHeight = Math.max(window.innerHeight, window.visualViewport!.height);
-                    document.documentElement.style.setProperty('--app-height', `${fullHeight}px`);
+                    const root = document.documentElement;
+                    root.style.setProperty('--app-height', `${fullHeight}px`);
                     requestAnimationFrame(() => {
-                        document.documentElement.style.setProperty('--app-height', `${fullHeight}px`);
+                        root.style.setProperty('--app-height', `${fullHeight}px`);
                     });
+
+                    // Kick a resize event slightly later to make sure listeners recompute
+                    setTimeout(() => {
+                        window.dispatchEvent(new Event('resize'));
+                    }, 160);
                 }
             }, 120);
         };
