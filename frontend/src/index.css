@@ -134,14 +134,17 @@ All colors MUST be HSL.
   }
 
   #root {
+    /* FIXED ROOT: This locks the main app container to the viewport */
     width: 100%;
     height: 100%;
+    position: fixed;
+    inset: 0;
+
     display: flex;
     flex-direction: column;
     overflow: hidden;
     margin: 0 !important;
     padding: 0 !important;
-    position: relative;
     z-index: 1;
   }
 }
@@ -476,7 +479,8 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    position: fixed;
+    /* Absolute mounting within the FIXED #root container avoids body scroll issues */
+    position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
