@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Hook detecting if the virtual keyboard is open.
@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
  */
 export const useKeyboardOpen = () => {
     const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+    const prevScrollRef = useRef<number>(0);
 
     useEffect(() => {
         // Check if VisualViewport API is supported
@@ -22,7 +23,14 @@ export const useKeyboardOpen = () => {
             const activeTag = document.activeElement?.tagName.toLowerCase();
             const isInputFocused = activeTag === 'input' || activeTag === 'textarea';
 
-            setIsKeyboardOpen(isHeightReduced && isInputFocused);
+            const nextState = isHeightReduced && isInputFocused;
+
+            // Store scroll position when keyboard opens so we can restore it later
+            if (nextState && !isKeyboardOpen) {
+                prevScrollRef.current = window.scrollY;
+            }
+
+            setIsKeyboardOpen(nextState);
         };
 
         const handleFocusOut = () => {
@@ -46,6 +54,8 @@ export const useKeyboardOpen = () => {
                     // Kick a resize event slightly later to make sure listeners recompute
                     setTimeout(() => {
                         window.dispatchEvent(new Event('resize'));
+                        // Restore scroll position to where the user was before keyboard opened
+                        window.scrollTo({ top: prevScrollRef.current, behavior: 'auto' });
                     }, 160);
                 }
             }, 120);
