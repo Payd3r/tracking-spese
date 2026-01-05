@@ -486,8 +486,8 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    padding-top: 15px !important;
-    padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 12px) !important;
+    padding-top: 8px !important;
+    padding-bottom: env(safe-area-inset-bottom, 10px) !important;
     min-height: auto;
     height: auto !important;
     z-index: 50;
@@ -495,7 +495,7 @@ All colors MUST be HSL.
     border-top-right-radius: 20px;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    background: linear-gradient(180deg, hsl(0 0% 8% / 0.95) 0%, hsl(0 0% 0% / 0.92) 100%);
+    background: linear-gradient(180deg, hsl(0 0% 8% / 0.98) 0%, hsl(0 0% 0% / 1) 100%);
     border-top: 1px solid hsl(var(--glass-border));
     box-shadow:
       0 -6px 24px hsl(0 0% 0% / 0.65),
@@ -506,11 +506,11 @@ All colors MUST be HSL.
   }
 
   .nav-btn-primary {
-    @apply w-[80px] h-[80px] rounded-full flex items-center justify-center cursor-pointer;
+    @apply w-[56px] h-[56px] rounded-full flex items-center justify-center cursor-pointer;
     border: 1px solid hsl(var(--glass-border));
     background: hsl(0 0% 100%);
     color: hsl(0 0% 0%);
-    transform: translateY(-35px);
+    transform: translateY(-20px);
     min-height: 44px;
     min-width: 44px;
     position: relative;
@@ -520,26 +520,26 @@ All colors MUST be HSL.
   }
 
   .nav-btn-primary:hover {
-    transform: translateY(-38px) scale(1.02);
+    transform: translateY(-23px) scale(1.02);
     box-shadow: 0 0 45px hsl(0 0% 100% / 0.6);
   }
 
   .nav-btn-primary:active {
-    transform: translateY(-30px) scale(0.96);
+    transform: translateY(-18px) scale(0.96);
   }
 
   .nav-btn-secondary {
-    @apply w-[44px] h-[44px] flex items-center justify-center cursor-pointer;
+    @apply w-[44px] h-[40px] flex items-center justify-center cursor-pointer;
     background: transparent;
     border: none;
     color: hsl(var(--muted-foreground));
-    transform: translateY(-8px);
+    transform: translateY(0);
     transition: color var(--transition-quick), transform var(--transition-micro), box-shadow var(--transition-quick), border-color var(--transition-quick);
   }
 
   .nav-btn-secondary:hover {
     color: hsl(var(--foreground));
-    transform: translateY(-10px);
+    transform: translateY(-2px);
     box-shadow: none;
   }
 
