@@ -476,29 +476,33 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    margin: 0 !important;
-    /* Compact padding with safe area handling */
-    padding-top: 0px !important;
-    padding-bottom: calc(env(safe-area-inset-bottom, 10px) - 10px) !important;
-    min-height: auto;
-    height: auto !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    /* Pushes content up from the bottom safe area */
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    /* Standard height plus extra padding for floating effect if needed */
+    height: auto;
     z-index: 50;
+
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+
     background: linear-gradient(180deg, hsl(0 0% 8% / 0.98) 0%, hsl(0 0% 0% / 1) 100%);
     border-top: 1px solid hsl(var(--glass-border));
+
     box-shadow:
       0 -6px 24px hsl(0 0% 0% / 0.65),
       0 -10px 36px hsl(0 0% 0% / 0.4),
       inset 0 1px 0 hsl(0 0% 100% / 0.08);
+
     backdrop-filter: blur(30px) saturate(180%);
-    transition: box-shadow var(--transition-quick), transform var(--transition-quick);
+    transition: transform var(--transition-quick);
+
+    /* Ensure it stays on top of keyboard/content shifts */
+    transform: translateZ(0);
   }
 
   .nav-btn-primary {
