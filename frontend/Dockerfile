@@ -13,6 +13,9 @@ COPY frontend/package*.json ./
 # Install dependencies
 RUN npm install
 
+# Ensure vite binary is executable (fixes Permission denied in some environments)
+RUN chmod +x node_modules/.bin/vite
+
 # Copy source code from frontend
 COPY frontend/ .
 
