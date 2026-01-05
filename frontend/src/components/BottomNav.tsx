@@ -13,11 +13,25 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   const isKeyboardOpen = useKeyboardOpen();
 
   useEffect(() => {
+    // Permanent Scroll Lock:
+    // Since we use an internal container for scrolling, the window/body
+    // should NEVER scroll. This listener fights back against iOS keyboard panning.
+    const handleScroll = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: false });
+
+    // Also force reset on keyboard close
     if (!isKeyboardOpen) {
-      // With the new 'fixed root' strategy in CSS, we just need a simple
-      // scroll check to ensure the internal router doesn't get offset.
       window.scrollTo(0, 0);
     }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, [isKeyboardOpen]);
 
   // Don't render if not authenticated
