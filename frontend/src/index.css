@@ -109,40 +109,27 @@ All colors MUST be HSL.
   html {
     @apply bg-background;
     height: 100%;
-    height: -webkit-fill-available;
-    /* iOS WebKit fix */
-    width: 100vw;
+    width: 100%;
     overflow: hidden;
     background-color: #000000;
+    overscroll-behavior: none;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    min-height: 100vh;
-    min-height: 100dvh;
-    /* Modern viewport height */
-    min-height: -webkit-fill-available;
-    /* iOS WebKit fix */
-    width: 100vw;
-    background-color: #000000;
-
+    height: 100%;
+    width: 100%;
     overflow: hidden;
-    /* Removed position: fixed to allow standard flow layout stretch */
-    margin: 0 !important;
-    padding: 0 !important;
-    z-index: 0;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
   }
 
   #root {
-    width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: relative;
-    z-index: 1;
+    width: 100%;
+    isolation: isolate;
   }
 }
 
@@ -473,18 +460,6 @@ All colors MUST be HSL.
   body {
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: auto;
-  }
-
-  /* Ensure full height in standalone PWA mode */
-  @media all and (display-mode: standalone) {
-    body {
-      height: 100dvh;
-      min-height: 100dvh;
-    }
-
-    .app-wrapper {
-      height: 100dvh;
-    }
   }
 
   /* iOS-style bottom navigation refreshed */
