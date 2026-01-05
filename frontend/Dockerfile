@@ -16,6 +16,11 @@ RUN npm install
 # Ensure vite binary is executable (fixes Permission denied in some environments)
 RUN chmod +x node_modules/.bin/vite
 
+# Fix possible CRLF line endings on vite scripts that can cause Permission denied
+RUN apk add --no-cache dos2unix \
+  && dos2unix node_modules/.bin/vite node_modules/vite/bin/vite.js \
+  && chmod +x node_modules/vite/bin/vite.js
+
 # Copy source code from frontend
 COPY frontend/ .
 
