@@ -39,13 +39,17 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
     return null;
   }
 
+  // Hide completely when keyboard key is open to avoid visual glitches
+  if (isKeyboardOpen) {
+    return null;
+  }
+
   return (
     <nav
       className="ios-bottom-nav"
       style={{
-        transform: isKeyboardOpen ? 'translateY(200%)' : 'translateY(0)',
+        transform: 'translateY(0)',
         transition: 'transform 0.3s ease-in-out',
-        willChange: 'transform'
       }}
     >
       <div className="flex items-center justify-evenly">

@@ -105,29 +105,26 @@ All colors MUST be HSL.
     box-sizing: border-box;
   }
 
-  /* LOCK BODY SCROLL: We use internal scrolling (.scrollable-content), so body must NEVER scroll */
+  /* RESET: Reverting to standard PWA layout which covers full screen correctly */
   html {
     @apply bg-background;
-    /* Basic html reset */
     height: 100%;
     width: 100%;
-    overflow: hidden;
+    /* Allow standard viewport behavior */
+    overflow-x: hidden;
     background-color: #000000;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
 
-    /* PREVENT SCROLL + FULL VIEWPORT FORCE */
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    /* Standard PWA height */
+    min-height: 100dvh;
+    width: 100%;
 
-    /* Stop iOS rubber banding on the body itself */
-    overscroll-behavior: none;
-    overflow: hidden;
+    /* Re-enable scrolling so viewport behaves naturally */
+    overflow-y: auto;
+    overflow-x: hidden;
 
     margin: 0 !important;
     padding: 0 !important;
@@ -135,16 +132,13 @@ All colors MUST be HSL.
   }
 
   #root {
-    /* Root fills the locked body completely */
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    /* Ensure root fills body */
+    min-height: 100%;
 
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    position: relative;
     z-index: 1;
   }
 }
