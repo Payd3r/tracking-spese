@@ -136,11 +136,12 @@ function AppContent() {
           <TransactionForm onSuccess={handleTransactionSuccess} />
         </BottomSheet>
       </div>
-      );
+    </>
+  );
 }
 
 const App = () => {
-  const {isSignedIn, isLoaded} = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
 
   useEffect(() => {
     // Initialize cache on app start if user is logged in
@@ -148,41 +149,41 @@ const App = () => {
       if (!isSignedIn) return;
       try {
         const hasData = await hasCacheData();
-      if (!hasData) {
-        console.log('No cache data found, preloading...');
-      const result = await preloadCache();
-      if (result.success) {
-        console.log('Cache preloaded successfully:', result);
+        if (!hasData) {
+          console.log('No cache data found, preloading...');
+          const result = await preloadCache();
+          if (result.success) {
+            console.log('Cache preloaded successfully:', result);
           } else {
-        console.error('Cache preload failed:', result.error);
+            console.error('Cache preload failed:', result.error);
           }
         } else {
-        console.log('Cache data already available');
+          console.log('Cache data already available');
         }
       } catch (error) {
         console.error('Cache initialization failed:', error);
       }
     };
 
-      if (isLoaded) {
-        initializeCache();
+    if (isLoaded) {
+      initializeCache();
     }
   }, [isLoaded, isSignedIn]);
 
-      return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Sonner />
-          <BrowserRouter>
-            <SyncProvider>
-              <BottomSheetProvider>
-                <AppContent />
-              </BottomSheetProvider>
-            </SyncProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-      );
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <SyncProvider>
+            <BottomSheetProvider>
+              <AppContent />
+            </BottomSheetProvider>
+          </SyncProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
 };
 
-      export default App;
+export default App;
