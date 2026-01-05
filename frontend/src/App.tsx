@@ -10,6 +10,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import { TransactionForm } from "@/components/forms/TransactionForm";
 import { useEffect } from "react";
 import { preloadCache, hasCacheData } from "@/lib/cacheManager";
+import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Transactions from "./pages/Transactions";
@@ -27,7 +28,9 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   const { isTransactionSheetOpen, openTransactionSheet, closeTransactionSheet } = useBottomSheet();
-
+  
+  // Track visual viewport height for iOS PWA bottom nav fix
+  useVisualViewportHeight();
 
   const handleTransactionSuccess = () => {
     closeTransactionSheet();

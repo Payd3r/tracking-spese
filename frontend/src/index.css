@@ -474,7 +474,8 @@ All colors MUST be HSL.
   .ios-bottom-nav {
     @apply px-6 w-full;
     position: fixed;
-    bottom: 0;
+    /* Use visual viewport height to fix iOS keyboard positioning bug */
+    bottom: calc(100vh - var(--visual-vh, 100vh));
     left: 0;
     right: 0;
     margin: 0;
