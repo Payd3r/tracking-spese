@@ -108,22 +108,25 @@ All colors MUST be HSL.
   /* LOCK BODY SCROLL: We use internal scrolling (.scrollable-content), so body must NEVER scroll */
   html {
     @apply bg-background;
+    /* Basic html reset */
     height: 100%;
-    width: 100vw;
+    width: 100%;
     overflow: hidden;
-    /* No scroll on html */
     background-color: #000000;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* FIXED BODY + JS HEIGHT: Locks scroll and forces exact physical screen height */
-    position: fixed;
-    width: 100%;
-    /* Use custom --vh calculation to match actual screen height on iOS PWA */
-    height: calc(var(--vh, 1vh) * 100);
 
-    /* CRITICAL: hidden to prevent iOS keyboard from scrolling the document */
+    /* PREVENT SCROLL + FULL VIEWPORT FORCE */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    /* Stop iOS rubber banding on the body itself */
+    overscroll-behavior: none;
     overflow: hidden;
 
     margin: 0 !important;
@@ -132,11 +135,15 @@ All colors MUST be HSL.
   }
 
   #root {
-    width: 100%;
-    height: 100%;
+    /* Root fills the locked body completely */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
     display: flex;
     flex-direction: column;
-    position: relative;
     overflow: hidden;
     z-index: 1;
   }
