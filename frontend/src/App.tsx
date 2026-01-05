@@ -39,103 +39,99 @@ function AppContent() {
 
   return (
     <>
-      <div className="app-wrapper fixed inset-0 w-full h-full overflow-hidden flex flex-col">
-        <div className="page-container flex-1 relative overflow-hidden flex flex-col">
-          <div className="scrollable-content flex-1 overflow-y-auto w-full">
-            <Routes>
-              {/* Public route */}
-              <Route path="/auth" element={<Auth />} />
+      <div className="page-container">
+        <div className="scrollable-content">
+          <Routes>
+            {/* Public route */}
+            <Route path="/auth" element={<Auth />} />
 
-              {/* Protected routes */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Home />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/transactions"
-                element={
-                  <ProtectedRoute>
-                    <Transactions />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings/accounts"
-                element={
-                  <ProtectedRoute>
-                    <ManageAccounts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings/categories"
-                element={
-                  <ProtectedRoute>
-                    <ManageCategories />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings/transfers"
-                element={
-                  <ProtectedRoute>
-                    <ManageTransfers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings/loans"
-                element={
-                  <ProtectedRoute>
-                    <ManageLoans />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/transaction/:id"
-                element={
-                  <ProtectedRoute>
-                    <TransactionDetail />
-                  </ProtectedRoute>
-                }
-              />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-
-          {/* BottomNav is now inside page-container/app-wrapper context */}
-          <BottomNav onAddClick={openTransactionSheet} />
+            {/* Protected routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transactions"
+              element={
+                <ProtectedRoute>
+                  <Transactions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/accounts"
+              element={
+                <ProtectedRoute>
+                  <ManageAccounts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/categories"
+              element={
+                <ProtectedRoute>
+                  <ManageCategories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/transfers"
+              element={
+                <ProtectedRoute>
+                  <ManageTransfers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/loans"
+              element={
+                <ProtectedRoute>
+                  <ManageLoans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transaction/:id"
+              element={
+                <ProtectedRoute>
+                  <TransactionDetail />
+                </ProtectedRoute>
+              }
+            />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </div>
-
-        {/* Global Bottom Sheets remain outside to overlay everything */}
-        <BottomSheet
-          isOpen={isTransactionSheetOpen}
-          onClose={closeTransactionSheet}
-        >
-          <TransactionForm onSuccess={handleTransactionSuccess} />
-        </BottomSheet>
       </div>
+      <BottomNav onAddClick={openTransactionSheet} />
+
+      {/* Global Bottom Sheets */}
+      <BottomSheet
+        isOpen={isTransactionSheetOpen}
+        onClose={closeTransactionSheet}
+      >
+        <TransactionForm onSuccess={handleTransactionSuccess} />
+      </BottomSheet>
     </>
   );
 }
