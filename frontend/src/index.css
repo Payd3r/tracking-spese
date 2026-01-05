@@ -108,24 +108,22 @@ All colors MUST be HSL.
   /* HTML matches theme background to catch any overscroll/gaps */
   html {
     @apply bg-background;
-    height: 100%;
+    height: 100dvh;
+    /* Dynamic constrained height */
+    width: 100vw;
     overflow: hidden;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* Force stretch to viewport edges ignoring safe area logic for height */
+    height: 100dvh;
+    width: 100vw;
+
+    overflow: hidden;
     position: fixed;
+    /* Prevent body scroll bounce */
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    width: auto;
-    height: auto;
-
-    border: 4px solid red !important;
-    /* DEBUG BORDER */
-    overflow: hidden;
     margin: 0 !important;
     padding: 0 !important;
     z-index: 0;
@@ -479,8 +477,6 @@ All colors MUST be HSL.
     left: 0 !important;
     right: 0 !important;
     margin: 0 !important;
-    border: 2px solid red !important;
-    /* DEBUG BORDER */
     /* Compact padding */
     padding-top: 8px !important;
     padding-bottom: 20px !important;
