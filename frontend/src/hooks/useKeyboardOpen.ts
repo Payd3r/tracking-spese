@@ -34,26 +34,20 @@ export const useKeyboardOpen = () => {
                     // Double check viewport just in case
                     if (window.visualViewport!.height >= window.innerHeight * 0.9) {
                         setIsKeyboardOpen(false);
-                        // Force reflow to fix iOS position:fixed bug after keyboard closes
-                        forceReflow();
+                        
+                        // Force repaint by toggling position to reset iOS cached render state
+                        requestAnimationFrame(() => {
+                            const nav = document.querySelector('.ios-bottom-nav') as HTMLElement;
+                            if (nav) {
+                                nav.style.position = 'absolute';
+                                requestAnimationFrame(() => {
+                                    nav.style.position = 'fixed';
+                                });
+                            }
+                        });
                     }
                 }
             }, 100);
-        };
-
-        const forceReflow = () => {
-            // Force browser to recalculate layout by reading offsetHeight
-            document.body.offsetHeight;
-            
-            // Force repaint of bottom nav by toggling display
-            const nav = document.querySelector('.ios-bottom-nav') as HTMLElement;
-            if (nav) {
-                const originalDisplay = nav.style.display;
-                nav.style.display = 'none';
-                // Force reflow
-                nav.offsetHeight;
-                nav.style.display = originalDisplay || '';
-            }
         };
 
         window.visualViewport.addEventListener('resize', handleResize);
