@@ -473,16 +473,12 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: relative;
     margin: 0;
     /* Pushes content up from the bottom safe area */
     padding-bottom: env(safe-area-inset-bottom, 20px);
     /* Standard height plus extra padding for floating effect if needed */
     height: auto;
-    z-index: 50;
 
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
@@ -497,9 +493,6 @@ All colors MUST be HSL.
 
     backdrop-filter: blur(30px) saturate(180%);
     transition: transform var(--transition-quick);
-
-    /* Ensure it stays on top of keyboard/content shifts */
-    transform: translateZ(0);
   }
 
   .nav-btn-primary {
