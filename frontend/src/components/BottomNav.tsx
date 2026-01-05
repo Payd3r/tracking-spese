@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Home, Plus, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
@@ -10,6 +11,21 @@ interface BottomNavProps {
 export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   const { isSignedIn } = useAuth();
   const isKeyboardOpen = useKeyboardOpen();
+
+  useEffect(() => {
+    if (!isKeyboardOpen) {
+      // Force reset scroll when keyboard closes to prevent "detachment"
+      // caused by iOS viewport panning
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+
+      // Safety check after UI stabilizes
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+      }, 100);
+    }
+  }, [isKeyboardOpen]);
 
   // Don't render if not authenticated
   if (!isSignedIn) {
