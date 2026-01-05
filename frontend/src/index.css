@@ -106,19 +106,14 @@ All colors MUST be HSL.
   }
 
   /* HTML matches theme background to catch any overscroll/gaps */
-  html {
-    @apply bg-background;
-    height: 100%;
-    height: -webkit-fill-available;
-    /* iOS WebKit fix */
-    width: 100vw;
-    overflow: hidden;
-    background-color: #000000;
-  }
-
+  /* SUPER LOCK: Force the browser window to be a static frame */
+  html,
   body {
-    @apply bg-background text-foreground antialiased;
-    /* Reset body to standard behavior, leting #root handle the frame */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -126,25 +121,22 @@ All colors MUST be HSL.
     background-color: #000000;
     margin: 0 !important;
     padding: 0 !important;
-    z-index: 0;
+
+    /* Ensure no elastic scrolling on the frame */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
   }
 
   #root {
-    /* FIXED ROOT STRATEGY REDUX */
-    /* We lock the root to the viewport to detach from body scrolling */
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-
-    /* CRITICAL: Use the JS-calculated height to ensure full PWA coverage without black bars */
-    height: calc(var(--vh, 1vh) * 100);
+    /* Root takes up the full constrained frame */
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
 
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    margin: 0 !important;
-    padding: 0 !important;
     z-index: 1;
   }
 }
