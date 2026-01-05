@@ -508,7 +508,7 @@ All colors MUST be HSL.
     border: 1px solid hsl(var(--glass-border));
     background: hsl(0 0% 100%);
     color: hsl(0 0% 0%);
-    transform: translateY(-14px);
+    transform: translateY(-6px);
     min-height: 44px;
     min-width: 44px;
     position: relative;
@@ -518,12 +518,12 @@ All colors MUST be HSL.
   }
 
   .nav-btn-primary:hover {
-    transform: translateY(-17px) scale(1.02);
+    transform: translateY(-9px) scale(1.02);
     box-shadow: 0 0 45px hsl(0 0% 100% / 0.6);
   }
 
   .nav-btn-primary:active {
-    transform: translateY(-10px) scale(0.96);
+    transform: translateY(-2px) scale(0.96);
   }
 
   .nav-btn-secondary {

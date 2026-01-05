@@ -29,13 +29,20 @@ export const useKeyboardOpen = () => {
             // When focus leaves, give a small delay to see if another input gets focus
             // or if the keyboard is truly closing
             setTimeout(() => {
-                    const activeTag = document.activeElement?.tagName.toLowerCase();
-                    const hasInputFocus = activeTag === 'input' || activeTag === 'textarea';
+                const activeTag = document.activeElement?.tagName.toLowerCase();
+                const hasInputFocus = activeTag === 'input' || activeTag === 'textarea';
 
-                    if (!hasInputFocus && window.visualViewport!.height >= window.innerHeight * 0.9) {
-                        setIsKeyboardOpen(false);
-                    }
-            }, 100);
+                if (!hasInputFocus && window.visualViewport!.height >= window.innerHeight * 0.9) {
+                    setIsKeyboardOpen(false);
+
+                    // Refresh the stable height var so the layout re-expands after keyboard close
+                    const fullHeight = Math.max(window.innerHeight, window.visualViewport!.height);
+                    document.documentElement.style.setProperty('--app-height', `${fullHeight}px`);
+                    requestAnimationFrame(() => {
+                        document.documentElement.style.setProperty('--app-height', `${fullHeight}px`);
+                    });
+                }
+            }, 120);
         };
 
         window.visualViewport.addEventListener('resize', handleResize);
