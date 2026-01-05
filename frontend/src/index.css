@@ -486,8 +486,8 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    padding-top: 8px !important;
-    padding-bottom: env(safe-area-inset-bottom, 10px) !important;
+    padding-top: 6px !important;
+    padding-bottom: 20px !important;
     min-height: auto;
     height: auto !important;
     z-index: 50;
@@ -510,7 +510,7 @@ All colors MUST be HSL.
     border: 1px solid hsl(var(--glass-border));
     background: hsl(0 0% 100%);
     color: hsl(0 0% 0%);
-    transform: translateY(-20px);
+    transform: translateY(-26px);
     min-height: 44px;
     min-width: 44px;
     position: relative;
@@ -520,12 +520,12 @@ All colors MUST be HSL.
   }
 
   .nav-btn-primary:hover {
-    transform: translateY(-23px) scale(1.02);
+    transform: translateY(-29px) scale(1.02);
     box-shadow: 0 0 45px hsl(0 0% 100% / 0.6);
   }
 
   .nav-btn-primary:active {
-    transform: translateY(-18px) scale(0.96);
+    transform: translateY(-24px) scale(0.96);
   }
 
   .nav-btn-secondary {
@@ -533,13 +533,13 @@ All colors MUST be HSL.
     background: transparent;
     border: none;
     color: hsl(var(--muted-foreground));
-    transform: translateY(0);
+    transform: translateY(2px);
     transition: color var(--transition-quick), transform var(--transition-micro), box-shadow var(--transition-quick), border-color var(--transition-quick);
   }
 
   .nav-btn-secondary:hover {
     color: hsl(var(--foreground));
-    transform: translateY(-2px);
+    transform: translateY(0px);
     box-shadow: none;
   }
 
