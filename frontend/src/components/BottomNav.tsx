@@ -1,6 +1,7 @@
 import { Home, Plus, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { useKeyboardOpen } from "../hooks/useKeyboardOpen";
 
 interface BottomNavProps {
   onAddClick?: () => void;
@@ -8,6 +9,7 @@ interface BottomNavProps {
 
 export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   const { isSignedIn } = useAuth();
+  const isKeyboardOpen = useKeyboardOpen();
 
   // Don't render if not authenticated
   if (!isSignedIn) {
@@ -15,14 +17,18 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   }
 
   return (
-    <nav>
+    <nav style={{
+      transform: isKeyboardOpen ? 'translateY(100%)' : 'translateY(0)',
+      transition: 'transform 0.3s ease-in-out',
+      visibility: isKeyboardOpen ? 'hidden' : 'visible'
+    }}>
       <div className="ios-bottom-nav">
         <div className="flex items-center justify-evenly">
           {/* Home - Icona sinistra */}
           <Link to="/" className="nav-btn-secondary">
             <Home className="w-6 h-6" />
           </Link>
-          
+
           {/* Add - Pulsante centrale prominente */}
           {onAddClick ? (
             <button onClick={onAddClick} className="nav-btn-primary">
@@ -33,7 +39,7 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
               <Plus className="w-14 h-14" />
             </Link>
           )}
-          
+
           {/* Settings - Icona destra */}
           <Link to="/settings" className="nav-btn-secondary">
             <Settings className="w-6 h-6" />
