@@ -2,7 +2,6 @@ import { Home, Plus, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { useKeyboardOpen } from "../hooks/useKeyboardOpen";
-import { useState, useEffect } from "react";
 
 interface BottomNavProps {
   onAddClick?: () => void;
@@ -11,14 +10,6 @@ interface BottomNavProps {
 export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   const { isSignedIn } = useAuth();
   const isKeyboardOpen = useKeyboardOpen();
-  const [key, setKey] = useState(0);
-
-  // Force remount when keyboard closes to reset iOS position:fixed bug
-  useEffect(() => {
-    if (!isKeyboardOpen) {
-      setKey(prev => prev + 1);
-    }
-  }, [isKeyboardOpen]);
 
   // Don't render if not authenticated
   if (!isSignedIn) {
@@ -31,7 +22,7 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
   }
 
   return (
-    <nav key={key} className="ios-bottom-nav">
+    <nav className="ios-bottom-nav">
       <div className="flex items-center justify-evenly">
         {/* Home - Icona sinistra */}
         <Link to="/" className="nav-btn-secondary">

@@ -118,10 +118,8 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground antialiased;
 
-    /* Use fixed viewport height to prevent reflow on keyboard */
-    min-height: 100vh;
-    max-height: 100vh;
-    height: 100vh;
+    /* Use large viewport height (maximum viewport, ignores keyboard) */
+    min-height: 100lvh;
     width: 100%;
 
     /* Re-enable scrolling so viewport behaves naturally */
@@ -131,24 +129,16 @@ All colors MUST be HSL.
     margin: 0 !important;
     padding: 0 !important;
     z-index: 0;
-    
-    /* Prevent iOS from adjusting when keyboard appears */
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
   }
 
   #root {
     width: 100%;
-    height: 100%;
+    min-height: 100lvh;
     
     display: flex;
     flex-direction: column;
     position: relative;
     z-index: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
   }
 }
 
@@ -508,11 +498,13 @@ All colors MUST be HSL.
     backdrop-filter: blur(30px) saturate(180%);
     transition: transform var(--transition-quick);
     
-    /* Force GPU layer and prevent iOS position bug */
+    /* Force GPUnone;
+    
+    /* Force GPU layer and use contain for performance */
     transform: translate3d(0, 0, 0);
-    will-change: transform;
-  }
-
+    will-change: auto;
+    contain: layout style paint;
+    backface-visibility: hidden
   .nav-btn-primary {
     @apply w-[56px] h-[56px] rounded-full flex items-center justify-center cursor-pointer;
     border: 1px solid hsl(var(--glass-border));
