@@ -39,9 +39,10 @@ function AppContent() {
 
   return (
     <>
-      <div className="page-container">
-        <div className="scrollable-content">
-          <Routes>
+      <div className="app-wrapper fixed inset-0 w-full h-full overflow-hidden flex flex-col">
+        <div className="page-container flex-1 relative overflow-hidden flex flex-col">
+          <div className="scrollable-content flex-1 overflow-y-auto w-full">
+            <Routes>
               {/* Public route */}
               <Route path="/auth" element={<Auth />} />
 
@@ -121,23 +122,25 @@ function AppContent() {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-        </div>
-      </div>
-      <BottomNav onAddClick={openTransactionSheet} />
+          </div>
 
-          {/* Global Bottom Sheets */}
-          <BottomSheet
-            isOpen={isTransactionSheetOpen}
-            onClose={closeTransactionSheet}
-          >
-            <TransactionForm onSuccess={handleTransactionSuccess} />
-          </BottomSheet>
-        </>
-  );
+          {/* BottomNav is now inside page-container/app-wrapper context */}
+          <BottomNav onAddClick={openTransactionSheet} />
+        </div>
+
+        {/* Global Bottom Sheets remain outside to overlay everything */}
+        <BottomSheet
+          isOpen={isTransactionSheetOpen}
+          onClose={closeTransactionSheet}
+        >
+          <TransactionForm onSuccess={handleTransactionSuccess} />
+        </BottomSheet>
+      </div>
+      );
 }
 
 const App = () => {
-  const { isSignedIn, isLoaded } = useAuth();
+  const {isSignedIn, isLoaded} = useAuth();
 
   useEffect(() => {
     // Initialize cache on app start if user is logged in
@@ -145,41 +148,41 @@ const App = () => {
       if (!isSignedIn) return;
       try {
         const hasData = await hasCacheData();
-        if (!hasData) {
-          console.log('No cache data found, preloading...');
-          const result = await preloadCache();
-          if (result.success) {
-            console.log('Cache preloaded successfully:', result);
+      if (!hasData) {
+        console.log('No cache data found, preloading...');
+      const result = await preloadCache();
+      if (result.success) {
+        console.log('Cache preloaded successfully:', result);
           } else {
-            console.error('Cache preload failed:', result.error);
+        console.error('Cache preload failed:', result.error);
           }
         } else {
-          console.log('Cache data already available');
+        console.log('Cache data already available');
         }
       } catch (error) {
         console.error('Cache initialization failed:', error);
       }
     };
 
-    if (isLoaded) {
-      initializeCache();
+      if (isLoaded) {
+        initializeCache();
     }
   }, [isLoaded, isSignedIn]);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Sonner />
-        <BrowserRouter>
-          <SyncProvider>
-            <BottomSheetProvider>
-              <AppContent />
-            </BottomSheetProvider>
-          </SyncProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+      return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Sonner />
+          <BrowserRouter>
+            <SyncProvider>
+              <BottomSheetProvider>
+                <AppContent />
+              </BottomSheetProvider>
+            </SyncProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+      );
 };
 
-export default App;
+      export default App;
