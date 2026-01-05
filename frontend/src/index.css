@@ -118,7 +118,8 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground antialiased;
 
-    /* Use large viewport height (maximum viewport, ignores keyboard) */
+    /* Use large viewport height with fallback */
+    min-height: 100vh;
     min-height: 100lvh;
     width: 100%;
 
@@ -132,7 +133,8 @@ All colors MUST be HSL.
   }
 
   #root {
-    width: 100%;
+    width: 100%;vh;
+    min-height: 100
     min-height: 100lvh;
     
     display: flex;
