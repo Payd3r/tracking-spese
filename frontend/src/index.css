@@ -475,6 +475,18 @@ All colors MUST be HSL.
     -webkit-overflow-scrolling: auto;
   }
 
+  /* Ensure full height in standalone PWA mode */
+  @media all and (display-mode: standalone) {
+    body {
+      height: 100dvh;
+      min-height: 100dvh;
+    }
+
+    .app-wrapper {
+      height: 100dvh;
+    }
+  }
+
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
