@@ -117,9 +117,11 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* Use 100dvh to fill screen exactly */
-    height: 100dvh;
+    /* FIXED BODY + JS HEIGHT: Locks scroll and forces exact physical screen height */
+    position: fixed;
     width: 100%;
+    /* Use custom --vh calculation to match actual screen height on iOS PWA */
+    height: calc(var(--vh, 1vh) * 100);
 
     /* CRITICAL: hidden to prevent iOS keyboard from scrolling the document */
     overflow: hidden;
