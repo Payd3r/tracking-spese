@@ -15,30 +15,34 @@ export const useViewportHeight = () => {
       const vv = window.visualViewport;
       const current = vv?.height ?? window.innerHeight;
 
-      // Initialize baseline with the first observed height (likely the full viewport without keyboard)
+      // Initialize baseline with the first observed height (likely full viewport without keyboard)
       if (baseHeightRef.current === null) {
-        baseHeightRef.current = current;
+        baseHeightRef.current = Math.max(window.innerHeight, current);
       }
 
-      // Keep track of the largest height seen (e.g., when URL bar hides)
-      if (current > baseHeightRef.current!) {
-        baseHeightRef.current = current;
+      // If current is within 90% of baseline, allow updates and raise baseline if larger
+      const baseline = baseHeightRef.current;
+
+      if (current >= baseline * 0.9) {
+        if (current > baseline) {
+          baseHeightRef.current = current;
+        }
+        document.documentElement.style.setProperty("--app-height", `${Math.max(current, baseHeightRef.current)}px`);
+      } else {
+        // Ignore keyboard-induced shrink: keep baseline height
+        document.documentElement.style.setProperty("--app-height", `${baseHeightRef.current}px`);
       }
-
-      // Do not shrink more than 10% below the baseline to avoid jumps on keyboard show
-      const minAllowed = baseHeightRef.current! * 0.9;
-      const stable = Math.max(current, minAllowed);
-
-      document.documentElement.style.setProperty("--app-height", `${stable}px`);
     };
 
     setHeight();
     window.visualViewport?.addEventListener("resize", setHeight);
     window.addEventListener("resize", setHeight);
+    window.addEventListener("orientationchange", setHeight);
 
     return () => {
       window.visualViewport?.removeEventListener("resize", setHeight);
       window.removeEventListener("resize", setHeight);
+      window.removeEventListener("orientationchange", setHeight);
     };
   }, []);
 };
