@@ -91,9 +91,7 @@ All colors MUST be HSL.
     --neon-blue: 0 0% 100%;
     --neon-glow: 0 0% 100% / 0.3;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
