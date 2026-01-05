@@ -105,37 +105,42 @@ All colors MUST be HSL.
     box-sizing: border-box;
   }
 
+  /* HTML matches theme background to catch any overscroll/gaps */
   html {
+    @apply bg-background;
     height: 100%;
-    height: 100dvh;
     overflow: hidden;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    height: 100%;
-    height: 100dvh;
+    /* Force stretch to viewport edges ignoring safe area logic for height */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+
     border: 4px solid red !important;
     /* DEBUG BORDER */
     overflow: hidden;
-    /* Disable body scroll */
-    position: fixed;
-    /* Completely prevent any scrolling */
-    width: 100%;
-    top: 0;
-    left: 0;
     margin: 0 !important;
     padding: 0 !important;
+    z-index: 0;
   }
 
   #root {
+    width: 100%;
     height: 100%;
-    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     margin: 0 !important;
     padding: 0 !important;
+    position: relative;
+    z-index: 1;
   }
 }
 
