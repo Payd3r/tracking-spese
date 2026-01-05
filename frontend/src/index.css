@@ -497,20 +497,18 @@ All colors MUST be HSL.
 
     backdrop-filter: blur(30px) saturate(180%);
     transition: transform var(--transition-quick);
-    
-    /* Force GPUnone;
-    
     /* Force GPU layer and use contain for performance */
     transform: translate3d(0, 0, 0);
     will-change: auto;
     contain: layout style paint;
-    backface-visibility: hidden
+    backface-visibility: hidden;
+  }
   .nav-btn-primary {
     @apply w-[56px] h-[56px] rounded-full flex items-center justify-center cursor-pointer;
     border: 1px solid hsl(var(--glass-border));
     background: hsl(0 0% 100%);
     color: hsl(0 0% 0%);
-    transform: translateY(-26px);
+    transform: translateY(-14px);
     min-height: 44px;
     min-width: 44px;
     position: relative;
@@ -520,12 +518,12 @@ All colors MUST be HSL.
   }
 
   .nav-btn-primary:hover {
-    transform: translateY(-29px) scale(1.02);
+    transform: translateY(-17px) scale(1.02);
     box-shadow: 0 0 45px hsl(0 0% 100% / 0.6);
   }
 
   .nav-btn-primary:active {
-    transform: translateY(-24px) scale(0.96);
+    transform: translateY(-10px) scale(0.96);
   }
 
   .nav-btn-secondary {

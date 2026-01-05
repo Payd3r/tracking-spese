@@ -29,24 +29,12 @@ export const useKeyboardOpen = () => {
             // When focus leaves, give a small delay to see if another input gets focus
             // or if the keyboard is truly closing
             setTimeout(() => {
-                if (document.activeElement?.tagName.toLowerCase() !== 'input' &&
-                    document.activeElement?.tagName.toLowerCase() !== 'textarea') {
-                    // Double check viewport just in case
-                    if (window.visualViewport!.height >= window.innerHeight * 0.9) {
+                    const activeTag = document.activeElement?.tagName.toLowerCase();
+                    const hasInputFocus = activeTag === 'input' || activeTag === 'textarea';
+
+                    if (!hasInputFocus && window.visualViewport!.height >= window.innerHeight * 0.9) {
                         setIsKeyboardOpen(false);
-                        
-                        // Force repaint by toggling position to reset iOS cached render state
-                        requestAnimationFrame(() => {
-                            const nav = document.querySelector('.ios-bottom-nav') as HTMLElement;
-                            if (nav) {
-                                nav.style.position = 'absolute';
-                                requestAnimationFrame(() => {
-                                    nav.style.position = 'fixed';
-                                });
-                            }
-                        });
                     }
-                }
             }, 100);
         };
 
