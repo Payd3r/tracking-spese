@@ -118,10 +118,9 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    /* FIXED BODY: Locks the document to prevent scroll while allowing full height */
-    position: fixed;
+    /* Reset body to standard behavior, leting #root handle the frame */
     width: 100%;
-    height: 100dvh;
+    height: 100%;
     overflow: hidden;
 
     background-color: #000000;
@@ -131,10 +130,15 @@ All colors MUST be HSL.
   }
 
   #root {
-    /* FIXED ROOT: This locks the main app container to the viewport */
-    width: 100%;
-    height: 100%;
-    position: relative;
+    /* FIXED ROOT STRATEGY REDUX */
+    /* We lock the root to the viewport to detach from body scrolling */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+
+    /* CRITICAL: Use the JS-calculated height to ensure full PWA coverage without black bars */
+    height: calc(var(--vh, 1vh) * 100);
 
     display: flex;
     flex-direction: column;
@@ -475,7 +479,8 @@ All colors MUST be HSL.
   /* iOS-style bottom navigation refreshed */
   .ios-bottom-nav {
     @apply px-6 w-full;
-    position: fixed;
+    /* Mounted absolutely inside the fixed #root container */
+    position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
