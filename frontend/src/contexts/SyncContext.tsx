@@ -25,54 +25,54 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [serverReachable, setServerReachable] = useState(true);
-  
+
   // Periodic server health check (every 30 seconds)
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
-    
+
     const performHealthCheck = async () => {
       await checkServerHealth();
       setServerReachable(isServerReachable());
     };
-    
+
     // Initial check
     performHealthCheck();
-    
+
     // Set up periodic checks
     intervalId = setInterval(() => {
       performHealthCheck();
     }, 30000); // Check every 30 seconds
-    
+
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
       }
     };
   }, []);
-  
+
   // Update server reachability state on focus/visibility change
   useEffect(() => {
     const updateServerStatus = async () => {
       await checkServerHealth();
       setServerReachable(isServerReachable());
     };
-    
+
     const handleFocus = () => updateServerStatus();
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         updateServerStatus();
       }
     };
-    
+
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
-  
+
   const isFullyOnline = isOnline && serverReachable;
 
   const triggerSync = async () => {
@@ -81,11 +81,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
 
     setIsSyncing(true);
-    
+
     try {
       const result = await syncData();
       setLastSyncResult(result);
-      
+
       if (result.success) {
         toast.success(`Sincronizzato! ${result.synced} operazioni completate.`);
         // Refresh cache after successful sync
@@ -95,7 +95,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       } else {
         toast.error(`Sincronizzazione parziale: ${result.synced} ok, ${result.failed} fallite.`);
       }
-      
+
       await refreshPending();
     } catch (error: any) {
       toast.error(`Errore sincronizzazione: ${error.message}`);
@@ -104,15 +104,33 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Auto-sync when coming back online
+  // Auto-sync logic:
+  // 1. When coming back online (isFullyOnline becomes true)
+  // 2. When new pending items are added (hasPending becomes true)
+  // 3. Periodic retry if pending items exist (every 60s)
   useEffect(() => {
+    let timer: NodeJS.Timeout;
+    let interval: NodeJS.Timeout;
+
     if (isFullyOnline && hasPending && !isSyncing) {
-      const timer = setTimeout(() => {
+      // Debounce the initial trigger to avoid double-firing
+      timer = setTimeout(() => {
         triggerSync();
       }, 1000);
-      
-      return () => clearTimeout(timer);
+
+      // Retry every 60s if we still have pending items (and are online)
+      interval = setInterval(() => {
+        if (isFullyOnline && hasPending && !isSyncing) {
+          console.log("Periodic sync retry...");
+          triggerSync();
+        }
+      }, 60000);
     }
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [isFullyOnline, hasPending]);
 
   // Auto-sync when app regains focus

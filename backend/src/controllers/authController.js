@@ -64,12 +64,12 @@ export const register = async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRY || '30d' }
+      { expiresIn: process.env.JWT_EXPIRY || '365d' }
     );
     
-    // Calculate expiry date (30 days)
+    // Calculate expiry date (365 days)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 365);
     
     // Save session
     await client.query(
@@ -163,12 +163,12 @@ export const login = async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRY || '30d' }
+      { expiresIn: process.env.JWT_EXPIRY || '365d' }
     );
     
-    // Calculate expiry date (30 days)
+    // Calculate expiry date (365 days)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 365);
     
     // Delete old sessions for this user
     console.log(`🗑️ Cleaning old sessions for user: ${user.id}`);

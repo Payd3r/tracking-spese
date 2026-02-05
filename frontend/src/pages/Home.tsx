@@ -75,7 +75,8 @@ const getDateRange = (period: 'day' | 'week' | 'month' | 'year') => {
       startDate.setMonth(now.getMonth() - 1);
       break;
     case 'year':
-      startDate.setFullYear(now.getFullYear() - 1);
+      // Start from January 1st of current year
+      startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
       break;
   }
   

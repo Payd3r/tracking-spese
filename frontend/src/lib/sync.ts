@@ -28,26 +28,36 @@ async function retryWithBackoff<T>(
   baseDelay = 1000
 ): Promise<T> {
   let lastError: any;
-  
+
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
-      
+
       // If it's a network error, don't retry - server is unreachable
       if (isNetworkError(error)) {
         throw error;
       }
-      
-      // For server errors (4xx/5xx), retry with backoff
+
+      // Check for 4xx Client Errors
+      if (error.response && error.response.status >= 400 && error.response.status < 500) {
+        // Don't retry 4xx errors generally (Validation, Auth, Not Found)
+        // BUT DO retry 429 (Too Many Requests) or 408 (Request Timeout)
+        if (error.response.status !== 429 && error.response.status !== 408) {
+          throw error;
+        }
+      }
+
+      // For server errors (5xx) or 429/408, retry with backoff
       if (i < maxRetries - 1) {
         const delay = baseDelay * Math.pow(2, i);
+        console.log(`Retrying after error (attempt ${i + 1}/${maxRetries}):`, error.message);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   throw lastError;
 }
 
@@ -57,7 +67,7 @@ async function syncPendingTransactions(): Promise<{ synced: number; failed: numb
   let synced = 0;
   let failed = 0;
   const errors: string[] = [];
-  
+
   for (const transaction of pending) {
     try {
       await retryWithBackoff(async () => {
@@ -71,10 +81,10 @@ async function syncPendingTransactions(): Promise<{ synced: number; failed: numb
           note: transaction.note,
           transactionDate: transaction.transactionDate
         });
-        
+
         // Remove from pending
         await db.pendingTransactions.delete(transaction.tempId);
-        
+
         // Cache the created transaction
         if (response.data) {
           await db.cachedTransactions.put({
@@ -83,7 +93,7 @@ async function syncPendingTransactions(): Promise<{ synced: number; failed: numb
           });
         }
       });
-      
+
       synced++;
     } catch (error: any) {
       failed++;
@@ -91,7 +101,7 @@ async function syncPendingTransactions(): Promise<{ synced: number; failed: numb
       console.error('Failed to sync transaction:', error);
     }
   }
-  
+
   return { synced, failed, errors };
 }
 
@@ -101,7 +111,7 @@ async function syncPendingUpdates(): Promise<{ synced: number; failed: number; e
   let synced = 0;
   let failed = 0;
   const errors: string[] = [];
-  
+
   for (const update of pending) {
     try {
       await retryWithBackoff(async () => {
@@ -118,11 +128,11 @@ async function syncPendingUpdates(): Promise<{ synced: number; failed: number; e
           default:
             throw new Error(`Unknown entity type: ${update.entity}`);
         }
-        
+
         // Remove from pending
         await db.pendingUpdates.delete(update.id);
       });
-      
+
       synced++;
     } catch (error: any) {
       failed++;
@@ -130,7 +140,7 @@ async function syncPendingUpdates(): Promise<{ synced: number; failed: number; e
       console.error('Failed to sync update:', error);
     }
   }
-  
+
   return { synced, failed, errors };
 }
 
@@ -140,7 +150,7 @@ async function syncPendingDeletes(): Promise<{ synced: number; failed: number; e
   let synced = 0;
   let failed = 0;
   const errors: string[] = [];
-  
+
   for (const deleteOp of pending) {
     try {
       await retryWithBackoff(async () => {
@@ -160,11 +170,11 @@ async function syncPendingDeletes(): Promise<{ synced: number; failed: number; e
           default:
             throw new Error(`Unknown entity type: ${deleteOp.entity}`);
         }
-        
+
         // Remove from pending
         await db.pendingDeletes.delete(deleteOp.id);
       });
-      
+
       synced++;
     } catch (error: any) {
       // If it's a 404, the item is already deleted - remove from pending
@@ -178,7 +188,7 @@ async function syncPendingDeletes(): Promise<{ synced: number; failed: number; e
       }
     }
   }
-  
+
   return { synced, failed, errors };
 }
 
@@ -370,7 +380,7 @@ export async function syncData(): Promise<SyncResult> {
       errors: ['Nessuna connessione internet']
     };
   }
-  
+
   if (!isServerReachable()) {
     return {
       success: false,
@@ -379,7 +389,7 @@ export async function syncData(): Promise<SyncResult> {
       errors: ['Server non raggiungibile']
     };
   }
-  
+
   try {
     // Sync in order: deletes -> updates -> creates
     const deleteResults = await syncPendingDeletes();
@@ -387,14 +397,14 @@ export async function syncData(): Promise<SyncResult> {
     const transferResults = await syncPendingTransfers();
     const loanResults = await syncPendingLoanOperations();
     const transactionResults = await syncPendingTransactions();
-    
+
     const totalSynced = deleteResults.synced + updateResults.synced + transferResults.synced + loanResults.synced + transactionResults.synced;
     const totalFailed = deleteResults.failed + updateResults.failed + transferResults.failed + loanResults.failed + transactionResults.failed;
     const allErrors = [...deleteResults.errors, ...updateResults.errors, ...transferResults.errors, ...loanResults.errors, ...transactionResults.errors];
-    
+
     // Update last sync time
     await setLastSyncTime(new Date());
-    
+
     return {
       success: totalFailed === 0,
       synced: totalSynced,
@@ -418,11 +428,11 @@ export async function addPendingTransaction(
   transaction: Omit<PendingTransaction, 'tempId' | 'userId' | 'createdAt' | 'categoryName' | 'categoryIcon' | 'categoryColor' | 'accountName' | 'accountCurrency'>
 ): Promise<string> {
   const tempId = uuidv4();
-  
+
   // Get category and account metadata for display
   const category = await db.cachedCategories.get(transaction.categoryId);
   const account = await db.cachedAccounts.get(transaction.accountId);
-  
+
   await db.pendingTransactions.add({
     tempId,
     userId,
@@ -434,7 +444,7 @@ export async function addPendingTransaction(
     accountCurrency: account?.currency,
     createdAt: new Date().toISOString()
   });
-  
+
   return tempId;
 }
 

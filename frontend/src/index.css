@@ -134,7 +134,7 @@ All colors MUST be HSL.
     width: 100%;
     min-height: var(--app-height, 100vh);
     height: var(--app-height, 100vh);
-    
+
     display: flex;
     flex-direction: column;
     position: relative;
@@ -503,6 +503,7 @@ All colors MUST be HSL.
     contain: layout style paint;
     backface-visibility: hidden;
   }
+
   .nav-btn-primary {
     @apply w-[56px] h-[56px] rounded-full flex items-center justify-center cursor-pointer;
     border: 1px solid hsl(var(--glass-border));

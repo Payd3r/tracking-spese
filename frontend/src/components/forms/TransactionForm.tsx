@@ -29,7 +29,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,27 +57,27 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // SEMPRE caricare dalla cache prima
       const cachedCategories = await db.cachedCategories
         .where('type')
         .equals(type)
         .toArray();
       const cachedAccounts = await db.cachedAccounts.toArray();
-      
+
       // Mostrare subito i dati dalla cache
       setCategories(cachedCategories);
       setAccounts(cachedAccounts);
-      
+
       if (cachedAccounts.length > 0 && selectedAccount === null) {
         setSelectedAccount(getDefaultAccountId(cachedAccounts));
       }
       if (cachedCategories.length > 0 && selectedCategory === null) {
         setSelectedCategory(getDefaultCategoryId(cachedCategories));
       }
-      
+
       setLoading(false);
-      
+
       // POI, se online E server raggiungibile, aggiornare in background
       if (isFullyOnline) {
         try {
@@ -85,14 +85,14 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             api.categories.getAll(type),
             api.accounts.getAll()
           ]);
-          
+
           const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
           const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-          
+
           // Aggiornare cache e stato
           await db.cachedCategories.bulkPut(categoriesData);
           await db.cachedAccounts.bulkPut(accountsData);
-          
+
           setCategories(categoriesData);
           setAccounts(accountsData);
         } catch (err) {
@@ -118,46 +118,60 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
 
     try {
       setSubmitting(true);
-      
+
       const selectedCategoryData = categories.find(c => c.id === selectedCategory);
-      const title = selectedCategoryData 
+      // Pre-calculate title/note for consistency
+      const title = selectedCategoryData
         ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : type === 'income' ? 'Entrata' : 'Uscita';
-      
-      if (!isFullyOnline) {
-        // Offline: save to pending queue
+
+      const transactionData = {
+        accountId: selectedAccount,
+        categoryId: selectedCategory,
+        amount: parseFloat(amount),
+        type,
+        title,
+        note: note || undefined,
+        transactionDate: new Date(date).toISOString(),
+      };
+
+      // Helper to save offline
+      const saveOffline = async () => {
         const userId = user?.id;
-        if (!userId) {
-          toast.error("Utente non autenticato");
-          return;
-        }
-        
-        await addPendingTransaction(userId, {
-          accountId: selectedAccount,
-          categoryId: selectedCategory,
-          amount: parseFloat(amount),
-          type,
-          title,
-          note: note || undefined,
-          transactionDate: new Date(date).toISOString(),
-        });
+        if (!userId) throw new Error("Utente non autenticato (offline save)");
 
-        toast.success("Transazione salvata offline! Verrà sincronizzata quando torni online.");
+        await addPendingTransaction(userId, transactionData);
+        toast.success("Salvata offline! Sarà sincronizzata appena possibile.");
+      };
+
+      // STRATEGY: Safety Net
+      // 1. If currently marked offline -> Go straight to queue
+      if (!isFullyOnline) {
+        await saveOffline();
       } else {
-        // Online: create directly via API
-        await api.transactions.create({
-          accountId: selectedAccount,
-          categoryId: selectedCategory,
-          amount: parseFloat(amount),
-          type,
-          title,
-          note: note || undefined,
-          transactionDate: new Date(date).toISOString(),
-        });
+        // 2. If online, TRY the API
+        try {
+          await api.transactions.create(transactionData);
+          toast.success("Transazione creata con successo!");
 
-        toast.success("Transazione creata con successo!");
+          // Optimistic local update (optional but good) is handled by cache refresh in background or next fetch
+          // For now, we rely on the list view refreshing from cache or stale-while-revalidate
+        } catch (apiError: any) {
+          console.warn("Direct API call failed, falling back to offline queue:", apiError);
+
+          // Check if it's a network-ish error or server error
+          // If 4xx (validation), we explicitly fail. If 5xx or Network, we queue.
+          const isNetworkOrServer = !apiError.response || apiError.response.status >= 500;
+
+          if (isNetworkOrServer) {
+            await saveOffline();
+          } else {
+            // Real validation error (e.g. 400 Bad Request)
+            throw apiError;
+          }
+        }
       }
-      
+
       // Reset form
       setAmount("");
       setNote("");
@@ -165,7 +179,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       setSelectedAccount(null);
       setDate(format(new Date(), 'yyyy-MM-dd'));
       setType("expense");
-      
+
       onSuccess();
     } catch (err: any) {
       console.error("Failed to create transaction:", err);
@@ -193,9 +207,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             setSelectedCategory(null);
             setCategoriesExpanded(false);
           }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-            type === "expense" ? "pill-active" : "text-muted-foreground"
-          }`}
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${type === "expense" ? "pill-active" : "text-muted-foreground"
+            }`}
         >
           Uscita
         </button>
@@ -205,9 +218,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             setSelectedCategory(null);
             setCategoriesExpanded(false);
           }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${
-            type === "income" ? "pill-active" : "text-muted-foreground"
-          }`}
+          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${type === "income" ? "pill-active" : "text-muted-foreground"
+            }`}
         >
           Entrata
         </button>
@@ -257,7 +269,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
               const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
               const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
               const hasMoreCategories = filteredCategories.length > 8;
-              
+
               return (
                 <>
                   <div className="grid grid-cols-4 gap-2">
@@ -267,9 +279,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategory(category.id)}
-                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
-                            isSelected ? "pill-active" : "glass-card"
-                          }`}
+                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${isSelected ? "pill-active" : "glass-card"
+                            }`}
                         >
                           <IconRenderer icon={category.icon} size={24} />
                           <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
@@ -277,7 +288,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                       );
                     })}
                   </div>
-                  
+
                   {hasMoreCategories && (
                     <button
                       onClick={() => setCategoriesExpanded(!categoriesExpanded)}
@@ -321,9 +332,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                 <button
                   key={account.id}
                   onClick={() => setSelectedAccount(account.id)}
-                  className={`p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
-                    isSelected ? "pill-active" : "glass-card"
-                  }`}
+                  className={`p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${isSelected ? "pill-active" : "glass-card"
+                    }`}
                 >
                   <IconRenderer icon={account.icon} size={24} />
                   <span className="text-[10px] font-medium leading-tight text-center">{account.name}</span>
@@ -342,8 +352,8 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       />
 
       {/* Submit Button */}
-      <Button 
-        onClick={handleSubmit} 
+      <Button
+        onClick={handleSubmit}
         disabled={submitting}
         className="w-full h-11 rounded-2xl font-semibold text-base pill-active"
       >
