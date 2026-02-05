@@ -1,6 +1,8 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Loader2, ChevronUp, Filter, Search } from "lucide-react";
+import { ArrowLeft, ChevronUp, Filter, Search } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
 import { Link, Link as RouterLink } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
@@ -377,14 +379,6 @@ export default function Transactions() {
     };
   }, [viewType, selectedAccountFilter, selectedCategoryFilter, selectedStartDate, selectedEndDate, searchQuery]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="px-3 pt-4 pb-28 max-w-md mx-auto">
       {/* Header */}
@@ -409,17 +403,25 @@ export default function Transactions() {
 
       {/* Saldo sintetico */}
       <GlassCard className="p-4 mb-4">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-semibold text-destructive">
-            € {formatCurrency(Math.abs(expenseTotal))}
-          </span>
-          <span className={`text-2xl font-bold ${balance === 0 ? 'text-white' : balance > 0 ? 'text-success' : 'text-destructive'}`}>
-            {balance < 0 ? '-' : ''}€ {formatCurrency(Math.abs(balance))}
-          </span>
-          <span className="text-xs font-semibold text-success">
-            € {formatCurrency(Math.abs(incomeTotal))}
-          </span>
-        </div>
+        {loading && transactions.length === 0 ? (
+          <div className="flex items-center justify-between gap-3 animate-pulse">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold text-destructive">
+              {formatCurrency(Math.abs(expenseTotal))} €
+            </span>
+            <span className={`text-2xl font-bold ${balance === 0 ? 'text-white' : balance > 0 ? 'text-success' : 'text-destructive'}`}>
+              {balance < 0 ? '- ' : ''}{formatCurrency(Math.abs(balance))} €
+            </span>
+            <span className="text-xs font-semibold text-success">
+              {formatCurrency(Math.abs(incomeTotal))} €
+            </span>
+          </div>
+        )}
       </GlassCard>
 
       {/* Toggle Income/Expense */}
@@ -601,41 +603,48 @@ export default function Transactions() {
       )}
 
       {/* Transactions List */}
-      <div className="glass-card p-4 mb-4">
-        {transactions.length === 0 ? (
+      <GlassCard className="p-4 mb-4">
+        {loading && transactions.length === 0 ? (
+          <div className="space-y-4">
+            <TransactionRowSkeleton variant="list" />
+            <TransactionRowSkeleton variant="list" />
+            <TransactionRowSkeleton variant="list" />
+            <TransactionRowSkeleton variant="list" />
+            <TransactionRowSkeleton variant="list" />
+          </div>
+        ) : transactions.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">Nessuna transazione trovata</p>
         ) : (
-          <>
-            <div className="space-y-2">
-              {transactions.map((transaction) => (
-                <RouterLink key={transaction.id > 0 ? transaction.id : transaction.clientRequestId} to={transaction.id > 0 ? `/transaction/${transaction.id}` : '#'}>
-                  <div className={`flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5 interactive-press ${transaction.isPending ? 'opacity-70' : ''}`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-                        <IconRenderer icon={transaction.categoryIcon} size={16} />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">{transaction.title}</h4>
-                        <p className="text-[10px] text-muted-foreground">
-                          {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
+          <div className="space-y-2">
+            {transactions.map((transaction) => (
+              <RouterLink key={transaction.id > 0 ? transaction.id : transaction.clientRequestId} to={transaction.id > 0 ? `/transaction/${transaction.id}` : '#'}>
+                <div className={`flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5 interactive-press ${transaction.isPending ? 'opacity-70' : ''}`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
+                      <IconRenderer icon={transaction.categoryIcon} size={16} />
                     </div>
-                    <span className={`font-semibold text-sm ${transaction.isPending
-                      ? 'text-warning'
-                      : transaction.type === 'income'
-                        ? 'text-success'
-                        : 'text-destructive'
-                      }`}>
-                      {transaction.type === 'income' ? '+' : '-'}€ {formatCurrency(transaction.amount)}
-                    </span>
+                    <div>
+                      <h4 className="font-medium text-sm">{transaction.title}</h4>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
+                      </p>
+                    </div>
                   </div>
-                </RouterLink>
-              ))}
-            </div>
-          </>
+                  <span className={`font-semibold text-sm ${transaction.isPending
+                    ? 'text-warning'
+                    : transaction.type === 'income'
+                      ? 'text-success'
+                      : 'text-destructive'
+                    }`}>
+                    {transaction.type === 'income' ? '+ ' : '- '}{formatCurrency(transaction.amount)} €
+                  </span>
+                </div>
+              </RouterLink>
+            ))}
+          </div>
         )}
-      </div>
+      </GlassCard>
     </div>
+
   );
 }

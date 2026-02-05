@@ -53,8 +53,8 @@ All colors MUST be HSL.
     --glass-bg: 0 0% 8% / 0.9;
     --glass-border: 0 0% 100% / 0.08;
     --shadow-soft: 0 35px 80px -35px hsl(0 0% 0% / 0.85);
-    --shadow-glow: 0 0 30px hsl(0 0% 100% / 0.18);
-    --shadow-strong: 0 0 45px hsl(0 0% 100% / 0.28), inset 0 0 18px hsl(0 0% 100% / 0.08);
+    --shadow-glow: 0 2px 10px hsl(0 0% 0% / 0.2);
+    --shadow-strong: 0 4px 20px hsl(0 0% 0% / 0.4), inset 0 0 1px hsl(0 0% 100% / 0.1);
     --shadow-line: 0 0 0 1px hsl(0 0% 100% / 0.08);
 
     /* Motion tokens */
@@ -89,7 +89,7 @@ All colors MUST be HSL.
 
     /* Neon effect colors */
     --neon-blue: 0 0% 100%;
-    --neon-glow: 0 0% 100% / 0.3;
+    --neon-glow: none;
   }
 
   * {
@@ -269,11 +269,8 @@ All colors MUST be HSL.
     border-radius: 1rem;
     padding: 1rem;
     box-shadow:
-      0 0 30px hsl(var(--neon-glow)),
-      0 0 60px hsl(var(--neon-glow) / 0.7),
-      0 0 120px hsl(var(--neon-glow) / 0.5),
-      0 0 200px hsl(var(--neon-glow) / 0.3),
-      inset 0 0 60px hsl(var(--neon-blue) / 0.1);
+      0 10px 30px hsl(0 0% 0% / 0.4),
+      inset 0 0 1px hsl(0 0% 100% / 0.1);
     position: relative;
     overflow: hidden;
   }
@@ -310,24 +307,7 @@ All colors MUST be HSL.
     transition: all var(--transition-quick);
   }
 
-  /* Pulsating glow animation */
-  @keyframes neon-pulse {
 
-    0%,
-    100% {
-      filter:
-        drop-shadow(0 0 8px hsl(var(--neon-blue) / 1)) drop-shadow(0 0 16px hsl(var(--neon-blue) / 0.8)) drop-shadow(0 0 32px hsl(var(--neon-blue) / 0.6)) drop-shadow(0 0 64px hsl(var(--neon-blue) / 0.4));
-    }
-
-    50% {
-      filter:
-        drop-shadow(0 0 12px hsl(var(--neon-blue) / 1)) drop-shadow(0 0 24px hsl(var(--neon-blue) / 0.9)) drop-shadow(0 0 48px hsl(var(--neon-blue) / 0.7)) drop-shadow(0 0 96px hsl(var(--neon-blue) / 0.5));
-    }
-  }
-
-  .neon-glow {
-    animation: neon-pulse 3s ease-in-out infinite;
-  }
 
   /* Mobile-optimized spacing */
   .mobile-container {
@@ -520,7 +500,7 @@ All colors MUST be HSL.
 
   .nav-btn-primary:hover {
     transform: translateY(1px) scale(1.02);
-    box-shadow: 0 0 45px hsl(0 0% 100% / 0.6);
+    box-shadow: 0 4px 15px hsl(0 0% 0% / 0.3);
   }
 
   .nav-btn-primary:active {

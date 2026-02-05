@@ -1,6 +1,7 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, Calendar, FileText, Wallet, Loader2, ChevronDown, ChevronUp, WifiOff } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Wallet, ChevronDown, ChevronUp, WifiOff } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,7 @@ const getCurrencySymbol = (code: string = "EUR"): string => {
     'AED': 'د.إ',
     'SAR': '﷼',
   };
-  
+
   return symbols[code.toUpperCase()] || code;
 };
 import {
@@ -63,11 +64,11 @@ export default function TransactionDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  
+
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  
+
   // Edit form states
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -83,7 +84,7 @@ export default function TransactionDetail() {
   }, [id]);
   const loadTransaction = async () => {
     if (!id) return;
-    
+
     try {
       setLoading(true);
       const numericId = parseInt(id);
@@ -144,8 +145,8 @@ export default function TransactionDetail() {
         const accountsData = Array.isArray((accountsRes.data as any).accounts)
           ? (accountsRes.data as any).accounts
           : Array.isArray(accountsRes.data)
-          ? (accountsRes.data as any)
-          : [];
+            ? (accountsRes.data as any)
+            : [];
 
         setCategories(categoriesData);
         setAccounts(accountsData);
@@ -170,11 +171,11 @@ export default function TransactionDetail() {
 
   const handleUpdate = async () => {
     if (!id || !transaction) return;
-    
+
     try {
       // Generate automatic title from category name and type
       const selectedCategoryData = categories.find(c => c.id === selectedCategory);
-      const title = selectedCategoryData 
+      const title = selectedCategoryData
         ? `${transaction.type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
         : transaction.type === 'income' ? 'Entrata' : 'Uscita';
 
@@ -222,15 +223,15 @@ export default function TransactionDetail() {
         const mergedTx: Transaction = apiTx
           ? apiTx
           : {
-              ...transaction,
-              ...payload,
-              accountName: selectedAccountData?.name || transaction.accountName,
-              accountCurrency: selectedAccountData?.currency || transaction.accountCurrency,
-              categoryName: selectedCategoryData?.name || transaction.categoryName,
-              categoryIcon: selectedCategoryData?.icon || transaction.categoryIcon,
-              categoryColor: selectedCategoryData?.color || transaction.categoryColor,
-              updatedAt: new Date().toISOString(),
-            };
+            ...transaction,
+            ...payload,
+            accountName: selectedAccountData?.name || transaction.accountName,
+            accountCurrency: selectedAccountData?.currency || transaction.accountCurrency,
+            categoryName: selectedCategoryData?.name || transaction.categoryName,
+            categoryIcon: selectedCategoryData?.icon || transaction.categoryIcon,
+            categoryColor: selectedCategoryData?.color || transaction.categoryColor,
+            updatedAt: new Date().toISOString(),
+          };
 
         const existing: any = transaction as any;
         await db.cachedTransactions.put({
@@ -254,7 +255,7 @@ export default function TransactionDetail() {
 
   const handleDelete = async () => {
     if (!id || !transaction) return;
-    
+
     try {
       const numericId = parseInt(id);
 
@@ -283,8 +284,45 @@ export default function TransactionDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="px-3 pt-4 pb-28 max-w-md mx-auto space-y-4">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-3 mb-5">
+          <Skeleton className="w-8 h-8 rounded-2xl" />
+          <Skeleton className="h-6 w-40 rounded-lg" />
+        </div>
+
+        {/* Type Badge Skeleton */}
+        <GlassCard className="p-3 mb-4 flex justify-center">
+          <Skeleton className="h-4 w-20" />
+        </GlassCard>
+
+        {/* Amount Skeleton */}
+        <GlassCard className="p-4 mb-4">
+          <Skeleton className="h-3 w-16 mb-2" />
+          <Skeleton className="h-8 w-32" />
+        </GlassCard>
+
+        {/* Category Skeleton */}
+        <GlassCard className="p-4 mb-4">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="w-10 h-10 rounded-xl" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Account Skeleton */}
+        <GlassCard className="p-4 mb-4">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="w-10 h-10 rounded-xl" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </GlassCard>
       </div>
     );
   }
@@ -325,9 +363,8 @@ export default function TransactionDetail() {
       )}
 
       {/* Transaction Type Badge */}
-      <GlassCard className={`p-3 mb-4 text-center ${
-        transaction.type === "expense" ? "gradient-pink" : "gradient-green"
-      }`}>
+      <GlassCard className={`p-3 mb-4 text-center ${transaction.type === "expense" ? "gradient-pink" : "gradient-green"
+        }`}>
         <span className="text-white text-sm font-medium">
           {transaction.type === "expense" ? "Uscita" : "Entrata"}
         </span>
@@ -338,7 +375,6 @@ export default function TransactionDetail() {
         <label className="text-xs text-muted-foreground mb-2 block font-medium">Importo</label>
         {isEditing ? (
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">{getCurrencySymbol(transaction.accountCurrency)}</span>
             <Input
               type="number"
               step="0.01"
@@ -346,9 +382,10 @@ export default function TransactionDetail() {
               onChange={(e) => setAmount(e.target.value)}
               className="text-2xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
             />
+            <span className="text-2xl font-bold">€</span>
           </div>
         ) : (
-          <p className="text-2xl font-bold">{getCurrencySymbol(transaction.accountCurrency)} {formatCurrency(transaction.amount)}</p>
+          <p className="text-2xl font-bold">{transaction.type === 'income' ? '+ ' : '- '}{formatCurrency(transaction.amount)} €</p>
         )}
       </GlassCard>
 
@@ -369,7 +406,7 @@ export default function TransactionDetail() {
               const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
               const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
               const hasMoreCategories = filteredCategories.length > 8;
-              
+
               return (
                 <>
                   <div className="grid grid-cols-4 gap-2 mt-3">
@@ -378,9 +415,8 @@ export default function TransactionDetail() {
                         <button
                           key={category.id}
                           onClick={() => setSelectedCategory(category.id)}
-                          className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
-                            selectedCategory === category.id ? "pill-active" : ""
-                          }`}
+                          className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${selectedCategory === category.id ? "pill-active" : ""
+                            }`}
                         >
                           <IconRenderer icon={category.icon} size={24} />
                           <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
@@ -388,7 +424,7 @@ export default function TransactionDetail() {
                       );
                     })}
                   </div>
-                  
+
                   {hasMoreCategories && (
                     <button
                       onClick={() => setCategoriesExpanded(!categoriesExpanded)}
@@ -431,9 +467,8 @@ export default function TransactionDetail() {
               <button
                 key={account.id}
                 onClick={() => setSelectedAccount(account.id)}
-                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
-                  selectedAccount === account.id ? "pill-active" : ""
-                }`}
+                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${selectedAccount === account.id ? "pill-active" : ""
+                  }`}
               >
                 <IconRenderer icon={account.icon} size={24} />
                 <span className="text-[10px] font-medium leading-tight text-center">{account.name}</span>
@@ -490,7 +525,7 @@ export default function TransactionDetail() {
       <div className="flex gap-2">
         {isEditing ? (
           <>
-            <Button 
+            <Button
               onClick={() => {
                 setIsEditing(false);
                 // Reset form values
@@ -499,8 +534,8 @@ export default function TransactionDetail() {
                 setSelectedAccount(transaction.accountId);
                 setDate(format(new Date(transaction.transactionDate), 'yyyy-MM-dd'));
                 setNote(transaction.note || "");
-              }} 
-              variant="outline" 
+              }}
+              variant="outline"
               className="flex-1 h-11 text-sm rounded-2xl"
             >
               Annulla
@@ -514,7 +549,7 @@ export default function TransactionDetail() {
           </>
         ) : (
           <>
-            <Button 
+            <Button
               onClick={() => {
                 setIsEditing(true);
                 setCategoriesExpanded(false);

@@ -3,7 +3,9 @@ import { IconRenderer } from "@/components/IconRenderer";
 import { VerticalProgressBar } from "@/components/VerticalProgressBar";
 import { BottomSheet } from "@/components/BottomSheet";
 import { CategoryForm } from "@/components/forms/CategoryForm";
-import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardListSkeleton } from "@/components/skeletons/CardListSkeleton";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -53,19 +55,19 @@ export default function ManageCategories() {
         .where('type')
         .equals(viewType)
         .toArray();
-      
+
       // Mostrare subito i dati dalla cache
       setCategories(cachedCategories);
-      
+
       // POI, se online E server raggiungibile, aggiornare in background
       if (isFullyOnline) {
         try {
           const response = await api.categories.getAll(viewType);
           const categoriesData = Array.isArray(response.data.categories) ? response.data.categories : [];
-          
+
           // Aggiornare cache
           await db.cachedCategories.bulkPut(categoriesData);
-          
+
           // Aggiornare stato con dati freschi
           setCategories(categoriesData);
         } catch (err) {
@@ -117,16 +119,8 @@ export default function ManageCategories() {
     loadCategories();
     loadCategoryStats();
   };
-  
-  const filteredCategories = categories.filter(c => !c.isSystem);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
+  const filteredCategories = categories.filter(c => !c.isSystem);
 
   return (
     <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
@@ -143,17 +137,15 @@ export default function ManageCategories() {
         <div className="flex gap-2">
           <button
             onClick={() => setViewType("expense")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${
-              viewType === "expense" ? "pill-active" : "text-muted-foreground"
-            }`}
+            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${viewType === "expense" ? "pill-active" : "text-muted-foreground"
+              }`}
           >
             Uscite
           </button>
           <button
             onClick={() => setViewType("income")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${
-              viewType === "income" ? "pill-active" : "text-muted-foreground"
-            }`}
+            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${viewType === "income" ? "pill-active" : "text-muted-foreground"
+              }`}
           >
             Entrate
           </button>
@@ -162,7 +154,7 @@ export default function ManageCategories() {
 
       {/* Add Category Button */}
       <div className="px-1.5 mb-4">
-        <Button 
+        <Button
           onClick={() => setCreateSheetOpen(true)}
           className="w-full gap-2 h-11 pill-active"
         >
@@ -172,7 +164,9 @@ export default function ManageCategories() {
       </div>
 
       {/* Categories Grid */}
-      {filteredCategories.length === 0 ? (
+      {loading && filteredCategories.length === 0 ? (
+        <CardListSkeleton variant="grid" />
+      ) : filteredCategories.length === 0 ? (
         <div className="px-1.5 mb-4">
           <GlassCard className="p-5 text-center">
             <p className="text-sm text-muted-foreground">Nessuna categoria personalizzata</p>
@@ -188,7 +182,7 @@ export default function ManageCategories() {
             const stats = categoryStats.find(stat => stat.id === category.id);
             const total = stats?.total || 0;
             const percentage = stats?.percentage || 0;
-            
+
             return (
               <GlassCard key={category.id} className={`p-3 h-28 ${category.color || 'gradient-blue'} relative group overflow-hidden`}>
                 <button
@@ -200,7 +194,7 @@ export default function ManageCategories() {
                 >
                   <Trash2 className="w-3.5 h-3.5 text-white" />
                 </button>
-                
+
                 <div className="flex items-stretch gap-2 h-full">
                   {/* Content */}
                   <div className="flex-1 flex flex-col justify-between">
@@ -208,16 +202,20 @@ export default function ManageCategories() {
                     <div>
                       <h3 className="text-white font-bold text-sm mb-1 leading-tight">{category.name}</h3>
                       <div className="text-white/80 text-xs">
-                        {viewType === 'expense' ? 'spent' : 'earned'} {percentage}%
+                        {loading && !categoryStats.length ? (
+                          <Skeleton className="h-3 w-10 bg-white/20" />
+                        ) : (
+                          <> {viewType === 'expense' ? 'spent' : 'earned'} {percentage}% </>
+                        )}
                       </div>
                     </div>
-                    
+
                     {/* Bottom Section - Icon */}
                     <div className="flex justify-start">
                       <IconRenderer icon={category.icon} size={32} className="text-white/60" />
                     </div>
                   </div>
-                  
+
                   {/* Progress Bar */}
                   <VerticalProgressBar percentage={percentage} className="h-full" />
                 </div>
@@ -251,5 +249,6 @@ export default function ManageCategories() {
         <CategoryForm onSuccess={handleCategoryCreated} initialType={viewType} />
       </BottomSheet>
     </div>
+
   );
 }

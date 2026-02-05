@@ -2,7 +2,9 @@ import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
 import { BottomSheet } from "@/components/BottomSheet";
 import { AccountForm } from "@/components/forms/AccountForm";
-import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CardListSkeleton } from "@/components/skeletons/CardListSkeleton";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -48,23 +50,23 @@ export default function ManageAccounts() {
   const loadAccounts = async () => {
     try {
       setLoading(true);
-      
+
       // SEMPRE caricare dalla cache prima
       const cachedAccounts = await db.cachedAccounts.toArray();
-      
+
       // Mostrare subito i dati dalla cache
       setAccounts(cachedAccounts);
       setLoading(false);
-      
+
       // POI, se online E server raggiungibile, aggiornare in background
       if (isFullyOnline) {
         try {
           const response = await api.accounts.getAll();
           const accountsData = Array.isArray(response.data.accounts) ? response.data.accounts : [];
-          
+
           // Aggiornare cache
           await db.cachedAccounts.bulkPut(accountsData);
-          
+
           // Aggiornare stato con dati freschi
           setAccounts(accountsData);
         } catch (err) {
@@ -100,14 +102,6 @@ export default function ManageAccounts() {
     loadAccounts();
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
       {/* Header */}
@@ -119,7 +113,7 @@ export default function ManageAccounts() {
       </div>
 
       {/* Add Account Button */}
-      <Button 
+      <Button
         onClick={() => setCreateSheetOpen(true)}
         className="w-full mb-4 gap-2 h-11"
       >
@@ -128,7 +122,9 @@ export default function ManageAccounts() {
       </Button>
 
       {/* Accounts List */}
-      {accounts.length === 0 ? (
+      {loading && accounts.length === 0 ? (
+        <CardListSkeleton variant="list" />
+      ) : accounts.length === 0 ? (
         <GlassCard className="p-5 text-center mb-4">
           <p className="text-sm text-muted-foreground">Nessun conto disponibile</p>
         </GlassCard>
@@ -143,12 +139,12 @@ export default function ManageAccounts() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">{account.name}</h3>
-                    <p className="text-lg font-bold mt-0.5">
-                      {account.currency} {formatCurrency(account.balance)}
+                    <p className={`text-lg font-bold mt-0.5 ${account.balance === 0 ? 'text-white' : account.balance > 0 ? 'text-success' : 'text-destructive'}`}>
+                      {account.balance > 0 ? '+ ' : account.balance < 0 ? '- ' : ''}{formatCurrency(Math.abs(account.balance))} €
                     </p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setAccountToDelete(account.id);
                     setDeleteDialogOpen(true);
@@ -162,6 +158,7 @@ export default function ManageAccounts() {
           ))}
         </div>
       )}
+
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
