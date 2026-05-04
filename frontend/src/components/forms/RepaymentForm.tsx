@@ -92,58 +92,89 @@ export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
       return;
     }
 
+    const payload = {
+      amount: repaymentAmount,
+      currency,
+      toAccountId: selectedAccount!,
+      repaymentDate: new Date(repaymentDate).toISOString(),
+      description: description.trim() || undefined
+    };
+
+    /** Prestito o conti non ancora sul server: solo coda locale (come le transazioni in offline). */
+    const treatAsOffline =
+      !isFullyOnline || loan.isPending === true || loan.id < 0;
+
+    const saveRepaymentOffline = async () => {
+      const userId = user?.id;
+      if (!userId) {
+        toast.error("Utente non autenticato");
+        return false;
+      }
+      const tempId = -Date.now();
+      await addPendingLoanOperation(userId, {
+        type: 'repayment',
+        loanId: loan.id,
+        data: { ...payload, tempId, loanId: loan.id },
+        timestamp: new Date().toISOString()
+      });
+      await db.cachedLoanRepayments.put({
+        id: tempId,
+        loanId: loan.id,
+        ...payload,
+        createdAt: new Date().toISOString(),
+        isPending: true
+      });
+      await db.cachedLoans.update(loan.id, {
+        totalRepaid: (loan.totalRepaid || 0) + repaymentAmount
+      });
+      toast.success("Restituzione salvata offline! Verrà sincronizzata quando torni online.");
+      return true;
+    };
+
     try {
       setSubmitting(true);
-      const payload = {
-        amount: repaymentAmount,
-        currency,
-        toAccountId: selectedAccount,
-        repaymentDate: new Date(repaymentDate).toISOString(),
-        description: description.trim() || undefined
-      };
 
-      if (!isFullyOnline) {
-        const userId = user?.id;
-        if (!userId) {
-          toast.error("Utente non autenticato");
+      if (treatAsOffline) {
+        const ok = await saveRepaymentOffline();
+        if (!ok) return;
+      } else {
+        if (selectedAccount == null || selectedAccount <= 0) {
+          toast.error(
+            "Il conto non risulta ancora sincronizzato. Attendi la sincronizzazione o apri l'app da rete stabile, poi riprova."
+          );
           return;
         }
-        const tempId = -Date.now();
-
-        await addPendingLoanOperation(userId, {
-          type: 'repayment',
-          loanId: loan.id,
-          data: { ...payload, tempId, loanId: loan.id },
-          timestamp: new Date().toISOString()
-        });
-
-        await db.cachedLoanRepayments.put({
-          id: tempId,
-          loanId: loan.id,
-          ...payload,
-          createdAt: new Date().toISOString(),
-          isPending: true
-        });
-
-        await db.cachedLoans.update(loan.id, {
-          totalRepaid: (loan.totalRepaid || 0) + repaymentAmount
-        });
-
-        toast.success("Restituzione salvata offline! Verrà sincronizzata quando torni online.");
-      } else {
-        await api.loans.addRepayment(loan.id, payload);
-        toast.success("Restituzione aggiunta con successo!");
+        try {
+          await api.loans.addRepayment(loan.id, payload);
+          toast.success("Restituzione aggiunta con successo!");
+        } catch (apiError: any) {
+          const isNetworkOrServer =
+            !apiError.response || apiError.response.status >= 500;
+          if (isNetworkOrServer) {
+            console.warn("addRepayment fallita, accodo in offline:", apiError);
+            const ok = await saveRepaymentOffline();
+            if (!ok) {
+              toast.error(
+                "Connessione instabile e impossibile salvare in locale. Riprova."
+              );
+            }
+          } else {
+            throw apiError;
+          }
+        }
       }
-      
-      // Reset form
+
       setAmount("");
       setDescription("");
       setRepaymentDate(format(new Date(), 'yyyy-MM-dd'));
-      
       onSuccess();
     } catch (err: any) {
       console.error("Failed to add repayment:", err);
-      toast.error(err.response?.data?.message || "Errore nell'aggiunta della restituzione");
+      const apiMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        (typeof err.response?.data === "string" ? err.response.data : null);
+      toast.error(apiMsg || "Errore nell'aggiunta della restituzione");
     } finally {
       setSubmitting(false);
     }

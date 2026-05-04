@@ -328,26 +328,34 @@ export const addRepayment = async (req, res, next) => {
   
   try {
     const userId = req.user.id;
-    const loanId = parseInt(req.params.id);
+    const loanId = parseInt(req.params.id, 10);
     const {
-      amount,
       currency,
-      toAccountId,
       repaymentDate,
-    description,
-    clientRequestId
+      description,
+      clientRequestId
     } = req.body;
-    
-    // Validation
-    if (!amount || !currency || !toAccountId || !repaymentDate) {
-      throw new ValidationError('Campi obbligatori mancanti');
+
+    const amount = Number(req.body.amount);
+    const toAccountId = parseInt(String(req.body.toAccountId), 10);
+
+    await client.query('BEGIN');
+
+    if (!Number.isFinite(loanId) || loanId <= 0) {
+      throw new ValidationError('Prestito non valido');
     }
-    
-    if (amount <= 0) {
+
+    if (!Number.isFinite(amount) || amount <= 0) {
       throw new ValidationError('L\'importo deve essere positivo');
     }
-    
-    await client.query('BEGIN');
+
+    if (!currency || !repaymentDate) {
+      throw new ValidationError('Campi obbligatori mancanti');
+    }
+
+    if (!Number.isFinite(toAccountId) || toAccountId <= 0) {
+      throw new ValidationError('Conto di destinazione non valido');
+    }
     
     // Idempotency: if already inserted, return it
     if (clientRequestId) {
@@ -475,6 +483,10 @@ export const addRepayment = async (req, res, next) => {
         [loanId, clientRequestId]
       );
       repayment = existing.rows[0];
+    }
+
+    if (!repayment) {
+      throw new ValidationError('Impossibile registrare la restituzione');
     }
     
     // Create income transaction (money entering toAccount)
