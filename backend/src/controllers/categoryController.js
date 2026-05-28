@@ -7,19 +7,34 @@ export const getCategories = async (req, res, next) => {
     const { type } = req.query; // 'income' or 'expense'
     
     let query = `
-      SELECT id, name, icon, color, type, is_system, created_at
-      FROM categories
-      WHERE (user_id = $1 OR is_system = true)
+      SELECT 
+        c.id,
+        c.name,
+        c.icon,
+        c.color,
+        c.type,
+        c.is_system,
+        c.exclude_from_totals,
+        c.created_at,
+        COALESCE(category_usage.usage_count, 0) as usage_count
+      FROM categories c
+      LEFT JOIN (
+        SELECT category_id, COUNT(*) as usage_count
+        FROM transactions
+        WHERE user_id = $1
+        GROUP BY category_id
+      ) category_usage ON category_usage.category_id = c.id
+      WHERE (c.user_id = $1 OR c.is_system = true)
     `;
     
     const params = [userId];
     
     if (type) {
-      query += ' AND type = $2';
+      query += ' AND c.type = $2';
       params.push(type);
     }
     
-    query += ' ORDER BY is_system DESC, name ASC';
+    query += ' ORDER BY usage_count DESC, c.is_system DESC, c.name ASC';
     
     const result = await pool.query(query, params);
     
@@ -30,6 +45,8 @@ export const getCategories = async (req, res, next) => {
       color: cat.color,
       type: cat.type,
       isSystem: cat.is_system,
+      excludeFromTotals: cat.exclude_from_totals,
+      usageCount: parseInt(cat.usage_count, 10) || 0,
       createdAt: cat.created_at
     }));
     
@@ -55,7 +72,7 @@ export const createCategory = async (req, res, next) => {
     const result = await pool.query(
       `INSERT INTO categories (user_id, name, icon, color, type, is_system)
        VALUES ($1, $2, $3, $4, $5, false)
-       RETURNING id, name, icon, color, type, is_system, created_at`,
+       RETURNING id, name, icon, color, type, is_system, exclude_from_totals, created_at`,
       [userId, name, icon || null, color || null, type]
     );
     
@@ -68,6 +85,8 @@ export const createCategory = async (req, res, next) => {
       color: category.color,
       type: category.type,
       isSystem: category.is_system,
+      excludeFromTotals: category.exclude_from_totals,
+      usageCount: 0,
       createdAt: category.created_at
     });
   } catch (error) {
@@ -101,7 +120,7 @@ export const updateCategory = async (req, res, next) => {
            icon = COALESCE($2, icon),
            color = COALESCE($3, color)
        WHERE id = $4 AND user_id = $5
-       RETURNING id, name, icon, color, type, is_system, created_at`,
+       RETURNING id, name, icon, color, type, is_system, exclude_from_totals, created_at`,
       [name || null, icon || null, color || null, categoryId, userId]
     );
     
@@ -114,6 +133,8 @@ export const updateCategory = async (req, res, next) => {
       color: category.color,
       type: category.type,
       isSystem: category.is_system,
+      excludeFromTotals: category.exclude_from_totals,
+      usageCount: 0,
       createdAt: category.created_at
     });
   } catch (error) {

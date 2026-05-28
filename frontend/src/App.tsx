@@ -19,6 +19,7 @@ import ManageAccounts from "./pages/ManageAccounts";
 import ManageCategories from "./pages/ManageCategories";
 import ManageTransfers from "./pages/ManageTransfers";
 import ManageLoans from "./pages/ManageLoans";
+import AdminLoanCleanup from "./pages/AdminLoanCleanup";
 import Profile from "./pages/Profile";
 import TransactionDetail from "./pages/TransactionDetail";
 import NotFound from "./pages/NotFound";
@@ -107,6 +108,14 @@ function AppContent() {
               }
             />
             <Route
+              path="/settings/loans/cleanup"
+              element={
+                <ProtectedRoute>
+                  <AdminLoanCleanup />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/settings/profile"
               element={
                 <ProtectedRoute>
@@ -158,7 +167,9 @@ const App = () => {
             console.error('Cache preload failed:', result.error);
           }
         } else {
-          console.log('Cache data already available');
+          console.log('Cache data already available. Triggering silent background refresh...');
+          // Esegue comunque un refresh silenzioso all'avvio se online
+          preloadCache().catch(err => console.warn('Silent startup cache preload failed:', err));
         }
       } catch (error) {
         console.error('Cache initialization failed:', error);
@@ -169,6 +180,24 @@ const App = () => {
       initializeCache();
     }
   }, [isLoaded, isSignedIn]);
+
+  // Periodic background cache refresh every 5 minutes (only when signed in and online)
+  useEffect(() => {
+    if (!isSignedIn) return;
+
+    const intervalId = setInterval(async () => {
+      if (navigator.onLine) {
+        console.log('Running periodic background cache refresh...');
+        try {
+          await preloadCache();
+        } catch (error) {
+          console.error('Periodic background preload failed:', error);
+        }
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(intervalId);
+  }, [isSignedIn]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { usePendingSync } from '@/hooks/usePendingSync';
 import { syncData, SyncResult } from '@/lib/sync';
-import { refreshCacheAfterSync } from '@/lib/cacheManager';
+import { refreshCacheAfterSync, preloadCache } from '@/lib/cacheManager';
 import { isServerReachable, isFullyOnline, checkServerHealth } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -26,7 +26,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [serverReachable, setServerReachable] = useState(true);
 
-  // Periodic server health check (every 30 seconds)
+  const currentFullyOnline = isOnline && serverReachable;
+
+  // Periodic server health check (every 60 seconds for mobile optimization)
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
@@ -38,10 +40,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     // Initial check
     performHealthCheck();
 
-    // Set up periodic checks
+    // Set up periodic checks (every 60 seconds)
     intervalId = setInterval(() => {
       performHealthCheck();
-    }, 30000); // Check every 30 seconds
+    }, 60000);
 
     return () => {
       if (intervalId) {
@@ -50,17 +52,31 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Update server reachability state on focus/visibility change
+  // Update server reachability state on focus/visibility change and refresh cache
   useEffect(() => {
     const updateServerStatus = async () => {
       await checkServerHealth();
-      setServerReachable(isServerReachable());
+      const reachable = isServerReachable();
+      setServerReachable(reachable);
+      return reachable;
     };
 
-    const handleFocus = () => updateServerStatus();
-    const handleVisibilityChange = () => {
+    const handleFocus = async () => {
+      const reachable = await updateServerStatus();
+      if (isOnline && reachable) {
+        // Refresh cache in background when app is focused
+        preloadCache().catch(err => console.error('Focus cache preload failed:', err));
+      }
+    };
+
+    const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        updateServerStatus();
+        const reachable = await updateServerStatus();
+        if (isOnline && reachable) {
+          // Refresh cache in background when returning to foreground
+          console.log('App returned to foreground, preloading cache...');
+          preloadCache().catch(err => console.error('Foreground cache preload failed:', err));
+        }
       }
     };
 
@@ -71,7 +87,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [isOnline]);
 
   const isFullyOnline = isOnline && serverReachable;
 

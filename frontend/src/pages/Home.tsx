@@ -12,7 +12,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { setStartupSnapshot, getStartupSnapshot } from "@/lib/cacheManager";
+import { setStartupSnapshot, getStartupSnapshot, isCountedTransaction } from "@/lib/cacheManager";
 import { useUser } from "@clerk/clerk-react";
 
 // Helper function to format chart labels based on period
@@ -205,7 +205,8 @@ export default function Home() {
       setAllTransactionsData(allTransactionsInPeriod);
 
       // Calculate stats from ALL transactions in period
-      const totalAmount = allTransactionsInPeriod.reduce((sum, tx) => sum + tx.amount, 0);
+      const countedTransactionsInPeriod = allTransactionsInPeriod.filter(isCountedTransaction);
+      const totalAmount = countedTransactionsInPeriod.reduce((sum, tx) => sum + tx.amount, 0);
 
       // Calculate local trend from cached transactions
       const calculateLocalTrend = (transactions: Transaction[], period: 'day' | 'week' | 'month' | 'year') => {
@@ -269,7 +270,7 @@ export default function Home() {
         }));
       };
 
-      const localTrend = calculateLocalTrend(allTransactionsInPeriod, period);
+      const localTrend = calculateLocalTrend(countedTransactionsInPeriod, period);
 
       setStats({
         currency: 'EUR',
@@ -595,15 +596,26 @@ export default function Home() {
                 <div className="glass-card p-2.5 interactive-press cursor-pointer rounded-xl mb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-10 h-10 rounded-xl ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-                        <IconRenderer icon={transaction.categoryIcon} size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">{transaction.categoryName}</h4>
-                        <p className="text-[10px] text-muted-foreground">
-                          {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
+                      {(() => {
+                        const counted = isCountedTransaction(transaction);
+
+                        return (
+                          <>
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${!counted ? 'bg-muted/40 text-muted-foreground' : ''}`}
+                            >
+                              <IconRenderer icon={transaction.categoryIcon} size={20} />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-sm">{transaction.categoryName}</h4>
+                              <p className="text-[10px] text-muted-foreground">
+                                {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
+                                {!counted && <span className="text-warning"> · Non conteggiata</span>}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-sm text-white">

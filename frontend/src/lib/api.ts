@@ -177,6 +177,24 @@ export const api = {
       apiClient.post(`/loans/${id}/close`, data),
     delete: (id: number) =>
       apiClient.delete(`/loans/${id}`),
+    adminValidate: (data: { username: string; password: string }) =>
+      apiClient.post('/loans/admin/validate', data),
+    adminConvertFromTransaction: (data: {
+      username: string;
+      password: string;
+      transactionId: number;
+      categoryId: number;
+      title: string;
+      note?: string;
+    }) =>
+      apiClient.post('/loans/admin/convert-from-transaction', data),
+    adminAttachRepaymentTransaction: (id: number, data: {
+      username: string;
+      password: string;
+      transactionId: number;
+      description?: string;
+    }) =>
+      apiClient.post(`/loans/admin/${id}/attach-repayment-transaction`, data),
   },
 };
 
@@ -203,10 +221,10 @@ export async function checkServerHealth(): Promise<boolean> {
   }
 
   try {
-    // Use a lightweight endpoint to check server health
-    await apiClient.get('/auth/me', {
-      timeout: 3000,
-      validateStatus: (status) => status < 500, // Accept 4xx as "server is reachable"
+    // Usa un endpoint super leggero e senza Clerk auth (/health) con timeout ridotto a 2 secondi
+    await axios.get('/health', {
+      timeout: 2000,
+      validateStatus: (status) => status === 200,
     });
     serverReachable = true;
     return true;
@@ -214,7 +232,7 @@ export async function checkServerHealth(): Promise<boolean> {
     if (isNetworkError(error)) {
       serverReachable = false;
     } else {
-      // Server responded (even with error), so it's reachable
+      // Il server ha risposto (es. errore generico), quindi è raggiungibile
       serverReachable = true;
     }
     return serverReachable;
@@ -241,5 +259,3 @@ function isNetworkError(error: AxiosError): boolean {
          error.message.includes('Network Error') ||
          error.message.includes('timeout');
 }
-
-

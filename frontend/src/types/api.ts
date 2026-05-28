@@ -29,6 +29,8 @@ export interface Category {
   color?: string;
   type: 'income' | 'expense';
   isSystem: boolean;
+  excludeFromTotals?: boolean;
+  usageCount?: number;
   createdAt: string;
 }
 
@@ -56,6 +58,7 @@ export interface Transaction {
   categoryName?: string;
   categoryIcon?: string;
   categoryColor?: string;
+  categoryExcludeFromTotals?: boolean;
 }
 
 // Transfer types
@@ -155,6 +158,7 @@ export interface DashboardStats {
 export interface TransactionsResponse {
   transactions: Transaction[];
   total: number;
+  totalAmount: number;
 }
 
 // API Response wrappers
@@ -167,4 +171,3 @@ export interface ApiError {
   message: string;
   errors?: Record<string, string[]>;
 }
-

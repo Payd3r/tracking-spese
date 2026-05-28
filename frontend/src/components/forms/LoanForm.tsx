@@ -15,6 +15,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingLoanOperation } from "@/lib/sync";
 import { useUser } from "@clerk/clerk-react";
+import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 interface LoanFormProps {
   onSuccess: () => void;
@@ -45,10 +46,10 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
       
       // SEMPRE caricare dalla cache prima
       const cachedAccounts = await db.cachedAccounts.toArray();
-      const cachedCategories = await db.cachedCategories
+      const cachedCategories = sortCategoriesByUsage(await db.cachedCategories
         .where('type')
         .equals('expense')
-        .toArray();
+        .toArray());
       
       // Mostrare subito i dati dalla cache
       setAccounts(cachedAccounts);
@@ -58,8 +59,9 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
         setSelectedAccount(cachedAccounts[0].id);
       }
       if (cachedCategories.length > 0 && selectedCategory === null) {
-        const other = cachedCategories.find((c) => c.name.toLowerCase() === "altro");
-        setSelectedCategory(other ? other.id : cachedCategories[0].id);
+        const countedCategories = cachedCategories.filter(isVisibleTransactionCategory);
+        const other = countedCategories.find((c) => c.name.toLowerCase() === "altro");
+        setSelectedCategory(other ? other.id : countedCategories[0]?.id || cachedCategories[0].id);
       }
       
       setLoading(false);
@@ -73,7 +75,7 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
           ]);
           
           const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+          const categoriesData = sortCategoriesByUsage(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
           
           // Aggiornare cache e stato
           await db.cachedAccounts.bulkPut(accountsData);
@@ -208,9 +210,20 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
         ) : (
           <>
             {(() => {
-              const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
+              const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
               const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
               const hasMoreCategories = filteredCategories.length > 8;
+
+              if (filteredCategories.length === 0) {
+                return (
+                  <div className="text-center">
+                    <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
+                    <Link to="/settings/categories" className="text-primary text-xs mt-2 inline-block">
+                      Crea una categoria
+                    </Link>
+                  </div>
+                );
+              }
               
               return (
                 <>
@@ -313,4 +326,3 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
     </div>
   );
 }
-

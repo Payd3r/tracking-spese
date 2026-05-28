@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
-import { getCachedCategories, getCachedAccounts, getCachedTransactions } from "@/lib/cacheManager";
+import { getCachedCategories, getCachedAccounts, getCachedTransactions, isCountedTransaction, sortCategoriesByUsage } from "@/lib/cacheManager";
 import { formatCurrency } from "@/lib/utils";
 import { useUser } from "@clerk/clerk-react";
 
@@ -248,7 +248,7 @@ export default function Transactions() {
           })
         ]);
 
-        const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+        const categoriesData = sortCategoriesByUsage(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
         const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
         const txsData = transactionsResponse.data.transactions || [];
         totalTxs = transactionsResponse.data.total || 0;
@@ -296,8 +296,12 @@ export default function Transactions() {
           getCachedTransactions({ type: 'expense', startDate: statsStartDate, endDate: statsEndDate })
         ]);
 
-        newIncomeTotal = incomeCached.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-        newExpenseTotal = expenseCached.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        newIncomeTotal = incomeCached
+          .filter(isCountedTransaction)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        newExpenseTotal = expenseCached
+          .filter(isCountedTransaction)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
       }
 
       // MERGE: Pending + Fetched
@@ -328,11 +332,21 @@ export default function Transactions() {
       };
 
       const pendingIncome = allPending
-        .filter(pt => pt.type === 'income' && isDateInRange(pt.createdAt))
+        .filter(pt => pt.type === 'income'
+          && isCountedTransaction(pt)
+          && (!selectedAccountFilter || pt.accountId === selectedAccountFilter)
+          && (!selectedCategoryFilter || pt.categoryId === selectedCategoryFilter)
+          && (!searchQuery || pt.title?.toLowerCase().includes(searchQuery.toLowerCase()) || (pt.note || '').toLowerCase().includes(searchQuery.toLowerCase()))
+          && isDateInRange(pt.transactionDate))
         .reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
 
       const pendingExpense = allPending
-        .filter(pt => pt.type === 'expense' && isDateInRange(pt.createdAt))
+        .filter(pt => pt.type === 'expense'
+          && isCountedTransaction(pt)
+          && (!selectedAccountFilter || pt.accountId === selectedAccountFilter)
+          && (!selectedCategoryFilter || pt.categoryId === selectedCategoryFilter)
+          && (!searchQuery || pt.title?.toLowerCase().includes(searchQuery.toLowerCase()) || (pt.note || '').toLowerCase().includes(searchQuery.toLowerCase()))
+          && isDateInRange(pt.transactionDate))
         .reduce((sum, pt) => sum + Math.abs(pt.amount || 0), 0);
 
       if (isOnline) {
@@ -620,15 +634,27 @@ export default function Transactions() {
               <RouterLink key={transaction.id > 0 ? transaction.id : transaction.clientRequestId} to={transaction.id > 0 ? `/transaction/${transaction.id}` : '#'}>
                 <div className={`flex items-center justify-between py-2 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1.5 interactive-press ${transaction.isPending ? 'opacity-70' : ''}`}>
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-lg ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-                      <IconRenderer icon={transaction.categoryIcon} size={16} />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-sm">{transaction.title}</h4>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
-                      </p>
-                    </div>
+                    {(() => {
+                      const isCounted = isCountedTransaction(transaction);
+
+                      return (
+                        <>
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${!isCounted ? 'bg-muted/40 text-muted-foreground' : ''}`}
+                          >
+                            <IconRenderer icon={transaction.categoryIcon} size={16} />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-sm">{transaction.title}</h4>
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                              <span>{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</span>
+                              {transaction.categoryName && <span>· {transaction.categoryName}</span>}
+                              {!isCounted && <span className="text-warning">· Non conteggiata</span>}
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                   <span className={`font-semibold text-sm ${transaction.isPending
                     ? 'text-warning'

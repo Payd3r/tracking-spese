@@ -1,5 +1,5 @@
 import { GlassCard } from "@/components/GlassCard";
-import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut, Wifi, WifiOff, CloudUpload, Loader2, HandCoins } from "lucide-react";
+import { ArrowLeft, ChevronRight, Wallet, Tag, RefreshCw, User, LogOut, Wifi, WifiOff, CloudUpload, Loader2, HandCoins, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -30,6 +30,7 @@ const settingsGroups = [
       { icon: Tag, label: "Categorie", path: "/settings/categories" },
       { icon: RefreshCw, label: "Trasferimenti", path: "/settings/transfers" },
       { icon: HandCoins, label: "Prestiti", path: "/settings/loans" },
+      { icon: ShieldCheck, label: "Pulizia prestiti", path: "/settings/loans/cleanup" },
     ],
   },
   {

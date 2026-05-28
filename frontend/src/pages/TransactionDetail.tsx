@@ -17,6 +17,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingDelete, addPendingUpdate } from "@/lib/sync";
 import { useUser } from "@clerk/clerk-react";
+import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 // Convert currency code to symbol
 const getCurrencySymbol = (code: string = "EUR"): string => {
@@ -109,7 +110,7 @@ export default function TransactionDetail() {
           db.cachedAccounts.toArray(),
         ]);
 
-        setCategories(cachedCategories as unknown as Category[]);
+        setCategories(sortCategoriesByUsage(cachedCategories as unknown as Category[]));
         setAccounts(cachedAccounts as unknown as Account[]);
       }
 
@@ -139,9 +140,9 @@ export default function TransactionDetail() {
           api.accounts.getAll(),
         ]);
 
-        const categoriesData = Array.isArray(categoriesRes.data.categories)
+        const categoriesData = sortCategoriesByUsage(Array.isArray(categoriesRes.data.categories)
           ? categoriesRes.data.categories
-          : [];
+          : []);
         const accountsData = Array.isArray((accountsRes.data as any).accounts)
           ? (accountsRes.data as any).accounts
           : Array.isArray(accountsRes.data)
@@ -392,18 +393,35 @@ export default function TransactionDetail() {
       {/* Category */}
       <GlassCard className="p-4 mb-4">
         <div className="flex items-center gap-2.5">
-          <div className={`w-10 h-10 rounded-xl ${transaction.categoryColor || 'gradient-blue'} flex items-center justify-center`}>
-            <IconRenderer icon={transaction.categoryIcon} size={20} />
-          </div>
+          {(() => {
+            const isExcluded = transaction.categoryExcludeFromTotals === true
+              || transaction.categoryName === 'Trasferimento'
+              || transaction.categoryName === 'Prestito'
+              || transaction.categoryName === 'Restituzione prestito';
+
+            return (
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${isExcluded ? 'bg-muted/40 text-muted-foreground' : ''}`}
+              >
+                <IconRenderer icon={transaction.categoryIcon} size={20} />
+              </div>
+            );
+          })()}
           <div className="flex-1">
             <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
             <p className="font-medium text-sm">{transaction.categoryName}</p>
+            {(transaction.categoryExcludeFromTotals === true
+              || transaction.categoryName === 'Trasferimento'
+              || transaction.categoryName === 'Prestito'
+              || transaction.categoryName === 'Restituzione prestito') && (
+              <p className="text-[10px] text-warning mt-0.5">Non conteggiata nei totali</p>
+            )}
           </div>
         </div>
         {isEditing && (
           <>
             {(() => {
-              const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
+              const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
               const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
               const hasMoreCategories = filteredCategories.length > 8;
 

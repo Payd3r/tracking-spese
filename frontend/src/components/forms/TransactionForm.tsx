@@ -15,6 +15,7 @@ import { useSync } from "@/contexts/SyncContext";
 import { addPendingTransaction } from "@/lib/sync";
 import { db } from "@/lib/db";
 import { useUser } from "@clerk/clerk-react";
+import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 interface TransactionFormProps {
   onSuccess: () => void;
@@ -45,9 +46,10 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   };
 
   const getDefaultCategoryId = (list: Category[]) => {
-    if (!list.length) return null;
-    const other = list.find((c) => c.name.toLowerCase() === "altro");
-    return (other ?? list[0]).id;
+    const visibleCategories = sortCategoriesByUsage(list.filter(isVisibleTransactionCategory));
+    if (!visibleCategories.length) return null;
+    const other = visibleCategories.find((c) => c.name.toLowerCase() === "altro");
+    return (other ?? visibleCategories[0]).id;
   };
 
   useEffect(() => {
@@ -59,10 +61,10 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       setLoading(true);
 
       // SEMPRE caricare dalla cache prima
-      const cachedCategories = await db.cachedCategories
+      const cachedCategories = sortCategoriesByUsage(await db.cachedCategories
         .where('type')
         .equals(type)
-        .toArray();
+        .toArray());
       const cachedAccounts = await db.cachedAccounts.toArray();
 
       // Mostrare subito i dati dalla cache
@@ -86,7 +88,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             api.accounts.getAll()
           ]);
 
-          const categoriesData = Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : [];
+          const categoriesData = sortCategoriesByUsage(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
           const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
 
           // Aggiornare cache e stato
@@ -266,9 +268,20 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         ) : (
           <>
             {(() => {
-              const filteredCategories = categories.filter(category => category.name !== 'Trasferimento');
+              const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
               const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
               const hasMoreCategories = filteredCategories.length > 8;
+
+              if (filteredCategories.length === 0) {
+                return (
+                  <div className="text-center">
+                    <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
+                    <Link to="/settings/categories" className="text-primary text-xs mt-2 inline-block">
+                      Crea una categoria
+                    </Link>
+                  </div>
+                );
+              }
 
               return (
                 <>
@@ -369,4 +382,3 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     </div>
   );
 }
-

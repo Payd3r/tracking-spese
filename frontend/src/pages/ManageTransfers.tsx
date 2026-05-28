@@ -172,7 +172,8 @@ export default function ManageTransfers() {
         toast.success("Trasferimento salvato offline! Verrà sincronizzato automaticamente.");
       } else {
         // Create expense transaction (money leaving fromAccount)
-        const opId = uuidv4();
+        const fromRequestId = uuidv4();
+        const toRequestId = uuidv4();
         await api.transactions.create({
           accountId: fromAccount,
           categoryId: transferCategories.expense.id,
@@ -180,7 +181,7 @@ export default function ManageTransfers() {
           type: 'expense',
           title: `Trasferimento a ${toAccountData?.name || 'conto'}`,
           transactionDate: transferDate,
-          clientRequestId: `${opId}-out`,
+          clientRequestId: fromRequestId,
         });
         
         // Create income transaction (money entering toAccount)
@@ -193,7 +194,7 @@ export default function ManageTransfers() {
           type: 'income',
           title: `Trasferimento da ${fromAccountData?.name || 'conto'}`,
           transactionDate: transferDate,
-          clientRequestId: `${opId}-in`,
+          clientRequestId: toRequestId,
         });
         
         toast.success("Trasferimento creato con successo!");

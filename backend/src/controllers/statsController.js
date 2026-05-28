@@ -12,6 +12,8 @@ export const getCategoryStats = async (req, res, next) => {
       SELECT id, name, icon, color, type
       FROM categories
       WHERE (user_id = $1 OR is_system = true)
+        AND COALESCE(exclude_from_totals, false) = false
+        AND name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
     `;
 
     const categoryParams = [userId];
@@ -32,10 +34,13 @@ export const getCategoryStats = async (req, res, next) => {
           `SELECT 
             SUM(t.amount) as total,
             a.currency
-           FROM transactions t
-           JOIN accounts a ON t.account_id = a.id
-           WHERE t.user_id = $1 AND t.category_id = $2
-           GROUP BY a.currency`,
+       FROM transactions t
+       JOIN accounts a ON t.account_id = a.id
+       JOIN categories c ON t.category_id = c.id
+       WHERE t.user_id = $1 AND t.category_id = $2
+         AND COALESCE(c.exclude_from_totals, false) = false
+         AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
+       GROUP BY a.currency`,
           [userId, category.id]
         );
 
@@ -138,13 +143,16 @@ export const getDashboardStats = async (req, res, next) => {
     // Get income and expense for period
     const periodStatsResult = await pool.query(
       `SELECT 
-        type,
-        SUM(amount) as total,
+        t.type,
+        SUM(t.amount) as total,
         a.currency
        FROM transactions t
        JOIN accounts a ON t.account_id = a.id
+       JOIN categories c ON t.category_id = c.id
        WHERE t.user_id = $1 AND t.transaction_date >= $2 AND t.transaction_date <= $3
-       GROUP BY type, a.currency`,
+         AND COALESCE(c.exclude_from_totals, false) = false
+         AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
+       GROUP BY t.type, a.currency`,
       [userId, startDate, now]
     );
 
@@ -220,6 +228,8 @@ export const getDashboardStats = async (req, res, next) => {
        JOIN accounts a ON t.account_id = a.id
        JOIN categories c ON t.category_id = c.id
        WHERE t.user_id = $1 AND t.type = 'expense' AND t.transaction_date >= $2 AND t.transaction_date <= $3
+         AND COALESCE(c.exclude_from_totals, false) = false
+         AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
        GROUP BY c.id, c.name, c.icon, c.color, a.currency
        ORDER BY total DESC`,
       [userId, startDate, now]
@@ -271,10 +281,13 @@ export const getDashboardStats = async (req, res, next) => {
         a.currency
       FROM transactions t
       JOIN accounts a ON t.account_id = a.id
+      JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = $1 
         AND t.type = $2 
         AND t.transaction_date >= $3 
         AND t.transaction_date <= $4
+        AND COALESCE(c.exclude_from_totals, false) = false
+        AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
       ORDER BY t.transaction_date ASC`;
 
     const trendResult = await pool.query(trendQuery, [userId, type, startDate, now]);

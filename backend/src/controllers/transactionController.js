@@ -71,7 +71,10 @@ export const getTransactions = async (req, res, next) => {
     const totalAmountQuery = `
       SELECT COALESCE(SUM(ABS(t.amount)), 0) as total_amount
       FROM transactions t
+      JOIN categories c ON t.category_id = c.id
       ${whereClause}
+        AND COALESCE(c.exclude_from_totals, false) = false
+        AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
     `;
     
     const totalAmountResult = await pool.query(totalAmountQuery, params);
@@ -96,7 +99,8 @@ export const getTransactions = async (req, res, next) => {
         a.currency as account_currency,
         c.name as category_name,
         c.icon as category_icon,
-        c.color as category_color
+        c.color as category_color,
+        c.exclude_from_totals as category_exclude_from_totals
       FROM transactions t
       JOIN accounts a ON t.account_id = a.id
       JOIN categories c ON t.category_id = c.id
@@ -118,6 +122,7 @@ export const getTransactions = async (req, res, next) => {
       categoryName: t.category_name,
       categoryIcon: t.category_icon,
       categoryColor: t.category_color,
+      categoryExcludeFromTotals: t.category_exclude_from_totals,
       amount: parseFloat(t.amount),
       originalAmount: t.original_amount ? parseFloat(t.original_amount) : null,
       originalCurrency: t.original_currency,
@@ -156,9 +161,10 @@ export const getTransaction = async (req, res, next) => {
         t.updated_at,
         a.name as account_name,
         a.currency as account_currency,
-        c.name as category_name,
-        c.icon as category_icon,
-        c.color as category_color
+       c.name as category_name,
+       c.icon as category_icon,
+       c.color as category_color,
+       c.exclude_from_totals as category_exclude_from_totals
       FROM transactions t
       JOIN accounts a ON t.account_id = a.id
       JOIN categories c ON t.category_id = c.id
@@ -181,6 +187,7 @@ export const getTransaction = async (req, res, next) => {
       categoryName: t.category_name,
       categoryIcon: t.category_icon,
       categoryColor: t.category_color,
+      categoryExcludeFromTotals: t.category_exclude_from_totals,
       amount: parseFloat(t.amount),
       originalAmount: t.original_amount ? parseFloat(t.original_amount) : null,
       originalCurrency: t.original_currency,
@@ -508,5 +515,3 @@ export const deleteTransaction = async (req, res, next) => {
     next(error);
   }
 };
-
-

@@ -16,6 +16,12 @@ type WindowWithClerk = Window & {
   };
 };
 
+// In-memory token cache per evitare round-trip ripetuti a Clerk
+// (particolarmente lenti su iOS Safari con connessione instabile)
+let _cachedToken: string | null = null;
+let _tokenCachedAt = 0;
+const TOKEN_TTL_MS = 50_000; // 50 secondi (i token Clerk scadono dopo ~60s)
+
 async function getClerk() {
   if (typeof window === 'undefined') return null;
   const wnd = window as WindowWithClerk;
@@ -31,15 +37,33 @@ async function getClerk() {
 }
 
 export async function getClerkToken() {
+  // Usa il token in cache se ancora valido
+  const now = Date.now();
+  if (_cachedToken && now - _tokenCachedAt < TOKEN_TTL_MS) {
+    return _cachedToken;
+  }
+
   const clerk = await getClerk();
-  if (!clerk?.session) return null;
-  try {
-    const token = await clerk.session.getToken();
-    return token || null;
-  } catch (error) {
-    console.error("Unable to get Clerk token", error);
+  if (!clerk?.session) {
+    _cachedToken = null;
     return null;
   }
+  try {
+    const token = await clerk.session.getToken();
+    _cachedToken = token || null;
+    _tokenCachedAt = now;
+    return _cachedToken;
+  } catch (error) {
+    console.error("Unable to get Clerk token", error);
+    _cachedToken = null;
+    return null;
+  }
+}
+
+/** Invalida il token in cache (da chiamare al logout o cambio utente) */
+export function invalidateClerkTokenCache(): void {
+  _cachedToken = null;
+  _tokenCachedAt = 0;
 }
 
 export async function getClerkUser() {

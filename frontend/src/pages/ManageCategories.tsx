@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
+import { sortCategoriesByUsage } from "@/lib/cacheManager";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,13 +58,13 @@ export default function ManageCategories() {
         .toArray();
 
       // Mostrare subito i dati dalla cache
-      setCategories(cachedCategories);
+      setCategories(sortCategoriesByUsage(cachedCategories));
 
       // POI, se online E server raggiungibile, aggiornare in background
       if (isFullyOnline) {
         try {
           const response = await api.categories.getAll(viewType);
-          const categoriesData = Array.isArray(response.data.categories) ? response.data.categories : [];
+          const categoriesData = sortCategoriesByUsage(Array.isArray(response.data.categories) ? response.data.categories : []);
 
           // Aggiornare cache
           await db.cachedCategories.bulkPut(categoriesData);

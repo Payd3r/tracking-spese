@@ -164,9 +164,6 @@ async function syncPendingDeletes(): Promise<{ synced: number; failed: number; e
           case 'category':
             await api.categories.delete(deleteOp.entityId);
             break;
-          case 'transfer':
-            await api.transfers.delete(deleteOp.entityId);
-            break;
           default:
             throw new Error(`Unknown entity type: ${deleteOp.entity}`);
         }
@@ -440,6 +437,7 @@ export async function addPendingTransaction(
     categoryName: category?.name,
     categoryIcon: category?.icon,
     categoryColor: category?.color,
+    categoryExcludeFromTotals: category?.excludeFromTotals,
     accountName: account?.name,
     accountCurrency: account?.currency,
     createdAt: new Date().toISOString()
@@ -508,5 +506,3 @@ export async function addPendingLoanOperation(
 
   return id;
 }
-
-

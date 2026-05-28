@@ -16,6 +16,7 @@ export interface PendingTransaction {
   categoryName?: string;
   categoryIcon?: string;
   categoryColor?: string;
+  categoryExcludeFromTotals?: boolean;
   accountName?: string;
   accountCurrency?: string;
 }
@@ -91,6 +92,7 @@ export interface CachedTransaction {
   categoryName?: string;
   categoryIcon?: string;
   categoryColor?: string;
+  categoryExcludeFromTotals?: boolean;
 }
 
 export interface CachedCategory {
@@ -101,6 +103,8 @@ export interface CachedCategory {
   color?: string;
   type: 'income' | 'expense';
   isSystem: boolean;
+  excludeFromTotals?: boolean;
+  usageCount?: number;
   createdAt: string;
 }
 
@@ -254,5 +258,3 @@ export async function clearAllCache(): Promise<void> {
     db.cachedLoanRepayments.clear()
   ]);
 }
-
-

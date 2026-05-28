@@ -1,6 +1,6 @@
 import { db } from './db';
 import { api } from './api';
-import { DashboardStats, Transaction } from '@/types/api';
+import { Category, DashboardStats, Transaction } from '@/types/api';
 import { getClerkUserId } from './clerkToken';
 
 export interface CachePreloadResult {
@@ -8,6 +8,8 @@ export interface CachePreloadResult {
   categories: number;
   accounts: number;
   transactions: number;
+  loans: number;
+  repayments: number;
   error?: string;
 }
 
@@ -29,6 +31,32 @@ export interface StartupSnapshot {
   userName?: string;
 }
 
+export function isCountedTransaction(transaction: Pick<Transaction, 'categoryExcludeFromTotals' | 'categoryName'>): boolean {
+  if (transaction.categoryExcludeFromTotals === true) {
+    return false;
+  }
+
+  return transaction.categoryName !== 'Trasferimento'
+    && transaction.categoryName !== 'Prestito'
+    && transaction.categoryName !== 'Restituzione prestito';
+}
+
+export function isVisibleTransactionCategory(category: Pick<Category, 'excludeFromTotals' | 'name'>): boolean {
+  return category.excludeFromTotals !== true
+    && category.name !== 'Trasferimento'
+    && category.name !== 'Prestito'
+    && category.name !== 'Restituzione prestito';
+}
+
+export function sortCategoriesByUsage<T extends Pick<Category, 'name' | 'isSystem' | 'usageCount'>>(categories: T[]): T[] {
+  return [...categories].sort((a, b) => {
+    const usageDiff = (b.usageCount || 0) - (a.usageCount || 0);
+    if (usageDiff !== 0) return usageDiff;
+    if (a.isSystem !== b.isSystem) return a.isSystem ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 /**
  * Preload all essential data for offline use
  * Called once when user first logs in or when online
@@ -37,7 +65,7 @@ export async function preloadCache(): Promise<CachePreloadResult> {
   try {
     const userId = await getClerkUserId();
     if (!userId) {
-      return { success: false, categories: 0, accounts: 0, transactions: 0, error: 'No user found' };
+      return { success: false, categories: 0, accounts: 0, transactions: 0, loans: 0, repayments: 0, error: 'No user found' };
     }
 
     // Load categories (both income and expense)
@@ -62,18 +90,53 @@ export async function preloadCache(): Promise<CachePreloadResult> {
     });
     const transactions = transactionsResponse.data.transactions || [];
 
+    // Load all active & closed loans to ensure offline access
+    let loansToCache: any[] = [];
+    let repaymentsToCache: any[] = [];
+
+    try {
+      const loansResponse = await api.loans.getAll();
+      const allLoans = loansResponse.data.loans || [];
+
+      // Fetch repayments for each loan in parallel
+      const loansDetails = await Promise.all(
+        allLoans.map(async (loan: any) => {
+          try {
+            const detailResponse = await api.loans.getOne(loan.id);
+            return detailResponse.data;
+          } catch (err) {
+            console.warn(`Failed to fetch details for loan ${loan.id}:`, err);
+            return { ...loan, repayments: [] };
+          }
+        })
+      );
+
+      repaymentsToCache = loansDetails.flatMap((detail: any) => detail.repayments || []);
+      loansToCache = loansDetails.map((detail: any) => {
+        const { repayments, ...loanInfo } = detail;
+        return { ...loanInfo, userId };
+      });
+    } catch (loanError) {
+      console.error('Failed to preload loans cache:', loanError);
+    }
+
     // Save to cache
     await Promise.all([
       db.cachedCategories.bulkPut(allCategories),
       db.cachedAccounts.bulkPut(accounts),
-      db.cachedTransactions.bulkPut(transactions.map(tx => ({ ...tx, userId })))
+      db.cachedTransactions.bulkPut(transactions.map(tx => ({ ...tx, userId }))),
+      loansToCache.length > 0 ? db.cachedLoans.bulkPut(loansToCache) : Promise.resolve(),
+      repaymentsToCache.length > 0 ? db.cachedLoanRepayments.bulkPut(repaymentsToCache) : Promise.resolve(),
+      db.metadata.put({ key: 'loansPreloaded', value: 'true' })
     ]);
 
     return {
       success: true,
       categories: allCategories.length,
       accounts: accounts.length,
-      transactions: transactions.length
+      transactions: transactions.length,
+      loans: loansToCache.length,
+      repayments: repaymentsToCache.length
     };
   } catch (error: any) {
     console.error('Cache preload failed:', error);
@@ -82,6 +145,8 @@ export async function preloadCache(): Promise<CachePreloadResult> {
       categories: 0,
       accounts: 0,
       transactions: 0,
+      loans: 0,
+      repayments: 0,
       error: error.message
     };
   }
@@ -92,13 +157,14 @@ export async function preloadCache(): Promise<CachePreloadResult> {
  */
 export async function hasCacheData(): Promise<boolean> {
   try {
-    const [categoriesCount, accountsCount, transactionsCount] = await Promise.all([
+    const [categoriesCount, accountsCount, transactionsCount, loansPreloaded] = await Promise.all([
       db.cachedCategories.count(),
       db.cachedAccounts.count(),
-      db.cachedTransactions.count()
+      db.cachedTransactions.count(),
+      db.metadata.get('loansPreloaded')
     ]);
 
-    return categoriesCount > 0 && accountsCount > 0 && transactionsCount > 0;
+    return categoriesCount > 0 && accountsCount > 0 && transactionsCount > 0 && !!loansPreloaded;
   } catch (error) {
     console.error('Error checking cache data:', error);
     return false;
@@ -109,10 +175,12 @@ export async function hasCacheData(): Promise<boolean> {
  * Get cached categories by type
  */
 export async function getCachedCategories(type: 'income' | 'expense') {
-  return await db.cachedCategories
+  const categories = await db.cachedCategories
     .where('type')
     .equals(type)
     .toArray();
+
+  return sortCategoriesByUsage(categories);
 }
 
 /**
