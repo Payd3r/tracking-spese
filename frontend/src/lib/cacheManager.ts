@@ -35,17 +35,23 @@ export function isCountedTransaction(
   transaction: Pick<Transaction, 'categoryExcludeFromTotals' | 'categoryName'>,
   includeLoans: boolean = false
 ): boolean {
+  const isLoan =
+    transaction.categoryName === 'Prestito' ||
+    transaction.categoryName === 'Restituzione prestito';
+
+  if (includeLoans && isLoan) {
+    return true;
+  }
+
   if (transaction.categoryExcludeFromTotals === true) {
     return false;
   }
 
-  if (includeLoans) {
-    return transaction.categoryName !== 'Trasferimento';
-  }
-
-  return transaction.categoryName !== 'Trasferimento'
-    && transaction.categoryName !== 'Prestito'
-    && transaction.categoryName !== 'Restituzione prestito';
+  return (
+    transaction.categoryName !== 'Trasferimento' &&
+    transaction.categoryName !== 'Prestito' &&
+    transaction.categoryName !== 'Restituzione prestito'
+  );
 }
 
 export function isVisibleTransactionCategory(category: Pick<Category, 'excludeFromTotals' | 'name'>): boolean {

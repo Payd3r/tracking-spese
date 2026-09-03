@@ -77,18 +77,27 @@ export const getTransactions = async (req, res, next) => {
     
     // Calculate total amount of all transactions matching filters
     const allowLoans = includeLoans === 'true' || includeLoans === true;
-    const excludedCategories = allowLoans
-      ? "('Trasferimento')"
-      : "('Trasferimento', 'Prestito', 'Restituzione prestito')";
 
-    const totalAmountQuery = `
-      SELECT COALESCE(SUM(ABS(t.amount)), 0) as total_amount
-      FROM transactions t
-      JOIN categories c ON t.category_id = c.id
-      ${whereClause}
-        AND COALESCE(c.exclude_from_totals, false) = false
-        AND c.name NOT IN ${excludedCategories}
-    `;
+    const totalAmountQuery = allowLoans
+      ? `
+        SELECT COALESCE(SUM(ABS(t.amount)), 0) as total_amount
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        ${whereClause}
+          AND (
+            COALESCE(c.exclude_from_totals, false) = false
+            OR c.name IN ('Prestito', 'Restituzione prestito')
+          )
+          AND c.name NOT IN ('Trasferimento')
+      `
+      : `
+        SELECT COALESCE(SUM(ABS(t.amount)), 0) as total_amount
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        ${whereClause}
+          AND COALESCE(c.exclude_from_totals, false) = false
+          AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
+      `;
     
     const totalAmountResult = await pool.query(totalAmountQuery, params);
     const totalAmount = parseFloat(totalAmountResult.rows[0].total_amount) || 0;
