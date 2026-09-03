@@ -1,7 +1,7 @@
 import { db } from './db';
 import { api } from './api';
 import { Category, DashboardStats, Transaction } from '@/types/api';
-import { getClerkUserId } from './clerkToken';
+import { getUserId } from './authStorage';
 
 export interface CachePreloadResult {
   success: boolean;
@@ -31,9 +31,16 @@ export interface StartupSnapshot {
   userName?: string;
 }
 
-export function isCountedTransaction(transaction: Pick<Transaction, 'categoryExcludeFromTotals' | 'categoryName'>): boolean {
+export function isCountedTransaction(
+  transaction: Pick<Transaction, 'categoryExcludeFromTotals' | 'categoryName'>,
+  includeLoans: boolean = false
+): boolean {
   if (transaction.categoryExcludeFromTotals === true) {
     return false;
+  }
+
+  if (includeLoans) {
+    return transaction.categoryName !== 'Trasferimento';
   }
 
   return transaction.categoryName !== 'Trasferimento'
@@ -63,7 +70,7 @@ export function sortCategoriesByUsage<T extends Pick<Category, 'name' | 'isSyste
  */
 export async function preloadCache(): Promise<CachePreloadResult> {
   try {
-    const userId = await getClerkUserId();
+    const userId = await getUserId();
     if (!userId) {
       return { success: false, categories: 0, accounts: 0, transactions: 0, loans: 0, repayments: 0, error: 'No user found' };
     }
@@ -201,6 +208,7 @@ export async function getCachedTransactions(filters?: {
   startDate?: string;
   endDate?: string;
   search?: string;
+  note?: string;
 }) {
   // Get all transactions first, then filter and sort in memory
   let transactions = await db.cachedTransactions.toArray();
@@ -223,23 +231,13 @@ export async function getCachedTransactions(filters?: {
     const startDate = new Date(filters.startDate);
     startDate.setHours(0, 0, 0, 0);
     
-    if (filters?.endDate) {
-      // Range filter: >= startDate AND <= endDate
-      const endDate = new Date(filters.endDate);
-      endDate.setHours(23, 59, 59, 999);
-      transactions = transactions.filter(tx => {
-        const txDate = new Date(tx.transactionDate);
-        return txDate >= startDate && txDate <= endDate;
-      });
-    } else {
-      // Single date filter: >= startDate AND < startDate + 1 day
-      const nextDay = new Date(startDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      transactions = transactions.filter(tx => {
-        const txDate = new Date(tx.transactionDate);
-        return txDate >= startDate && txDate < nextDay;
-      });
-    }
+    const endDateValue = filters?.endDate || new Date().toISOString().slice(0, 10);
+    const endDate = new Date(endDateValue);
+    endDate.setHours(23, 59, 59, 999);
+    transactions = transactions.filter(tx => {
+      const txDate = new Date(tx.transactionDate);
+      return txDate >= startDate && txDate <= endDate;
+    });
   }
 
   // Apply search filter (case-insensitive, partial match)
@@ -250,6 +248,11 @@ export async function getCachedTransactions(filters?: {
       const noteMatch = (tx.note || '').toLowerCase().includes(searchTerm);
       return titleMatch || noteMatch;
     });
+  }
+
+  if (filters?.note) {
+    const noteTerm = filters.note.toLowerCase();
+    transactions = transactions.filter(tx => (tx.note || '').toLowerCase().includes(noteTerm));
   }
 
   // Sort by transactionDate descending (newest first)

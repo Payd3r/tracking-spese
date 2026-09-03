@@ -8,14 +8,19 @@ textarea {
   font-size: 16px !important;
 }
 
-/* Rimuovi stili di default iOS */
-input,
+/* Rimuovi stili di default iOS (esclusi i date che rompono il picker nativo) */
+input:not([type="date"]),
 textarea,
 select {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
   border-radius: 0;
+}
+
+input[type="date"] {
+  -webkit-appearance: auto;
+  appearance: auto;
 }
 
 /* Input number: rimuovi spinner */

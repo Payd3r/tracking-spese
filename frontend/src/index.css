@@ -110,11 +110,14 @@ All colors MUST be HSL.
     width: 100%;
     /* Allow standard viewport behavior */
     overflow-x: hidden;
-    background-color: #000000;
+    background-color: #000000 !important;
+    color-scheme: dark;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
+    background-color: #000000 !important;
+    color-scheme: dark;
 
     /* Stable app height driven by JS (fallback to 100vh) */
     min-height: var(--app-height, 100vh);
@@ -378,10 +381,15 @@ All colors MUST be HSL.
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     /* Smooth scrolling on iOS */
-    padding-bottom: 80px;
-    /* Space for bottom nav */
+    padding-bottom: 96px;
+    /* Space for floating bottom nav */
     padding-top: env(safe-area-inset-top, 0px);
     /* Space for status bar */
+  }
+
+  .transactions-page {
+    touch-action: pan-y pinch-zoom;
+    overscroll-behavior-x: none;
   }
 
   /* Safe area padding for page content */
@@ -568,6 +576,63 @@ All colors MUST be HSL.
 
   .tap-spring {
     animation: spring-tap 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/* Custom scrollbar styling adapted to the Monochrome Liquid Glass theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Firefox compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) rgba(0, 0, 0, 0.3);
+}
+
+/* Desktop: niente animazioni hover che cambiano forma/scale */
+@media (min-width: 768px) {
+  .interactive-press:hover:not(:disabled),
+  .interactive-press:active:not(:disabled),
+  .glass-card-hover:hover,
+  .glass-card-hover:active,
+  [class*="gradient-"]:hover,
+  [class*="gradient-"]:active {
+    transform: none !important;
+  }
+
+  .interactive-press:hover:not(:disabled) {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .group:hover .group-hover\:scale-105,
+  .group:hover .group-hover\:translate-x-0\.5 {
+    transform: none !important;
+  }
+
+  button:hover,
+  a:hover,
+  button:active,
+  a:active {
+    --tw-translate-y: 0;
+    transform: none !important;
   }
 }
 

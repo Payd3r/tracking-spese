@@ -37,7 +37,6 @@ services:
       JWT_EXPIRY: ${JWT_EXPIRY:-30d}
       PORT: 3000
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
     networks:
       - backend
       - frontend
@@ -52,8 +51,6 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      args:
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
     container_name: tracking-spese-frontend
     restart: unless-stopped
     networks:
@@ -95,8 +92,6 @@ services:
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     ports:
       - "8093:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
     networks:
       - backend
     depends_on:
@@ -115,5 +110,3 @@ volumes:
     driver: local
   pgadmin_data:
     driver: local
-
-

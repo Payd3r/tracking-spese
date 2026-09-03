@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingLoanOperation } from "@/lib/sync";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 interface LoanFormProps {
@@ -23,7 +23,7 @@ interface LoanFormProps {
 
 export function LoanForm({ onSuccess }: LoanFormProps) {
   const { isFullyOnline } = useSync();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);

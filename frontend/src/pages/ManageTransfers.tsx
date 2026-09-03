@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { addPendingTransfer } from "@/lib/sync";
 import { useSync } from "@/contexts/SyncContext";
 import { v4 as uuidv4 } from "uuid";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Account {
   id: number;
@@ -34,7 +34,7 @@ export default function ManageTransfers() {
   const navigate = useNavigate();
   const { ref, style } = useBottomNavPadding();
   const { isFullyOnline, isOnline, isServerReachable } = useSync();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transferCategories, setTransferCategories] = useState<{
     expense?: Category;
@@ -258,79 +258,115 @@ export default function ManageTransfers() {
   }
 
   return (
-    <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
+    <div ref={ref} style={style} className="px-3 pt-4 pb-28 max-w-md mx-auto md:max-w-4xl md:px-8 md:py-8">
+      {/* Mobile-only Header */}
+      <div className="flex items-center gap-3 mb-5 md:hidden">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold">Trasferimenti</h1>
       </div>
 
-      {/* New Transfer Form */}
-      <GlassCard className="p-4 mb-4">        
-        {!isFullyOnline && (
-          <div className="glass-card tone-warning p-3 rounded-2xl mb-3 text-xs">
-            {!isOnline ? "Offline: i trasferimenti verranno sincronizzati al ritorno online." : !isServerReachable ? "Server non raggiungibile: sincronizzeremo appena torna disponibile." : null}
-          </div>
-        )}
-        {/* From Account */}
-        <div className="mb-3">
-          <label className="text-xs text-muted-foreground mb-2 block font-medium">Da</label>
-          <div className="space-y-1.5">
-            {accounts.map((account) => (
-              <button
-                key={account.id}
-                onClick={() => setFromAccount(account.id)}
-                disabled={loading}
-                className={`w-full p-2.5 flex justify-between items-center transition-all rounded-2xl interactive-press ${
-                  fromAccount === account.id ? "pill-active" : "glass-card"
-                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <span className="font-medium text-xs">{account.name}</span>
-                <span className="text-[10px]">{getAccountDisplay(account)}</span>
-              </button>
-            ))}
-          </div>
+      {/* Main Responsive Columns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
+        
+        {/* Left Column: Account Selectors */}
+        <div className="space-y-4">
+          {/* From Account Selector */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5">
+            <h3 className="text-xs font-bold text-white mb-3 uppercase tracking-wider">Addebita da (Conto Origine)</h3>
+            <div className="space-y-1.5">
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  onClick={() => setFromAccount(account.id)}
+                  disabled={loading}
+                  className={`w-full p-3 flex justify-between items-center transition-all rounded-xl border border-transparent font-medium text-xs interactive-press ${
+                    fromAccount === account.id ? "pill-active" : "bg-white/5 border-white/5 text-muted-foreground hover:text-white"
+                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span className="font-semibold text-sm truncate">{account.name}</span>
+                  <span className="text-[10px] shrink-0 font-medium">{getAccountDisplay(account)}</span>
+                </button>
+              ))}
+            </div>
+          </GlassCard>
+
+          {/* To Account Selector */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5">
+            <h3 className="text-xs font-bold text-white mb-3 uppercase tracking-wider">Accredita a (Conto Destinazione)</h3>
+            <div className="space-y-1.5">
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  onClick={() => setToAccount(account.id)}
+                  disabled={loading}
+                  className={`w-full p-3 flex justify-between items-center transition-all rounded-xl border border-transparent font-medium text-xs interactive-press ${
+                    toAccount === account.id ? "pill-active" : "bg-white/5 border-white/5 text-muted-foreground hover:text-white"
+                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span className="font-semibold text-sm truncate">{account.name}</span>
+                  <span className="text-[10px] shrink-0 font-medium">{getAccountDisplay(account)}</span>
+                </button>
+              ))}
+            </div>
+          </GlassCard>
         </div>
 
-        {/* To Account */}
-        <div className="mb-3">
-          <label className="text-xs text-muted-foreground mb-2 block font-medium">A</label>
-          <div className="space-y-1.5">
-            {accounts.map((account) => (
-              <button
-                key={account.id}
-                onClick={() => setToAccount(account.id)}
-                disabled={loading}
-                className={`w-full p-2.5 flex justify-between items-center transition-all rounded-2xl interactive-press ${
-                  toAccount === account.id ? "pill-active" : "glass-card"
-                } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <span className="font-medium text-xs">{account.name}</span>
-                <span className="text-[10px]">{getAccountDisplay(account)}</span>
-              </button>
-            ))}
-          </div>
+        {/* Right Column: Visualizer, Amount input, and Submission button */}
+        <div className="space-y-4">
+          <GlassCard className="p-5 border border-white/10 bg-white/5">
+            <h3 className="text-xs font-bold text-white mb-4 uppercase tracking-wider">Dettagli Trasferimento</h3>
+            
+            {!isFullyOnline && (
+              <div className="glass-card tone-warning p-3 rounded-2xl mb-4 text-xs">
+                {!isOnline ? "Offline: i trasferimenti verranno sincronizzati al ritorno online." : !isServerReachable ? "Server non raggiungibile: sincronizzeremo appena torna disponibile." : null}
+              </div>
+            )}
+
+            {/* Interactive Flow Visualizer (Only visible when both accounts are selected and amount is provided) */}
+            {fromAccount && toAccount && amount && parseFloat(amount) > 0 && (
+              <div className="p-3.5 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between mb-4 shadow-strong">
+                <div className="text-center flex-1 min-w-0">
+                  <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Origine</p>
+                  <p className="text-xs font-bold text-white truncate">{accounts.find(a => a.id === fromAccount)?.name}</p>
+                </div>
+                <div className="flex flex-col items-center px-4 shrink-0">
+                  <span className="text-xs font-extrabold text-green-400 tracking-tight">{parseFloat(amount).toFixed(2)} €</span>
+                  <div className="w-20 h-0.5 bg-white/20 relative my-1 shrink-0">
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 border-t border-r border-white/40 rotate-45" />
+                  </div>
+                </div>
+                <div className="text-center flex-1 min-w-0">
+                  <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Destinazione</p>
+                  <p className="text-xs font-bold text-white truncate">{accounts.find(a => a.id === toAccount)?.name}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Amount input */}
+            <div className="mb-4">
+              <label className="text-xs text-muted-foreground mb-2 block font-medium">Importo da trasferire</label>
+              <AmountInput
+                value={amount}
+                onChange={setAmount}
+                currency={fromAccount ? accounts.find(a => a.id === fromAccount)?.currency : 'EUR'}
+              />
+            </div>
+
+            {/* Submit button */}
+            <Button 
+              className="w-full h-11 font-semibold text-base pill-active shadow-strong"
+              onClick={handleCreateTransfer}
+              disabled={loading}
+            >
+              {loading ? "Creazione in corso..." : "Crea Trasferimento"}
+            </Button>
+          </GlassCard>
         </div>
 
-        {/* Amount */}
-        <div className="mb-3">
-          <AmountInput
-            value={amount}
-            onChange={setAmount}
-            currency={fromAccount ? accounts.find(a => a.id === fromAccount)?.currency : 'EUR'}
-          />
-        </div>
-
-        <Button 
-          className="w-full h-10 text-sm pill-active"
-          onClick={handleCreateTransfer}
-          disabled={loading}
-        >
-          {loading ? "Creazione..." : "Crea Trasferimento"}
-        </Button>
-      </GlassCard>
+      </div>
     </div>
   );
 }
+

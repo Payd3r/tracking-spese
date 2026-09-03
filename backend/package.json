@@ -12,22 +12,26 @@
     "seed": "node src/utils/seed.js",
     "populate": "node src/utils/populate.js"
   },
-  "keywords": ["expense-tracker", "api", "express", "postgresql"],
+  "keywords": [
+    "expense-tracker",
+    "api",
+    "express",
+    "postgresql"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@clerk/backend": "^1.0.0",
-    "express": "^4.19.2",
-    "pg": "^8.12.0",
-    "bcrypt": "^5.1.1",
-    "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.4.5",
-    "cors": "^2.8.5",
+    "@simplewebauthn/server": "^13.3.2",
     "axios": "^1.7.2",
-    "node-pg-migrate": "^7.6.1"
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "node-pg-migrate": "^7.6.1",
+    "pg": "^8.12.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   }
 }
-

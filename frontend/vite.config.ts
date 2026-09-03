@@ -26,8 +26,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'robots.txt', 'placeholder.svg'],
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
       manifest: {
         name: 'Tracking Spese',
         short_name: 'Spese',
@@ -40,22 +40,30 @@ export default defineConfig(({ mode }) => ({
         scope: '/',
         icons: [
           {
-            src: '/icon-192.png',
+            src: '/icon-192.png?v=5',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
           },
           {
-            src: '/icon-512.png',
+            src: '/icon-512.png?v=5',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/apple-touch-icon.png?v=5',
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'any'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.frankfurter\.app\/.*/i,

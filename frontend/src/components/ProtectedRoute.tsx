@@ -1,22 +1,26 @@
 import { ReactNode } from "react";
-import { RedirectToSignIn, SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isAuthenticated } = useAuth();
 
-  if (!isLoaded) return null;
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
 }
-

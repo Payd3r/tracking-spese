@@ -20,6 +20,24 @@ const getSystemCategoryId = async (client, { type, name }) => {
   return result.rows[0].id;
 };
 
+const getUserOrSystemCategoryId = async (client, userId, { type, name }) => {
+  const result = await client.query(
+    `SELECT id FROM categories
+     WHERE type = $1
+       AND name = $2
+       AND (user_id = $3 OR (user_id IS NULL AND is_system = true))
+     ORDER BY CASE WHEN user_id = $3 THEN 0 ELSE 1 END
+     LIMIT 1`,
+    [type, name, userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new ValidationError(`Categoria "${name}" non trovata`);
+  }
+
+  return result.rows[0].id;
+};
+
 const assertLoanAdmin = (req) => {
   const username = req.body?.username || req.headers['x-loan-admin-user'];
   const password = req.body?.password || req.headers['x-loan-admin-password'];
@@ -603,19 +621,6 @@ export const attachRepaymentTransaction = async (req, res, next) => {
 
     const totalRepaid = parseFloat(repaidResult.rows[0].total_repaid) || 0;
     const loanAmount = parseFloat(loan.amount);
-    const remainingBeforeRepayment = Math.max(loanAmount - totalRepaid, 0);
-
-    if (remainingBeforeRepayment <= 0) {
-      throw new ValidationError('Il prestito risulta gia completamente restituito');
-    }
-
-    const appliedRepaymentAmount = Math.min(repaymentAmount, remainingBeforeRepayment);
-    const transactionAccountAmount = parseFloat(transaction.amount);
-    const appliedAccountAmount = loan.currency === transaction.account_currency
-      ? appliedRepaymentAmount
-      : await convertCurrency(appliedRepaymentAmount, loan.currency, transaction.account_currency);
-    const extraAccountAmount = Math.max(transactionAccountAmount - appliedAccountAmount, 0);
-
     const repaymentCategoryId = await getSystemCategoryId(client, {
       type: 'income',
       name: 'Restituzione prestito'
@@ -628,7 +633,7 @@ export const attachRepaymentTransaction = async (req, res, next) => {
        RETURNING id, loan_id, amount, currency, to_account_id, repayment_date, description, created_at`,
       [
         loanId,
-        appliedRepaymentAmount,
+        repaymentAmount,
         loan.currency,
         transaction.account_id,
         transaction.transaction_date,
@@ -647,32 +652,12 @@ export const attachRepaymentTransaction = async (req, res, next) => {
        WHERE id = $4 AND user_id = $5`,
       [
         repaymentCategoryId,
-        appliedAccountAmount,
+        parseFloat(transaction.amount),
         description || transaction.note || 'Restituzione prestito collegata',
         transactionId,
         userId
       ]
     );
-
-    let extraTransaction = null;
-    if (extraAccountAmount > 0.005) {
-      const extraResult = await client.query(
-        `INSERT INTO transactions
-         (user_id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date)
-         VALUES ($1, $2, $3, $4, NULL, NULL, 'income', $5, $6, $7)
-         RETURNING id, account_id, category_id, amount, type, title, note, transaction_date, created_at, updated_at`,
-        [
-          userId,
-          transaction.account_id,
-          transaction.category_id,
-          extraAccountAmount,
-          `Eccedenza restituzione: ${transaction.title}`,
-          description || transaction.note || 'Eccedenza oltre il residuo del prestito',
-          transaction.transaction_date
-        ]
-      );
-      extraTransaction = extraResult.rows[0];
-    }
 
     await client.query('COMMIT');
 
@@ -689,20 +674,9 @@ export const attachRepaymentTransaction = async (req, res, next) => {
         createdAt: repayment.created_at
       },
       convertedTransactionId: transactionId,
-      extraTransaction: extraTransaction ? {
-        id: extraTransaction.id,
-        accountId: extraTransaction.account_id,
-        categoryId: extraTransaction.category_id,
-        amount: parseFloat(extraTransaction.amount),
-        type: extraTransaction.type,
-        title: extraTransaction.title,
-        note: extraTransaction.note,
-        transactionDate: extraTransaction.transaction_date,
-        createdAt: extraTransaction.created_at,
-        updatedAt: extraTransaction.updated_at
-      } : null,
-      totalRepaid: totalRepaid + appliedRepaymentAmount,
-      remainingAmount: Math.max(loanAmount - totalRepaid - appliedRepaymentAmount, 0)
+      extraTransaction: null,
+      totalRepaid: totalRepaid + repaymentAmount,
+      remainingAmount: loanAmount - totalRepaid - repaymentAmount
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -791,20 +765,6 @@ export const addRepayment = async (req, res, next) => {
     
     if (loan.status === 'closed') {
       throw new ValidationError('Non è possibile aggiungere restituzioni a un prestito chiuso');
-    }
-    
-    // Get total repaid so far
-    const repaidResult = await client.query(
-      'SELECT COALESCE(SUM(amount), 0) as total_repaid FROM loan_repayments WHERE loan_id = $1',
-      [loanId]
-    );
-    
-    const totalRepaid = parseFloat(repaidResult.rows[0].total_repaid) || 0;
-    const loanAmount = parseFloat(loan.amount);
-    
-    // Check if this repayment would exceed the loan amount
-    if (totalRepaid + amount > loanAmount) {
-      throw new ValidationError('L\'importo della restituzione supera l\'importo residuo del prestito');
     }
     
     // Get to account currency for conversion
@@ -971,30 +931,39 @@ export const closeLoan = async (req, res, next) => {
     const loanAmount = parseFloat(loan.amount);
     const remainingAmount = loanAmount - totalRepaid;
 
-    if (remainingAmount > 0) {
-      let finalRemainingAmount = remainingAmount;
+    if (remainingAmount !== 0) {
+      const isUnpaidAmount = remainingAmount > 0;
+      const closingAmount = Math.abs(remainingAmount);
+      let finalRemainingAmount = closingAmount;
       let originalRemainingAmount = null;
       let originalRemainingCurrency = null;
 
       if (loan.currency !== loan.account_currency) {
-        finalRemainingAmount = await convertCurrency(remainingAmount, loan.currency, loan.account_currency);
-        originalRemainingAmount = remainingAmount;
+        finalRemainingAmount = await convertCurrency(closingAmount, loan.currency, loan.account_currency);
+        originalRemainingAmount = closingAmount;
         originalRemainingCurrency = loan.currency;
       }
+
+      const closingCategoryId = isUnpaidAmount
+        ? loan.category_id
+        : await getUserOrSystemCategoryId(client, userId, { type: 'income', name: 'Altro' });
 
       await client.query(
         `INSERT INTO transactions
          (user_id, account_id, category_id, amount, original_amount, original_currency, type, title, note, transaction_date)
-         VALUES ($1, $2, $3, $4, $5, $6, 'expense', $7, $8, CURRENT_TIMESTAMP)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)`,
         [
           userId,
           loan.from_account_id,
-          loan.category_id,
+          closingCategoryId,
           finalRemainingAmount,
           originalRemainingAmount,
           originalRemainingCurrency,
+          isUnpaidAmount ? 'expense' : 'income',
           `Chiusura prestito: ${loan.title}`,
-          `Importo non restituito del prestito "${loan.title}"`
+          isUnpaidAmount
+            ? `Importo non restituito del prestito "${loan.title}"`
+            : `Eccedenza restituita oltre il prestito "${loan.title}"`
         ]
       );
     }
@@ -1009,7 +978,8 @@ export const closeLoan = async (req, res, next) => {
     
     res.json({ 
       message: 'Prestito chiuso con successo',
-      remainingAmount: remainingAmount > 0 ? remainingAmount : 0,
+      remainingAmount,
+      overpaidAmount: remainingAmount < 0 ? Math.abs(remainingAmount) : 0,
       totalRepaid
     });
   } catch (error) {
@@ -1032,7 +1002,9 @@ export const deleteLoan = async (req, res, next) => {
     );
     
     if (checkResult.rows.length === 0) {
-      throw new ValidationError('Prestito non trovato');
+      // Se il prestito non esiste già, restituiamo 200 per non bloccare
+      // la coda di sincronizzazione della PWA
+      return res.json({ message: 'Prestito già eliminato o non trovato' });
     }
     
     // Delete loan (cascade will delete repayments)

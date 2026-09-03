@@ -103,43 +103,48 @@ export default function ManageAccounts() {
   };
 
   return (
-    <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
+    <div ref={ref} style={style} className="px-3 pt-4 pb-28 max-w-md mx-auto md:max-w-5xl md:px-8 md:py-8">
+      {/* Mobile-only Header */}
+      <div className="flex items-center gap-3 mb-5 md:hidden">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold">Gestione Conti</h1>
       </div>
 
-      {/* Add Account Button */}
-      <Button
-        onClick={() => setCreateSheetOpen(true)}
-        className="w-full mb-4 gap-2 h-11"
-      >
-        <Plus className="w-4 h-4" />
-        Aggiungi Conto
-      </Button>
+      {/* Responsive Title & Add Button Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="hidden md:block">
+          <h2 className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">I tuoi conti attivi</h2>
+        </div>
+        <Button
+          onClick={() => setCreateSheetOpen(true)}
+          className="gap-2 h-10 px-5 sm:w-auto w-full font-semibold shrink-0 shadow-strong pill-active"
+        >
+          <Plus className="w-4 h-4" />
+          Aggiungi Conto
+        </Button>
+      </div>
 
-      {/* Accounts List */}
+      {/* Accounts List Grid */}
       {loading && accounts.length === 0 ? (
         <CardListSkeleton variant="list" />
       ) : accounts.length === 0 ? (
-        <GlassCard className="p-5 text-center mb-4">
+        <GlassCard className="p-6 text-center mb-4">
           <p className="text-sm text-muted-foreground">Nessun conto disponibile</p>
         </GlassCard>
       ) : (
-        <div className="space-y-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {accounts.map((account) => (
-            <GlassCard key={account.id} className="p-4">
+            <GlassCard key={account.id} className="p-4 border border-white/10 hover:border-white/15 bg-white/5 transition-all">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center border border-white/5 shrink-0">
                     <IconRenderer icon={account.icon} size={20} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm">{account.name}</h3>
-                    <p className={`text-lg font-bold mt-0.5 ${account.balance === 0 ? 'text-white' : account.balance > 0 ? 'text-success' : 'text-destructive'}`}>
+                    <h3 className="font-bold text-sm text-white tracking-tight">{account.name}</h3>
+                    <p className={`text-lg font-extrabold mt-0.5 ${account.balance === 0 ? 'text-white' : account.balance > 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {account.balance > 0 ? '+ ' : account.balance < 0 ? '- ' : ''}{formatCurrency(Math.abs(account.balance))} €
                     </p>
                   </div>
@@ -149,9 +154,9 @@ export default function ManageAccounts() {
                     setAccountToDelete(account.id);
                     setDeleteDialogOpen(true);
                   }}
-                  className="p-1.5 hover:bg-white/5 rounded-xl transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-xl transition-all text-muted-foreground hover:text-red-400 shrink-0"
                 >
-                  <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </GlassCard>
@@ -159,30 +164,31 @@ export default function ManageAccounts() {
         </div>
       )}
 
-
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogTitle className="text-base font-bold">Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
               Sei sicuro di voler eliminare questo conto? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm">Elimina</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm pill-active">Elimina</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create Account Bottom Sheet */}
+      {/* Create Account Bottom Sheet / Desktop Modal */}
       <BottomSheet
         isOpen={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
+        title="Nuovo Conto"
       >
         <AccountForm onSuccess={handleAccountCreated} />
       </BottomSheet>
     </div>
   );
 }
+

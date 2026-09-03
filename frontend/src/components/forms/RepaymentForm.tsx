@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingLoanOperation } from "@/lib/sync";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface RepaymentFormProps {
   loan: Loan;
@@ -21,7 +21,7 @@ interface RepaymentFormProps {
 
 export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
   const { isFullyOnline } = useSync();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [repaymentDate, setRepaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -82,10 +82,6 @@ export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
     }
 
     const repaymentAmount = parseFloat(amount);
-    if (repaymentAmount > remainingAmount) {
-      toast.error(`L'importo non può superare il residuo di ${loan.currency} ${remainingAmount.toFixed(2)}`);
-      return;
-    }
 
     if (!selectedAccount) {
       toast.error("Seleziona un conto");
@@ -205,7 +201,9 @@ export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
           </div>
           <div className="flex justify-between text-xs pt-2 border-t border-white/5">
             <span className="text-muted-foreground">Residuo:</span>
-            <span className="font-bold text-warning">{loan.currency} {remainingAmount.toFixed(2)}</span>
+            <span className={`font-bold ${remainingAmount > 0 ? "text-warning" : "text-green-400"}`}>
+              {loan.currency} {remainingAmount.toFixed(2)}
+            </span>
           </div>
         </div>
       </GlassCard>
@@ -265,7 +263,7 @@ export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
       {/* Submit Button */}
       <Button 
         onClick={handleCreate} 
-        disabled={submitting || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > remainingAmount}
+        disabled={submitting || !amount || parseFloat(amount) <= 0}
         className="w-full h-12 rounded-2xl font-semibold pill-active"
       >
         {submitting ? (
@@ -280,4 +278,3 @@ export function RepaymentForm({ loan, onSuccess }: RepaymentFormProps) {
     </div>
   );
 }
-

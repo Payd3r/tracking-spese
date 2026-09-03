@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { useSync } from "@/contexts/SyncContext";
 import { addPendingTransaction } from "@/lib/sync";
 import { db } from "@/lib/db";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 interface TransactionFormProps {
@@ -23,7 +23,7 @@ interface TransactionFormProps {
 
 export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const { isFullyOnline, isOnline, isServerReachable } = useSync();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);

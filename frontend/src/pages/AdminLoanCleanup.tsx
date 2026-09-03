@@ -2,6 +2,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { NoteText } from "@/components/NoteText";
 import { formatCurrency } from "@/lib/utils";
 import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 import { Category, Loan, Transaction } from "@/types/api";
@@ -208,7 +209,9 @@ export default function AdminLoanCleanup() {
           {transaction.type === "income" ? "+" : "-"} {formatCurrency(transaction.amount)} €
         </div>
       </div>
-      {transaction.note && <div className="mt-1 text-xs text-muted-foreground">{transaction.note}</div>}
+      {transaction.note && (
+        <NoteText text={transaction.note} className="mt-1 text-xs text-muted-foreground" />
+      )}
     </button>
   );
 

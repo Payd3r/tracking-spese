@@ -12,6 +12,8 @@ export const getTransactions = async (req, res, next) => {
       startDate, 
       endDate, 
       search,
+      note,
+      includeLoans,
       limit = 50,
       offset = 0 
     } = req.query;
@@ -56,6 +58,12 @@ export const getTransactions = async (req, res, next) => {
       params.push(`%${search}%`);
       paramIndex++;
     }
+
+    if (note) {
+      whereClause += ` AND COALESCE(t.note, '') ILIKE $${paramIndex}`;
+      params.push(`%${note}%`);
+      paramIndex++;
+    }
     
     // Count total transactions matching filters
     const countQuery = `
@@ -68,13 +76,18 @@ export const getTransactions = async (req, res, next) => {
     const total = parseInt(countResult.rows[0].total);
     
     // Calculate total amount of all transactions matching filters
+    const allowLoans = includeLoans === 'true' || includeLoans === true;
+    const excludedCategories = allowLoans
+      ? "('Trasferimento')"
+      : "('Trasferimento', 'Prestito', 'Restituzione prestito')";
+
     const totalAmountQuery = `
       SELECT COALESCE(SUM(ABS(t.amount)), 0) as total_amount
       FROM transactions t
       JOIN categories c ON t.category_id = c.id
       ${whereClause}
         AND COALESCE(c.exclude_from_totals, false) = false
-        AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
+        AND c.name NOT IN ${excludedCategories}
     `;
     
     const totalAmountResult = await pool.query(totalAmountQuery, params);

@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { addPendingLoanOperation } from "@/lib/sync";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +31,7 @@ import {
 export default function ManageLoans() {
   const location = useLocation();
   const { isFullyOnline } = useSync();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -148,9 +148,12 @@ export default function ManageLoans() {
       } else {
         const response = await api.loans.close(loanToClose.id);
         const remaining = response.data.remainingAmount || 0;
+        const overpaid = response.data.overpaidAmount || 0;
         toast.success(
           remaining > 0 
             ? `Prestito chiuso! Residuo non restituito: ${loanToClose.currency} ${remaining.toFixed(2)}`
+            : overpaid > 0
+              ? `Prestito chiuso! Guadagno registrato: ${loanToClose.currency} ${overpaid.toFixed(2)}`
             : "Prestito chiuso con successo!"
         );
       }
@@ -260,98 +263,99 @@ export default function ManageLoans() {
   }
 
   return (
-    <div className="px-3 pt-4 max-w-md mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
+    <div className="px-3 pt-4 pb-28 max-w-md mx-auto md:max-w-5xl md:px-8 md:py-8">
+      {/* Mobile-only Header */}
+      <div className="flex items-center gap-3 mb-5 md:hidden">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold">Gestione Prestiti</h1>
       </div>
 
-      {/* Add Loan Button */}
-      <Button 
-        onClick={() => setCreateSheetOpen(true)}
-        className="w-full mb-4 gap-2 h-11"
-      >
-        <Plus className="w-4 h-4" />
-        Nuovo Prestito
-      </Button>
+      {/* Control Bar (Title & Add Button) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="hidden md:block">
+          <h2 className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">I tuoi prestiti attivi</h2>
+        </div>
+        <Button 
+          onClick={() => setCreateSheetOpen(true)}
+          className="gap-2 h-10 px-5 sm:w-auto w-full font-semibold shrink-0 shadow-strong pill-active"
+        >
+          <Plus className="w-4 h-4" />
+          Nuovo Prestito
+        </Button>
+      </div>
 
-      {/* Loans List */}
+      {/* Loans List Grid */}
       {loans.length === 0 ? (
-        <GlassCard className="p-5 text-center mb-4">
-          <p className="text-sm text-muted-foreground">Nessun prestito attivo</p>
+        <GlassCard className="p-6 text-center mb-4">
+          <p className="text-sm text-muted-foreground">Nessun prestito attivo al momento</p>
         </GlassCard>
       ) : (
-        <div className="space-y-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {loans.map((loan) => {
             const remaining = getRemainingAmount(loan);
-            const isExpanded = expandedLoan === loan.id;
             
             return (
-              <GlassCard key={loan.id} className="p-4">
+              <GlassCard key={loan.id} className="p-4 border border-white/10 hover:border-white/15 bg-white/5 transition-all flex flex-col justify-between h-full">
                 <div className="space-y-3">
                   {/* Main Info */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-sm mb-1 flex items-center gap-2">
-                        {loan.note || loan.title}
-                        {loan.isPending && (
-                          <span className="text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full">
-                            In attesa di sync
-                          </span>
-                        )}
-                      </h3>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        <span>{loan.fromAccountName}</span>
-                        <span>•</span>
-                        <span>{loan.categoryName}</span>
-                        <span>•</span>
-                        <span>{format(new Date(loan.loanDate), 'dd MMM yyyy', { locale: it })}</span>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Totale prestato:</span>
-                          <span className="font-medium">{loan.currency} {loan.amount?.toFixed(2) || '0.00'}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Restituito:</span>
-                          <span className="font-medium text-green-400">{loan.currency} {(loan.totalRepaid || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs pt-1 border-t border-white/5">
-                          <span className="text-muted-foreground">Residuo:</span>
-                          <span className={`font-bold ${remaining > 0 ? 'text-warning' : 'text-green-400'}`}>
-                            {loan.currency} {remaining.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-white tracking-tight flex items-center justify-between gap-2">
+                      <span className="truncate">{loan.note || loan.title}</span>
+                      {loan.isPending && (
+                        <span className="text-[9px] font-bold text-warning bg-warning/10 border border-warning/30 px-2 py-0.5 rounded-full shrink-0">
+                          Pending sync
+                        </span>
+                      )}
+                    </h3>
+                    <div className="flex items-center flex-wrap gap-1 text-[10px] text-muted-foreground mt-1">
+                      <span>{loan.fromAccountName}</span>
+                      <span>•</span>
+                      <span>{loan.categoryName}</span>
+                      <span>•</span>
+                      <span>{format(new Date(loan.loanDate), 'dd MMM yyyy', { locale: it })}</span>
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t border-white/5">
-                    {remaining > 0 && (
-                      <Button
-                        onClick={() => handleAddRepayment(loan)}
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 gap-1.5 h-9 text-xs"
-                      >
-                        <ArrowDownLeft className="w-3.5 h-3.5" />
-                        Aggiungi Restituzione
-                      </Button>
-                    )}
-                    <Button
-                      onClick={() => handleViewLoan(loan)}
-                      size="sm"
-                      variant="outline"
-                      className={`${remaining > 0 ? 'flex-1' : 'w-full'} gap-1.5 h-9 text-xs`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Visualizza Prestito
-                    </Button>
+                  <div className="space-y-1.5 pt-2 border-t border-white/5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Totale prestato:</span>
+                      <span className="font-semibold text-white">{loan.currency} {loan.amount?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Restituito:</span>
+                      <span className="font-semibold text-green-400">{loan.currency} {(loan.totalRepaid || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs pt-1 border-t border-white/5 font-bold">
+                      <span className="text-muted-foreground">Residuo:</span>
+                      <span className={`${remaining > 0 ? 'text-warning' : 'text-green-400'}`}>
+                        {loan.currency} {remaining.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-4 mt-3 border-t border-white/5">
+                  <Button
+                    onClick={() => handleAddRepayment(loan)}
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5 h-8 text-xs font-semibold bg-transparent border-white/10 hover:bg-white/5 hover:text-white"
+                  >
+                    <ArrowDownLeft className="w-3.5 h-3.5" />
+                    Rientro
+                  </Button>
+                  <Button
+                    onClick={() => handleViewLoan(loan)}
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5 h-8 text-xs font-semibold bg-transparent border-white/10 hover:bg-white/5 hover:text-white"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Vedi Dettagli
+                  </Button>
                 </div>
               </GlassCard>
             );
@@ -363,14 +367,14 @@ export default function ManageLoans() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogTitle className="text-base font-bold">Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
               Sei sicuro di voler eliminare questo prestito? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm">Elimina</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm pill-active">Elimina</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -379,13 +383,19 @@ export default function ManageLoans() {
       <AlertDialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Chiudi prestito</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogTitle className="text-base font-bold">Chiudi prestito</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
               {loanToClose && getRemainingAmount(loanToClose) > 0 ? (
                 <>
                   Chiudendo questo prestito, ci sono ancora{" "}
                   <strong>{loanToClose.currency} {getRemainingAmount(loanToClose).toFixed(2)}</strong>{" "}
                   non restituiti. Vuoi continuare?
+                </>
+              ) : loanToClose && getRemainingAmount(loanToClose) < 0 ? (
+                <>
+                  Chiudendo questo prestito, verrà registrata un'entrata di{" "}
+                  <strong>{loanToClose.currency} {Math.abs(getRemainingAmount(loanToClose)).toFixed(2)}</strong>{" "}
+                  come guadagno. Vuoi continuare?
                 </>
               ) : (
                 "Sei sicuro di voler chiudere questo prestito?"
@@ -394,67 +404,70 @@ export default function ManageLoans() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClose} className="m-0 text-sm">Chiudi</AlertDialogAction>
+            <AlertDialogAction onClick={handleClose} className="m-0 text-sm pill-active">Chiudi</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create Loan Bottom Sheet */}
+      {/* Create Loan Bottom Sheet / Desktop Modal */}
       <BottomSheet
         isOpen={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
+        title="Nuovo Prestito"
       >
         <LoanForm onSuccess={handleLoanCreated} />
       </BottomSheet>
 
-      {/* Add Repayment Bottom Sheet */}
+      {/* Add Repayment Bottom Sheet / Desktop Modal */}
       <BottomSheet
         isOpen={repaymentSheetOpen}
         onClose={() => {
           setRepaymentSheetOpen(false);
           setSelectedLoan(null);
         }}
+        title="Nuova Restituzione"
       >
         {selectedLoan && <RepaymentForm loan={selectedLoan} onSuccess={handleRepaymentCreated} />}
       </BottomSheet>
 
-      {/* Loan Detail Bottom Sheet */}
+      {/* Loan Detail Bottom Sheet / Desktop Modal */}
       <BottomSheet
         isOpen={detailSheetOpen}
         onClose={() => {
           setDetailSheetOpen(false);
           setLoanDetail(null);
         }}
+        title="Dettaglio Prestito"
       >
         {loanDetail && (
           <div className="space-y-4">
             {/* Header */}
             <div>
-              <h2 className="text-xl font-bold mb-1">{loanDetail.note || loanDetail.title}</h2>
+              <h2 className="text-lg font-bold mb-1 text-white leading-tight">{loanDetail.note || loanDetail.title}</h2>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{loanDetail.fromAccountName}</span>
                 <span>•</span>
                 <span>{loanDetail.categoryName}</span>
                 <span>•</span>
-                <Calendar className="w-3 h-3" />
+                <Calendar className="w-3 h-3 text-muted-foreground" />
                 <span>{format(new Date(loanDetail.loanDate), 'dd MMM yyyy', { locale: it })}</span>
               </div>
             </div>
 
             {/* Summary */}
-            <GlassCard className="p-4">
+            <GlassCard className="p-4 border border-white/10 bg-white/5 shadow-strong">
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Totale prestato</span>
-                  <span className="text-lg font-bold">{loanDetail.currency} {loanDetail.amount?.toFixed(2) || '0.00'}</span>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Totale prestato</span>
+                  <span className="text-sm font-bold text-white">{loanDetail.currency} {loanDetail.amount?.toFixed(2) || '0.00'}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Restituito</span>
-                  <span className="text-lg font-bold text-green-400">{loanDetail.currency} {(loanDetail.totalRepaid || 0).toFixed(2)}</span>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Restituito</span>
+                  <span className="text-sm font-bold text-green-400">{loanDetail.currency} {(loanDetail.totalRepaid || 0).toFixed(2)}</span>
                 </div>
-                <div className="pt-3 border-t border-white/5 flex justify-between items-center">
-                  <span className="text-sm font-medium">Residuo</span>
-                  <span className={`text-lg font-bold ${getRemainingAmount(loanDetail) > 0 ? 'text-warning' : 'text-green-400'}`}>
+                <div className="pt-2.5 border-t border-white/5 flex justify-between items-center text-sm font-bold">
+                  <span className="text-white">Residuo</span>
+                  <span className={`${getRemainingAmount(loanDetail) > 0 ? 'text-warning' : 'text-green-400'}`}>
                     {loanDetail.currency} {getRemainingAmount(loanDetail).toFixed(2)}
                   </span>
                 </div>
@@ -464,23 +477,23 @@ export default function ManageLoans() {
             {/* Repayments List */}
             {loanDetail.repayments && loanDetail.repayments.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold mb-3">Restituzioni</h3>
-                <div className="space-y-2">
+                <h3 className="text-xs font-bold text-white mb-2 uppercase tracking-wider">Storico Restituzioni</h3>
+                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                   {loanDetail.repayments.map((repayment) => (
-                    <GlassCard key={repayment.id} className="p-3">
+                    <GlassCard key={repayment.id} className="p-3 border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm mb-1">{repayment.description || 'Restituzione'}</div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-xs text-white mb-1 truncate">{repayment.description || 'Restituzione'}</div>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                             <Wallet className="w-3 h-3" />
-                            <span>{repayment.toAccountName}</span>
+                            <span className="truncate">{repayment.toAccountName}</span>
                             <span>•</span>
                             <Calendar className="w-3 h-3" />
                             <span>{format(new Date(repayment.repaymentDate), 'dd MMM yyyy', { locale: it })}</span>
                           </div>
                         </div>
-                        <div className="font-bold text-green-400">
-                          {repayment.currency} {repayment.amount.toFixed(2)}
+                        <div className="font-bold text-xs text-green-400 shrink-0 ml-2">
+                          + {repayment.currency} {repayment.amount.toFixed(2)}
                         </div>
                       </div>
                     </GlassCard>
@@ -490,31 +503,29 @@ export default function ManageLoans() {
             )}
 
             {(!loanDetail.repayments || loanDetail.repayments.length === 0) && (
-              <GlassCard className="p-5 text-center">
-                <p className="text-sm text-muted-foreground">Nessuna restituzione registrata</p>
+              <GlassCard className="p-5 text-center border border-white/5 bg-white/5">
+                <p className="text-xs text-muted-foreground">Nessuna restituzione registrata</p>
               </GlassCard>
             )}
 
             {/* Actions */}
-            <div className="space-y-2 pt-2">
-              {getRemainingAmount(loanDetail) > 0 && (
-                <Button
-                  onClick={() => {
-                    setDetailSheetOpen(false);
-                    handleAddRepayment(loanDetail);
-                  }}
-                  className="w-full gap-2 h-11"
-                  variant="outline"
-                >
-                  <ArrowDownLeft className="w-4 h-4" />
-                  Aggiungi Restituzione
-                </Button>
-              )}
+            <div className="space-y-2 pt-4 border-t border-white/5">
+              <Button
+                onClick={() => {
+                  setDetailSheetOpen(false);
+                  handleAddRepayment(loanDetail);
+                }}
+                className="w-full gap-2 h-10 font-semibold"
+                variant="outline"
+              >
+                <ArrowDownLeft className="w-4 h-4" />
+                Aggiungi Restituzione
+              </Button>
               
               <div className="flex gap-2">
                 <Button
                   onClick={handleCloseFromDetail}
-                  className="flex-1 gap-2 h-11 pill-active"
+                  className="flex-1 gap-2 h-10 font-semibold pill-active shadow-strong"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Chiudi Prestito
@@ -522,7 +533,7 @@ export default function ManageLoans() {
                 <Button
                   onClick={handleDeleteFromDetail}
                   variant="destructive"
-                  className="gap-2 h-11"
+                  className="gap-2 h-10 bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-white transition-all shrink-0 px-3 rounded-xl"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

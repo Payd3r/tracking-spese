@@ -1,6 +1,8 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
 import { ArrowLeft, Calendar, FileText, Wallet, ChevronDown, ChevronUp, WifiOff } from "lucide-react";
+import { MobileDateInput } from "@/components/MobileDateInput";
+import { NoteText } from "@/components/NoteText";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useSync } from "@/contexts/SyncContext";
 import { db } from "@/lib/db";
 import { addPendingDelete, addPendingUpdate } from "@/lib/sync";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 // Convert currency code to symbol
@@ -61,7 +63,7 @@ export default function TransactionDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { isFullyOnline, isOnline, isServerReachable } = useSync();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -337,269 +339,294 @@ export default function TransactionDetail() {
   }
 
   return (
-    <div className="px-3 pt-4 pb-28 max-w-md mx-auto">
+    <div className="px-3 pt-4 pb-28 max-w-md mx-auto md:max-w-4xl md:px-8 md:py-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={() => navigate(-1)} className="p-1.5 glass-card rounded-2xl">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-1.5 glass-card rounded-2xl transition-colors hover:bg-white/10"
+          aria-label="Torna indietro"
+        >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold">Dettaglio Transazione</h1>
       </div>
 
-      {/* Status Indicator */}
-      {!isFullyOnline && (
-        <div className="glass-card tone-warning p-3 mb-4 rounded-2xl flex items-center gap-2">
-          {!isOnline ? (
-            <>
-              <WifiOff className="w-4 h-4 text-warning" />
-              <span className="text-xs text-warning">Modalità offline - Le modifiche verranno sincronizzate quando torni online</span>
-            </>
-          ) : !isServerReachable ? (
-            <>
-              <WifiOff className="w-4 h-4 text-warning" />
-              <span className="text-xs text-warning">Server non raggiungibile - Le modifiche verranno sincronizzate automaticamente</span>
-            </>
-          ) : null}
-        </div>
-      )}
-
-      {/* Transaction Type Badge */}
-      <GlassCard className={`p-3 mb-4 text-center ${transaction.type === "expense" ? "gradient-pink" : "gradient-green"
-        }`}>
-        <span className="text-white text-sm font-medium">
-          {transaction.type === "expense" ? "Uscita" : "Entrata"}
-        </span>
-      </GlassCard>
-
-      {/* Amount */}
-      <GlassCard className="p-4 mb-4">
-        <label className="text-xs text-muted-foreground mb-2 block font-medium">Importo</label>
-        {isEditing ? (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="text-2xl font-bold bg-transparent border-none p-0 h-auto focus-visible:ring-0"
-            />
-            <span className="text-2xl font-bold">€</span>
-          </div>
-        ) : (
-          <p className="text-2xl font-bold">{transaction.type === 'income' ? '+ ' : '- '}{formatCurrency(transaction.amount)} €</p>
-        )}
-      </GlassCard>
-
-      {/* Category */}
-      <GlassCard className="p-4 mb-4">
-        <div className="flex items-center gap-2.5">
-          {(() => {
-            const isExcluded = transaction.categoryExcludeFromTotals === true
-              || transaction.categoryName === 'Trasferimento'
-              || transaction.categoryName === 'Prestito'
-              || transaction.categoryName === 'Restituzione prestito';
-
-            return (
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center ${isExcluded ? 'bg-muted/40 text-muted-foreground' : ''}`}
-              >
-                <IconRenderer icon={transaction.categoryIcon} size={20} />
-              </div>
-            );
-          })()}
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
-            <p className="font-medium text-sm">{transaction.categoryName}</p>
-            {(transaction.categoryExcludeFromTotals === true
-              || transaction.categoryName === 'Trasferimento'
-              || transaction.categoryName === 'Prestito'
-              || transaction.categoryName === 'Restituzione prestito') && (
-              <p className="text-[10px] text-warning mt-0.5">Non conteggiata nei totali</p>
-            )}
-          </div>
-        </div>
-        {isEditing && (
-          <>
-            {(() => {
-              const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
-              const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
-              const hasMoreCategories = filteredCategories.length > 8;
-
-              return (
+      {/* Main Responsive Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
+        
+        {/* Left Column: Core Fields (Amount, Type, Date, Note) */}
+        <div className="space-y-4">
+          
+          {/* Status Indicator */}
+          {!isFullyOnline && (
+            <div className="glass-card tone-warning p-3 rounded-2xl flex items-center gap-2">
+              {!isOnline ? (
                 <>
-                  <div className="grid grid-cols-4 gap-2 mt-3">
-                    {visibleCategories.map((category) => {
-                      return (
-                        <button
-                          key={category.id}
-                          onClick={() => setSelectedCategory(category.id)}
-                          className={`glass-card p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${selectedCategory === category.id ? "pill-active" : ""
-                            }`}
-                        >
-                          <IconRenderer icon={category.icon} size={24} />
-                          <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {hasMoreCategories && (
-                    <button
-                      onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10"
-                    >
-                      {categoriesExpanded ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          Mostra meno
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          Mostra tutte le categorie ({filteredCategories.length - 8} altre)
-                        </>
-                      )}
-                    </button>
-                  )}
+                  <WifiOff className="w-4 h-4 text-warning" />
+                  <span className="text-xs text-warning">Modalità offline - Le modifiche verranno sincronizzate quando torni online</span>
                 </>
-              );
-            })()}
-          </>
-        )}
-      </GlassCard>
+              ) : !isServerReachable ? (
+                <>
+                  <WifiOff className="w-4 h-4 text-warning" />
+                  <span className="text-xs text-warning">Server non raggiungibile - Le modifiche verranno sincronizzate automaticamente</span>
+                </>
+              ) : null}
+            </div>
+          )}
 
-      {/* Account */}
-      <GlassCard className="p-4 mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center">
-            <Wallet className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-0.5">Conto</p>
-            <p className="font-medium text-sm">{transaction.accountName}</p>
-          </div>
-        </div>
-        {isEditing && (
-          <div className="grid grid-cols-4 gap-2 mt-3">
-            {accounts.map((account) => (
-              <button
-                key={account.id}
-                onClick={() => setSelectedAccount(account.id)}
-                className={`glass-card p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${selectedAccount === account.id ? "pill-active" : ""
-                  }`}
-              >
-                <IconRenderer icon={account.icon} size={24} />
-                <span className="text-[10px] font-medium leading-tight text-center">{account.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </GlassCard>
+          {/* Transaction Type Badge */}
+          <GlassCard className={`p-3 text-center border border-white/5 font-semibold ${
+            transaction.type === "expense" ? "gradient-pink" : "gradient-green"
+          }`}>
+            <span className="text-white text-sm font-semibold">
+              {transaction.type === "expense" ? "Uscita" : "Entrata"}
+            </span>
+          </GlassCard>
 
-      {/* Date */}
-      <GlassCard className="p-4 mb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-0.5">Data</p>
+          {/* Amount */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5 shadow-strong">
+            <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2 block">Importo</label>
             {isEditing ? (
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="bg-transparent border-none p-0 h-auto focus-visible:ring-0 font-medium text-sm"
-              />
+              <div className="flex items-center gap-2 border-b border-white/20 pb-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="text-2xl font-extrabold bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white"
+                />
+                <span className="text-2xl font-extrabold text-white">€</span>
+              </div>
             ) : (
-              <p className="font-medium text-sm">{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</p>
+              <p className={`text-3xl font-extrabold tracking-tight ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                {transaction.type === 'income' ? '+ ' : '- '}{formatCurrency(transaction.amount)} €
+              </p>
+            )}
+          </GlassCard>
+
+          {/* Date */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5 shadow-strong">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center shrink-0 border border-white/5">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Data Transazione</p>
+                {isEditing ? (
+                  <MobileDateInput inline value={date} onChange={setDate} placeholder="Seleziona data" />
+                ) : (
+                  <p className="font-semibold text-sm text-white">{format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}</p>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Note */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5 shadow-strong">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl gradient-teal flex items-center justify-center shrink-0 border border-white/5">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1.5">Nota Aggiuntiva</p>
+                {isEditing ? (
+                  <Textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="bg-transparent border-none resize-none min-h-[60px] focus-visible:ring-0 p-0 text-sm text-white"
+                    placeholder="Nessuna nota aggiunta..."
+                  />
+                ) : (
+                  <NoteText
+                    text={transaction.note}
+                    className="text-sm leading-relaxed text-white font-medium"
+                  />
+                )}
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Right Column: Categorization, Account and Actions */}
+        <div className="space-y-4">
+          {/* Category Card */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5 shadow-strong">
+            <div className="flex items-center gap-3">
+              {(() => {
+                const isExcluded = transaction.categoryExcludeFromTotals === true
+                  || transaction.categoryName === 'Trasferimento'
+                  || transaction.categoryName === 'Prestito'
+                  || transaction.categoryName === 'Restituzione prestito';
+
+                return (
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10 ${isExcluded ? 'opacity-40' : ''}`}
+                  >
+                    <IconRenderer icon={transaction.categoryIcon} size={20} />
+                  </div>
+                );
+              })()}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Categoria</p>
+                <p className="font-semibold text-sm text-white truncate">{transaction.categoryName}</p>
+                {(transaction.categoryExcludeFromTotals === true
+                  || transaction.categoryName === 'Trasferimento'
+                  || transaction.categoryName === 'Prestito'
+                  || transaction.categoryName === 'Restituzione prestito') && (
+                  <p className="text-[9px] font-bold text-warning mt-0.5">Escluso dai calcoli del bilancio</p>
+                )}
+              </div>
+            </div>
+
+            {/* Category Selector (Only during Edit Mode) */}
+            {isEditing && (
+              <div className="pt-4 border-t border-white/5 mt-3">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2 block">Seleziona Categoria</label>
+                {(() => {
+                  const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
+                  const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
+                  const hasMoreCategories = filteredCategories.length > 8;
+
+                  return (
+                    <>
+                      <div className="grid grid-cols-4 gap-2">
+                        {visibleCategories.map((category) => (
+                          <button
+                            key={category.id}
+                            onClick={() => setSelectedCategory(category.id)}
+                            className={`p-2 flex flex-col items-center gap-1 transition-all rounded-xl border border-transparent font-medium text-xs interactive-press ${
+                              selectedCategory === category.id ? "pill-active" : "bg-white/5 border-white/5 text-muted-foreground hover:text-white"
+                            }`}
+                          >
+                            <IconRenderer icon={category.icon} size={18} />
+                            <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">{category.name}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {hasMoreCategories && (
+                        <button
+                          onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                          className="w-full mt-3 bg-white/5 hover:bg-white/10 border border-white/10 p-2 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all"
+                        >
+                          {categoriesExpanded ? (
+                            <>
+                              <ChevronUp className="w-3.5 h-3.5" />
+                              Mostra meno
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-3.5 h-3.5" />
+                              Mostra tutte ({filteredCategories.length - 8} altre)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </GlassCard>
+
+          {/* Account Card */}
+          <GlassCard className="p-4 border border-white/10 bg-white/5 shadow-strong">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl gradient-blue flex items-center justify-center shrink-0 border border-white/5">
+                <Wallet className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Conto Corrente</p>
+                <p className="font-semibold text-sm text-white truncate">{transaction.accountName}</p>
+              </div>
+            </div>
+
+            {/* Account Selector (Only during Edit Mode) */}
+            {isEditing && (
+              <div className="pt-4 border-t border-white/5 mt-3">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2 block">Seleziona Conto</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {accounts.map((account) => (
+                    <button
+                      key={account.id}
+                      onClick={() => setSelectedAccount(account.id)}
+                      className={`p-2 flex flex-col items-center justify-center gap-1 transition-all rounded-xl border border-transparent font-medium text-xs interactive-press ${
+                        selectedAccount === account.id ? "pill-active" : "bg-white/5 border-white/5 text-muted-foreground hover:text-white"
+                      }`}
+                    >
+                      <IconRenderer icon={account.icon} size={18} />
+                      <span className="text-[9px] font-semibold leading-tight text-center truncate w-full">{account.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </GlassCard>
+
+          {/* Main Action Buttons */}
+          <div className="pt-2">
+            {isEditing ? (
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setAmount(transaction.amount.toString());
+                    setSelectedCategory(transaction.categoryId);
+                    setSelectedAccount(transaction.accountId);
+                    setDate(format(new Date(transaction.transactionDate), 'yyyy-MM-dd'));
+                    setNote(transaction.note || "");
+                  }}
+                  variant="outline"
+                  className="flex-1 h-10 font-semibold bg-transparent border-white/10 text-muted-foreground hover:bg-white/5 hover:text-white rounded-xl"
+                >
+                  Annulla
+                </Button>
+                <Button
+                  onClick={handleUpdate}
+                  className="flex-1 h-10 font-semibold pill-active shadow-strong rounded-xl"
+                >
+                  Salva Modifiche
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setCategoriesExpanded(false);
+                  }}
+                  variant="outline"
+                  className="flex-1 h-10 font-semibold bg-transparent border-white/10 text-white hover:bg-white/5 rounded-xl"
+                >
+                  Modifica
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1 h-10 font-semibold pill-active shadow-strong rounded-xl"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  Elimina
+                </Button>
+              </div>
             )}
           </div>
         </div>
-      </GlassCard>
 
-      {/* Note */}
-      <GlassCard className="p-4 mb-5">
-        <div className="flex items-start gap-2.5">
-          <div className="w-10 h-10 rounded-xl gradient-teal flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1.5">Nota</p>
-            {isEditing ? (
-              <Textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="bg-transparent border-none resize-none min-h-[50px] focus-visible:ring-0 p-0 text-sm"
-              />
-            ) : (
-              <p className="text-sm leading-relaxed">{transaction.note || "Nessuna nota"}</p>
-            )}
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        {isEditing ? (
-          <>
-            <Button
-              onClick={() => {
-                setIsEditing(false);
-                // Reset form values
-                setAmount(transaction.amount.toString());
-                setSelectedCategory(transaction.categoryId);
-                setSelectedAccount(transaction.accountId);
-                setDate(format(new Date(transaction.transactionDate), 'yyyy-MM-dd'));
-                setNote(transaction.note || "");
-              }}
-              variant="outline"
-              className="flex-1 h-11 text-sm rounded-2xl"
-            >
-              Annulla
-            </Button>
-            <Button
-              onClick={handleUpdate}
-              className="flex-1 h-11 text-sm rounded-2xl"
-            >
-              Salva
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              onClick={() => {
-                setIsEditing(true);
-                setCategoriesExpanded(false);
-              }}
-              variant="outline"
-              className="flex-1 h-11 text-sm rounded-2xl"
-            >
-              Modifica
-            </Button>
-            <Button
-              variant="destructive"
-              className="flex-1 h-11 text-sm rounded-2xl pill-active"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              Elimina
-            </Button>
-          </>
-        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogTitle className="text-base font-bold">Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
               Sei sicuro di voler eliminare questa transazione? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm">Elimina</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm pill-active">Elimina</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

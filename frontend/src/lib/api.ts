@@ -1,25 +1,22 @@
 import axios, { AxiosError } from 'axios';
-import { getClerkToken } from './clerkToken';
+import { getAuthToken, removeAuthToken } from './authStorage';
+import { getIsOnline } from '../hooks/useOnlineStatus';
 
-// Use relative path for API calls - works in both dev and prod
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-// Global flag to track server reachability
 let serverReachable = true;
 
-// Create axios instance
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 5000, // Reduced from 10000 to fail faster
+  timeout: 5000,
 });
 
-// Request interceptor to add Clerk auth token
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = await getClerkToken();
+    const token = getAuthToken();
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
@@ -29,22 +26,19 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
-    // Server is reachable if we get a response
     serverReachable = true;
     return response;
   },
   (error: AxiosError) => {
-    // Handle 401 - unauthorized
     if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
-        (window as any).Clerk?.signOut?.({ redirectUrl: '/auth' });
+      removeAuthToken();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
+        window.location.href = '/auth';
       }
     }
     
-    // Check for network/connection errors
     if (isNetworkError(error)) {
       serverReachable = false;
     }
@@ -53,43 +47,34 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Type-safe API methods
 export const api = {
-  // Auth
   auth: {
-    me: () =>
-      apiClient.get('/auth/me'),
+    getStatus: () => apiClient.get('/auth/status'),
+    getRegisterOptions: () => apiClient.get('/auth/passkey/register-options'),
+    verifyRegister: (body: any) => apiClient.post('/auth/passkey/register-verify', body),
+    getLoginOptions: () => apiClient.get('/auth/passkey/login-options'),
+    verifyLogin: (body: any) => apiClient.post('/auth/passkey/login-verify', body),
+    logout: () => apiClient.post('/auth/logout'),
+    me: () => apiClient.get('/auth/me'),
     updateProfile: (data: { name?: string; defaultCurrency?: string }) =>
       apiClient.put('/auth/profile', data),
   },
   
-  // Accounts
   accounts: {
-    getAll: () =>
-      apiClient.get('/accounts'),
-    getOne: (id: number) =>
-      apiClient.get(`/accounts/${id}`),
-    create: (data: { name: string; icon?: string; currency: string }) =>
-      apiClient.post('/accounts', data),
-    update: (id: number, data: { name?: string; icon?: string; currency?: string }) =>
-      apiClient.put(`/accounts/${id}`, data),
-    delete: (id: number) =>
-      apiClient.delete(`/accounts/${id}`),
+    getAll: () => apiClient.get('/accounts'),
+    getOne: (id: number) => apiClient.get(`/accounts/${id}`),
+    create: (data: { name: string; icon?: string; currency: string }) => apiClient.post('/accounts', data),
+    update: (id: number, data: { name?: string; icon?: string; currency?: string }) => apiClient.put(`/accounts/${id}`, data),
+    delete: (id: number) => apiClient.delete(`/accounts/${id}`),
   },
   
-  // Categories
   categories: {
-    getAll: (type?: 'income' | 'expense') =>
-      apiClient.get('/categories', { params: { type } }),
-    create: (data: { name: string; icon?: string; color?: string; type: 'income' | 'expense' }) =>
-      apiClient.post('/categories', data),
-    update: (id: number, data: { name?: string; icon?: string; color?: string }) =>
-      apiClient.put(`/categories/${id}`, data),
-    delete: (id: number) =>
-      apiClient.delete(`/categories/${id}`),
+    getAll: (type?: 'income' | 'expense') => apiClient.get('/categories', { params: { type } }),
+    create: (data: { name: string; icon?: string; color?: string; type: 'income' | 'expense' }) => apiClient.post('/categories', data),
+    update: (id: number, data: { name?: string; icon?: string; color?: string }) => apiClient.put(`/categories/${id}`, data),
+    delete: (id: number) => apiClient.delete(`/categories/${id}`),
   },
   
-  // Transactions
   transactions: {
     getAll: (params?: {
       accountId?: number;
@@ -98,12 +83,12 @@ export const api = {
       startDate?: string;
       endDate?: string;
       search?: string;
+      note?: string;
+      includeLoans?: boolean;
       limit?: number;
       offset?: number;
-    }) =>
-      apiClient.get('/transactions', { params }),
-    getOne: (id: number) =>
-      apiClient.get(`/transactions/${id}`),
+    }) => apiClient.get('/transactions', { params }),
+    getOne: (id: number) => apiClient.get(`/transactions/${id}`),
     create: (data: {
       accountId: number;
       categoryId: number;
@@ -114,8 +99,7 @@ export const api = {
       note?: string;
       transactionDate: string;
       clientRequestId?: string;
-    }) =>
-      apiClient.post('/transactions', data),
+    }) => apiClient.post('/transactions', data),
     update: (id: number, data: Partial<{
       accountId: number;
       categoryId: number;
@@ -125,13 +109,10 @@ export const api = {
       title: string;
       note?: string;
       transactionDate: string;
-    }>) =>
-      apiClient.put(`/transactions/${id}`, data),
-    delete: (id: number) =>
-      apiClient.delete(`/transactions/${id}`),
+    }>) => apiClient.put(`/transactions/${id}`, data),
+    delete: (id: number) => apiClient.delete(`/transactions/${id}`),
   },
   
-  // Stats
   stats: {
     getDashboard: (period?: 'day' | 'week' | 'month' | 'year', type?: 'income' | 'expense') =>
       apiClient.get('/stats/dashboard', { params: { period, type } }),
@@ -139,20 +120,15 @@ export const api = {
       apiClient.get('/stats/categories', { params: { type } }),
   },
   
-  // Currencies
   currencies: {
-    getAll: () =>
-      apiClient.get('/currencies'),
+    getAll: () => apiClient.get('/currencies'),
     convert: (amount: number, from: string, to: string) =>
       apiClient.get('/currencies/convert', { params: { amount, from, to } }),
   },
   
-  // Loans
   loans: {
-    getAll: (params?: { status?: 'active' | 'closed' }) =>
-      apiClient.get('/loans', { params }),
-    getOne: (id: number) =>
-      apiClient.get(`/loans/${id}`),
+    getAll: (params?: { status?: 'active' | 'closed' }) => apiClient.get('/loans', { params }),
+    getOne: (id: number) => apiClient.get(`/loans/${id}`),
     create: (data: {
       title: string;
       amount: number;
@@ -162,8 +138,7 @@ export const api = {
       loanDate: string;
       note?: string;
       clientRequestId?: string;
-    }) =>
-      apiClient.post('/loans', data),
+    }) => apiClient.post('/loans', data),
     addRepayment: (id: number, data: {
       amount: number;
       currency: string;
@@ -171,12 +146,9 @@ export const api = {
       repaymentDate: string;
       description?: string;
       clientRequestId?: string;
-    }) =>
-      apiClient.post(`/loans/${id}/repayments`, data),
-    close: (id: number, data?: { clientRequestId?: string }) =>
-      apiClient.post(`/loans/${id}/close`, data),
-    delete: (id: number) =>
-      apiClient.delete(`/loans/${id}`),
+    }) => apiClient.post(`/loans/${id}/repayments`, data),
+    close: (id: number, data?: { clientRequestId?: string }) => apiClient.post(`/loans/${id}/close`, data),
+    delete: (id: number) => apiClient.delete(`/loans/${id}`),
     adminValidate: (data: { username: string; password: string }) =>
       apiClient.post('/loans/admin/validate', data),
     adminConvertFromTransaction: (data: {
@@ -186,34 +158,28 @@ export const api = {
       categoryId: number;
       title: string;
       note?: string;
-    }) =>
-      apiClient.post('/loans/admin/convert-from-transaction', data),
+    }) => apiClient.post('/loans/admin/convert-from-transaction', data),
     adminAttachRepaymentTransaction: (id: number, data: {
       username: string;
       password: string;
       transactionId: number;
       description?: string;
-    }) =>
-      apiClient.post(`/loans/admin/${id}/attach-repayment-transaction`, data),
+    }) => apiClient.post(`/loans/admin/${id}/attach-repayment-transaction`, data),
   },
 };
 
-// Check if online
 export function isOnline(): boolean {
-  return navigator.onLine;
+  return getIsOnline();
 }
 
-// Check if server is reachable
 export function isServerReachable(): boolean {
   return serverReachable;
 }
 
-// Check if we have both internet and server connectivity
 export function isFullyOnline(): boolean {
   return isOnline() && isServerReachable();
 }
 
-// Health check function to verify server reachability
 export async function checkServerHealth(): Promise<boolean> {
   if (!isOnline()) {
     serverReachable = false;
@@ -221,7 +187,6 @@ export async function checkServerHealth(): Promise<boolean> {
   }
 
   try {
-    // Usa un endpoint super leggero e senza Clerk auth (/health) con timeout ridotto a 2 secondi
     await axios.get('/health', {
       timeout: 2000,
       validateStatus: (status) => status === 200,
@@ -232,21 +197,17 @@ export async function checkServerHealth(): Promise<boolean> {
     if (isNetworkError(error)) {
       serverReachable = false;
     } else {
-      // Il server ha risposto (es. errore generico), quindi è raggiungibile
       serverReachable = true;
     }
     return serverReachable;
   }
 }
 
-// Helper function to detect network errors
 function isNetworkError(error: AxiosError): boolean {
-  // No response means network error
   if (!error.response) {
     return true;
   }
   
-  // Check for specific network error codes
   const networkErrorCodes = [
     'ECONNREFUSED',
     'ETIMEDOUT', 

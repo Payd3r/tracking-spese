@@ -6,10 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency?: string): string {
-  const formatted = new Intl.NumberFormat('it-IT', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(Math.abs(amount));
-  
-  return formatted;
+  const absAmount = Math.abs(amount);
+  const parts = absAmount.toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return parts.join(',');
 }

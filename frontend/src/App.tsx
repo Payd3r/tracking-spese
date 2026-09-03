@@ -11,6 +11,8 @@ import { TransactionForm } from "@/components/forms/TransactionForm";
 import { useEffect } from "react";
 import { preloadCache, hasCacheData } from "@/lib/cacheManager";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
+import { Sidebar } from "@/components/Sidebar";
+import { DesktopHeader } from "@/components/DesktopHeader";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Transactions from "./pages/Transactions";
@@ -23,7 +25,8 @@ import AdminLoanCleanup from "./pages/AdminLoanCleanup";
 import Profile from "./pages/Profile";
 import TransactionDetail from "./pages/TransactionDetail";
 import NotFound from "./pages/NotFound";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +35,6 @@ function AppContent() {
   
   // Stabilize viewport height across keyboard open/close
   useViewportHeight();
-
 
   const handleTransactionSuccess = () => {
     closeTransactionSheet();
@@ -43,119 +45,142 @@ function AppContent() {
   };
 
   return (
-    <>
-      <div className="page-container">
-        <div className="scrollable-content">
-          <Routes>
-            {/* Public route */}
-            <Route path="/auth" element={<Auth />} />
+    <div className="flex h-screen w-screen overflow-hidden bg-black text-white font-sans">
+      {/* Sidebar for Desktop navigation */}
+      <Sidebar onAddClick={openTransactionSheet} />
 
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/transactions"
-              element={
-                <ProtectedRoute>
-                  <Transactions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/accounts"
-              element={
-                <ProtectedRoute>
-                  <ManageAccounts />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/categories"
-              element={
-                <ProtectedRoute>
-                  <ManageCategories />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/transfers"
-              element={
-                <ProtectedRoute>
-                  <ManageTransfers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/loans"
-              element={
-                <ProtectedRoute>
-                  <ManageLoans />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/loans/cleanup"
-              element={
-                <ProtectedRoute>
-                  <AdminLoanCleanup />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/transaction/:id"
-              element={
-                <ProtectedRoute>
-                  <TransactionDetail />
-                </ProtectedRoute>
-              }
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+      {/* Main content page area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header with quick stats/sync details for desktop */}
+        <DesktopHeader />
+
+        <div className="page-container flex-1 overflow-hidden relative">
+          <div className="scrollable-content h-full overflow-y-auto">
+            <Routes>
+              {/* Public route */}
+              <Route path="/auth" element={<Auth />} />
+
+              {/* Protected routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transactions"
+                element={
+                  <ProtectedRoute>
+                    <Transactions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/accounts"
+                element={
+                  <ProtectedRoute>
+                    <ManageAccounts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/categories"
+                element={
+                  <ProtectedRoute>
+                    <ManageCategories />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/transfers"
+                element={
+                  <ProtectedRoute>
+                    <ManageTransfers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/loans"
+                element={
+                  <ProtectedRoute>
+                    <ManageLoans />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/loans"
+                element={
+                  <ProtectedRoute>
+                    <ManageLoans />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/loans/cleanup"
+                element={
+                  <ProtectedRoute>
+                    <AdminLoanCleanup />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transaction/:id"
+                element={
+                  <ProtectedRoute>
+                    <TransactionDetail />
+                  </ProtectedRoute>
+                }
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
         </div>
       </div>
+
+      {/* Bottom Nav for mobile viewports */}
       <BottomNav onAddClick={openTransactionSheet} />
 
-      {/* Global Bottom Sheets */}
+      {/* Global Bottom Sheets & Centered Modals */}
       <BottomSheet
         isOpen={isTransactionSheetOpen}
         onClose={closeTransactionSheet}
+        title="Nuova Transazione"
       >
         <TransactionForm onSuccess={handleTransactionSuccess} />
       </BottomSheet>
-    </>
+    </div>
   );
 }
 
 const App = () => {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isAuthenticated, isLoaded } = useAuth();
+  const isOnline = useOnlineStatus();
 
   useEffect(() => {
     // Initialize cache on app start if user is logged in
     const initializeCache = async () => {
-      if (!isSignedIn) return;
+      const shouldInit = isAuthenticated || !isOnline;
+
+      if (!shouldInit) return;
       try {
         const hasData = await hasCacheData();
         if (!hasData) {
@@ -168,7 +193,6 @@ const App = () => {
           }
         } else {
           console.log('Cache data already available. Triggering silent background refresh...');
-          // Esegue comunque un refresh silenzioso all'avvio se online
           preloadCache().catch(err => console.warn('Silent startup cache preload failed:', err));
         }
       } catch (error) {
@@ -176,17 +200,17 @@ const App = () => {
       }
     };
 
-    if (isLoaded) {
+    if (isLoaded || !isOnline) {
       initializeCache();
     }
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isAuthenticated, isOnline]);
 
   // Periodic background cache refresh every 5 minutes (only when signed in and online)
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isAuthenticated) return;
 
     const intervalId = setInterval(async () => {
-      if (navigator.onLine) {
+      if (isOnline) {
         console.log('Running periodic background cache refresh...');
         try {
           await preloadCache();
@@ -197,7 +221,7 @@ const App = () => {
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(intervalId);
-  }, [isSignedIn]);
+  }, [isAuthenticated, isOnline]);
 
   return (
     <QueryClientProvider client={queryClient}>

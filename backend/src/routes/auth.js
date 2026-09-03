@@ -1,15 +1,28 @@
 import express from 'express';
-import { register, login, logout, me, updateProfile } from '../controllers/authController.js';
+import {
+  getPasskeyStatus,
+  generatePasskeyRegisterOptions,
+  verifyPasskeyRegistration,
+  generatePasskeyLoginOptions,
+  verifyPasskeyLogin,
+  logout,
+  me,
+  updateProfile,
+} from '../controllers/authController.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
+// Passkey endpoints
+router.get('/status', getPasskeyStatus);
+router.get('/passkey/register-options', generatePasskeyRegisterOptions);
+router.post('/passkey/register-verify', verifyPasskeyRegistration);
+router.get('/passkey/login-options', generatePasskeyLoginOptions);
+router.post('/passkey/login-verify', verifyPasskeyLogin);
+
+// Authenticated routes
 router.post('/logout', authMiddleware, logout);
 router.get('/me', authMiddleware, me);
 router.put('/profile', authMiddleware, updateProfile);
 
 export default router;
-
-

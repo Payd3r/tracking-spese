@@ -124,40 +124,37 @@ export default function ManageCategories() {
   const filteredCategories = categories.filter(c => !c.isSystem);
 
   return (
-    <div ref={ref} style={style} className="px-3 pt-4 max-w-md mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
+    <div ref={ref} style={style} className="px-3 pt-4 pb-28 max-w-md mx-auto md:max-w-5xl md:px-8 md:py-8">
+      {/* Mobile-only Header */}
+      <div className="flex items-center gap-3 mb-5 md:hidden">
         <Link to="/settings" className="p-1.5 glass-card rounded-2xl">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-xl font-bold">Gestione Categorie</h1>
       </div>
 
-      {/* Toggle */}
-      <GlassCard className="p-2 mb-4">
-        <div className="flex gap-2">
+      {/* Control Bar (Toggle & Add Button) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        {/* Toggle Income/Expense */}
+        <div className="p-1 bg-white/5 border border-white/10 rounded-2xl flex gap-1 w-full sm:w-[220px] shrink-0">
           <button
             onClick={() => setViewType("expense")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${viewType === "expense" ? "pill-active" : "text-muted-foreground"
-              }`}
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all interactive-press ${viewType === "expense" ? "pill-active" : "text-muted-foreground"}`}
           >
             Uscite
           </button>
           <button
             onClick={() => setViewType("income")}
-            className={`flex-1 py-2 rounded-xl text-sm transition-all interactive-press ${viewType === "income" ? "pill-active" : "text-muted-foreground"
-              }`}
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all interactive-press ${viewType === "income" ? "pill-active" : "text-muted-foreground"}`}
           >
             Entrate
           </button>
         </div>
-      </GlassCard>
 
-      {/* Add Category Button */}
-      <div className="px-1.5 mb-4">
+        {/* Add Button */}
         <Button
           onClick={() => setCreateSheetOpen(true)}
-          className="w-full gap-2 h-11 pill-active"
+          className="gap-2 h-10 px-5 sm:w-auto w-full font-semibold shrink-0 shadow-strong pill-active"
         >
           <Plus className="w-4 h-4" />
           Aggiungi Categoria
@@ -168,57 +165,53 @@ export default function ManageCategories() {
       {loading && filteredCategories.length === 0 ? (
         <CardListSkeleton variant="grid" />
       ) : filteredCategories.length === 0 ? (
-        <div className="px-1.5 mb-4">
-          <GlassCard className="p-5 text-center">
+        <div className="mb-4">
+          <GlassCard className="p-6 text-center">
             <p className="text-sm text-muted-foreground">Nessuna categoria personalizzata</p>
-            <p className="text-xs text-muted-foreground mt-2">
-              Le categorie di sistema non possono essere eliminate
+            <p className="text-xs text-muted-foreground/60 mt-1">
+              Le categorie di sistema predefinite non possono essere eliminate o modificate.
             </p>
           </GlassCard>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2 px-1.5 mb-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
           {filteredCategories.map((category) => {
-            // Find stats for this category
             const stats = categoryStats.find(stat => stat.id === category.id);
             const total = stats?.total || 0;
             const percentage = stats?.percentage || 0;
 
             return (
-              <GlassCard key={category.id} className={`p-3 h-28 ${category.color || 'gradient-blue'} relative group overflow-hidden`}>
+              <GlassCard key={category.id} className={`p-3 h-28 ${category.color || 'gradient-blue'} relative group overflow-hidden border border-white/5 transition-colors`}>
+                {/* Custom Delete button */}
                 <button
                   onClick={() => {
                     setCategoryToDelete(category.id);
                     setDeleteDialogOpen(true);
                   }}
-                  className="absolute top-2 right-2 p-1.5 bg-black/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1.5 right-1.5 p-1 bg-black/35 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-white" />
                 </button>
 
                 <div className="flex items-stretch gap-2 h-full">
-                  {/* Content */}
-                  <div className="flex-1 flex flex-col justify-between">
-                    {/* Top Section */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
                     <div>
-                      <h3 className="text-white font-bold text-sm mb-1 leading-tight">{category.name}</h3>
-                      <div className="text-white/80 text-xs">
+                      <h3 className="text-white font-bold text-xs md:text-sm mb-0.5 truncate leading-tight">{category.name}</h3>
+                      <div className="text-white/70 text-[10px] truncate">
                         {loading && !categoryStats.length ? (
                           <Skeleton className="h-3 w-10 bg-white/20" />
                         ) : (
-                          <> {viewType === 'expense' ? 'spent' : 'earned'} {percentage}% </>
+                          <> {viewType === 'expense' ? 'usato' : 'ricevuto'} {percentage}% </>
                         )}
                       </div>
                     </div>
 
-                    {/* Bottom Section - Icon */}
                     <div className="flex justify-start">
-                      <IconRenderer icon={category.icon} size={32} className="text-white/60" />
+                      <IconRenderer icon={category.icon} size={28} className="text-white/60" />
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <VerticalProgressBar percentage={percentage} className="h-full" />
+                  <VerticalProgressBar percentage={percentage} className="h-full w-1 shrink-0" />
                 </div>
               </GlassCard>
             );
@@ -230,26 +223,26 @@ export default function ManageCategories() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Conferma eliminazione</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogTitle className="text-base font-bold">Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
               Sei sicuro di voler eliminare questa categoria? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="m-0 text-sm">Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm">Elimina</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="m-0 text-sm pill-active">Elimina</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create Category Bottom Sheet */}
+      {/* Create Category Bottom Sheet / Widescreen Modal */}
       <BottomSheet
         isOpen={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
+        title="Nuova Categoria"
       >
         <CategoryForm onSuccess={handleCategoryCreated} initialType={viewType} />
       </BottomSheet>
     </div>
-
   );
 }
