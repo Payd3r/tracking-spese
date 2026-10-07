@@ -1,6 +1,22 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowLeft, ChevronUp, Filter, RotateCcw, Search, Calendar, Wallet, Tag, Banknote, FileText, ArrowUpDown } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronUp,
+  Filter,
+  RotateCcw,
+  Search,
+  Calendar,
+  Wallet,
+  Tag,
+  Banknote,
+  FileText,
+  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
+  ArrowDownAZ,
+  X,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionRowSkeleton } from "@/components/skeletons/TransactionRowSkeleton";
 import { Link, Link as RouterLink } from "react-router-dom";
@@ -42,6 +58,7 @@ import {
 } from "@/lib/transactionsPageState";
 import { usePreventIosBackSwipe } from "@/hooks/usePreventIosBackSwipe";
 import { TransactionFiltersSheet } from "@/components/TransactionFiltersSheet";
+import { useBottomSheet } from "@/contexts/BottomSheetContext";
 
 const truncateText = (text: string, maxLength: number) =>
   text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
@@ -50,6 +67,8 @@ const initialPageState = readTransactionsPageState();
 
 const PRESET_LABELS: Record<DatePreset, string> = {
   all: "Tutto",
+  yesterday: "Ieri",
+  last_week: "Scorsa settimana",
   this_month: "Questo mese",
   last_month: "Mese scorso",
   this_year: "Quest'anno",
@@ -64,10 +83,23 @@ const SORT_LABELS: Record<SortOption, string> = {
   title_asc: "Titolo (A-Z)",
 };
 
+export const SORT_OPTIONS: {
+  id: SortOption;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: "date_desc", label: "Più recenti", icon: ArrowDown },
+  { id: "date_asc", label: "Meno recenti", icon: ArrowUp },
+  { id: "amount_desc", label: "Importo maggiore", icon: ArrowDown },
+  { id: "amount_asc", label: "Importo minore", icon: ArrowUp },
+  { id: "title_asc", label: "Titolo (A-Z)", icon: ArrowDownAZ },
+];
+
 export default function Transactions() {
   usePreventIosBackSwipe();
   const { isOnline } = useSync();
   const { user } = useAuth();
+  const { openTransactionDetail } = useBottomSheet();
   const [viewType, setViewType] = useState<"income" | "expense">(
     () => initialPageState?.viewType ?? "expense"
   );
@@ -672,41 +704,6 @@ export default function Transactions() {
         </button>
       </div>
 
-      {/* Mobile Quick Date Presets Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 md:hidden no-scrollbar">
-        {[
-          { id: "all", label: "Tutto" },
-          { id: "this_month", label: "Questo mese" },
-          { id: "last_month", label: "Mese scorso" },
-          { id: "this_year", label: "Quest'anno" },
-        ].map((p) => {
-          const isSelected = appliedFilters.datePreset === p.id;
-          return (
-            <button
-              key={p.id}
-              onClick={() => {
-                const range = getDateRangeFromPreset(p.id as DatePreset);
-                const updated: TransactionListFilters = {
-                  ...appliedFilters,
-                  datePreset: p.id as DatePreset,
-                  startDate: range.startDate,
-                  endDate: range.endDate,
-                };
-                setAppliedFilters(updated);
-                setDraftFilters(updated);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-                isSelected
-                  ? "pill-active"
-                  : "bg-white/5 text-muted-foreground border border-white/10"
-              }`}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
-
       {error && (
         <div className="glass-card p-4 mb-6 tone-danger">
           <p className="text-sm">{error}</p>
@@ -783,6 +780,8 @@ export default function Transactions() {
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { id: "all", label: "Tutto" },
+                  { id: "yesterday", label: "Ieri" },
+                  { id: "last_week", label: "Scorsa settimana" },
                   { id: "this_month", label: "Questo mese" },
                   { id: "last_month", label: "Mese scorso" },
                   { id: "this_year", label: "Quest'anno" },
@@ -855,27 +854,25 @@ export default function Transactions() {
                 <ArrowUpDown className="w-3.5 h-3.5" /> Ordina Per
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  { id: "date_desc", label: "Più recenti" },
-                  { id: "date_asc", label: "Meno recenti" },
-                  { id: "amount_desc", label: "Importo ⬇" },
-                  { id: "amount_asc", label: "Importo ⬆" },
-                  { id: "title_asc", label: "Titolo (A-Z)" },
-                ].map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      setDraftFilters((prev) => ({ ...prev, sortBy: s.id as SortOption }));
-                    }}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all interactive-press ${
-                      draftFilters.sortBy === s.id
-                        ? "pill-active"
-                        : "bg-white/5 text-muted-foreground border border-white/10"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
+                {SORT_OPTIONS.map((s) => {
+                  const Icon = s.icon;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setDraftFilters((prev) => ({ ...prev, sortBy: s.id }));
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all interactive-press ${
+                        draftFilters.sortBy === s.id
+                          ? "pill-active"
+                          : "bg-white/5 text-muted-foreground border border-white/10"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{s.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -897,13 +894,13 @@ export default function Transactions() {
                 onClick={() => {
                   setDraftFilters((prev) => ({ ...prev, includeLoans: !prev.includeLoans }));
                 }}
-                className={`w-10 h-5.5 rounded-full transition-colors relative flex items-center p-0.5 ${
+                className={`w-11 h-6 rounded-full transition-colors relative flex items-center p-0.5 ${
                   draftFilters.includeLoans ? "bg-white" : "bg-white/20"
                 }`}
               >
                 <div
-                  className={`w-4 h-4 rounded-full bg-black transition-transform ${
-                    draftFilters.includeLoans ? "translate-x-4.5" : "translate-x-0"
+                  className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                    draftFilters.includeLoans ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>
@@ -1095,8 +1092,15 @@ export default function Transactions() {
                     value={searchInputValue}
                     onChange={(e) => setSearchInputValue(e.target.value)}
                     placeholder="Cerca per titolo..."
-                    className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/50 text-white"
+                    className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/50 text-white"
                   />
+                  {!(loading && baseTransactions.length === 0) && apiTotal > 0 && (
+                    <span className="text-[11px] font-semibold text-muted-foreground px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 shrink-0 select-none">
+                      {displayedTransactions.length === apiTotal
+                        ? `${apiTotal}`
+                        : `${displayedTransactions.length}/${apiTotal}`}
+                    </span>
+                  )}
                 </div>
               </GlassCard>
             </div>
@@ -1138,9 +1142,10 @@ export default function Transactions() {
                   <span>Conto: {accounts.find((a) => a.id === id)?.name}</span>
                   <button
                     onClick={() => removeAccountFilter(id)}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi filtro conto"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -1152,9 +1157,10 @@ export default function Transactions() {
                   <span>Cat: {categories.find((c) => c.id === id)?.name}</span>
                   <button
                     onClick={() => removeCategoryFilter(id)}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi filtro categoria"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -1163,9 +1169,10 @@ export default function Transactions() {
                   <span>Periodo: {PRESET_LABELS[appliedFilters.datePreset]}</span>
                   <button
                     onClick={() => removeFilter("datePreset")}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi filtro periodo"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1174,9 +1181,10 @@ export default function Transactions() {
                   <span>Dal: {format(new Date(appliedFilters.startDate), "dd/MM/yyyy")}</span>
                   <button
                     onClick={() => removeFilter("startDate")}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi data inizio"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1185,9 +1193,10 @@ export default function Transactions() {
                   <span>Al: {format(new Date(appliedFilters.endDate), "dd/MM/yyyy")}</span>
                   <button
                     onClick={() => removeFilter("endDate")}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi data fine"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1196,9 +1205,10 @@ export default function Transactions() {
                   <span>Inclusi Prestiti</span>
                   <button
                     onClick={() => removeFilter("includeLoans")}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi filtro prestiti"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1207,9 +1217,10 @@ export default function Transactions() {
                   <span>Ordina: {SORT_LABELS[appliedFilters.sortBy]}</span>
                   <button
                     onClick={() => removeFilter("sortBy")}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Ripristina ordinamento predefinito"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1218,9 +1229,10 @@ export default function Transactions() {
                   <span>Nota: {truncateText(appliedFilters.noteQuery, 30)}</span>
                   <button
                     onClick={() => removeFilter("noteQuery")}
-                    className="text-red-400 hover:text-white font-bold ml-0.5"
+                    className="text-red-400 hover:text-white transition-colors ml-0.5"
+                    aria-label="Rimuovi filtro nota"
                   >
-                    ×
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               )}
@@ -1234,22 +1246,17 @@ export default function Transactions() {
                     </span>
                     <button
                       onClick={() => removeFilter("minAmount")}
-                      className="text-red-400 hover:text-white font-bold ml-0.5"
+                      className="text-red-400 hover:text-white transition-colors ml-0.5"
+                      aria-label="Rimuovi filtro importo"
                     >
-                      ×
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 )}
             </div>
           )}
 
-          <p className="text-[11px] text-muted-foreground px-1">
-            {loading && baseTransactions.length === 0
-              ? "Caricamento transazioni..."
-              : `Mostrate ${displayedTransactions.length} di ${apiTotal} transazioni`}
-          </p>
-
-          <GlassCard className="p-4 md:p-5">
+          <GlassCard className="p-3 sm:p-4 md:p-5">
             {loading && baseTransactions.length === 0 ? (
               <div className="space-y-3">
                 <TransactionRowSkeleton variant="list" />
@@ -1269,14 +1276,20 @@ export default function Transactions() {
                     key={transaction.id > 0 ? transaction.id : transaction.clientRequestId}
                     to={transaction.id > 0 ? `/transaction/${transaction.id}` : "#"}
                     className="block"
-                    onClick={() => persistPageState()}
+                    onClick={(e) => {
+                      persistPageState();
+                      if (isMobile && transaction.id > 0) {
+                        e.preventDefault();
+                        openTransactionDetail(transaction.id);
+                      }
+                    }}
                   >
                     <div
-                      className={`flex items-center justify-between py-3 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-2 border-none ${
+                      className={`flex items-center justify-between py-2.5 sm:py-3 hover:bg-white/5 transition-colors cursor-pointer rounded-lg px-1 sm:px-2 gap-2 border-none ${
                         transaction.isPending ? "opacity-70" : ""
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                         {(() => {
                           const isCounted = isCountedTransaction(
                             transaction,
@@ -1285,17 +1298,21 @@ export default function Transactions() {
                           return (
                             <>
                               <div
-                                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10 ${
-                                  !isCounted ? "opacity-40" : ""
+                                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                  isCounted
+                                    ? "bg-white/5 border border-white/10 text-white"
+                                    : "bg-white/[0.03] border border-dashed border-white/20 text-muted-foreground opacity-60"
                                 }`}
                               >
                                 <IconRenderer icon={transaction.categoryIcon} size={18} />
                               </div>
-                              <div>
-                                <h4 className="font-semibold text-sm text-white tracking-tight">
+                              <div className="min-w-0 flex-1">
+                                <h4 className={`font-semibold text-xs sm:text-sm tracking-tight truncate ${
+                                  isCounted ? "text-white" : "text-zinc-300"
+                                }`}>
                                   {transaction.title}
                                 </h4>
-                                <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                                <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap truncate">
                                   <span>
                                     {format(new Date(transaction.transactionDate), "dd/MM/yyyy")}
                                   </span>
@@ -1312,9 +1329,6 @@ export default function Transactions() {
                                       · {truncateText(transaction.note, 200)}
                                     </span>
                                   )}
-                                  {!isCounted && (
-                                    <span className="text-warning">· Non conteggiata</span>
-                                  )}
                                 </p>
                               </div>
                             </>
@@ -1322,16 +1336,18 @@ export default function Transactions() {
                         })()}
                       </div>
                       <span
-                        className={`font-bold text-sm ${
+                        className={`font-bold text-xs sm:text-sm shrink-0 whitespace-nowrap text-right ${
                           transaction.isPending
                             ? "text-warning"
+                            : !isCountedTransaction(transaction, appliedFilters.includeLoans)
+                            ? "text-muted-foreground"
                             : transaction.type === "income"
                             ? "text-green-400"
                             : "text-red-400"
                         }`}
                       >
                         {transaction.type === "income" ? "+ " : "- "}
-                        {formatCurrency(transaction.amount)} €
+                        {formatCurrency(transaction.amount)}
                       </span>
                     </div>
                   </RouterLink>

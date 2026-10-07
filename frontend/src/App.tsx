@@ -1,18 +1,19 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BottomSheetProvider, useBottomSheet } from "@/contexts/BottomSheetContext";
 import { SyncProvider } from "@/contexts/SyncContext";
-import { BottomSheet } from "@/components/BottomSheet";
 import { TransactionForm } from "@/components/forms/TransactionForm";
+import { TransactionDetailSheet } from "@/components/TransactionDetailSheet";
 import { useEffect } from "react";
 import { preloadCache, hasCacheData } from "@/lib/cacheManager";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { Sidebar } from "@/components/Sidebar";
 import { DesktopHeader } from "@/components/DesktopHeader";
+import { TopSafeAreaBlur } from "@/components/TopSafeAreaBlur";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
 import Transactions from "./pages/Transactions";
@@ -24,6 +25,8 @@ import ManageLoans from "./pages/ManageLoans";
 import AdminLoanCleanup from "./pages/AdminLoanCleanup";
 import Profile from "./pages/Profile";
 import TransactionDetail from "./pages/TransactionDetail";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import BankingCallback from "./pages/BankingCallback";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -31,10 +34,24 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { isTransactionSheetOpen, openTransactionSheet, closeTransactionSheet } = useBottomSheet();
+  const { isTransactionSheetOpen, openTransactionSheet, closeTransactionSheet, openTransactionDetail } = useBottomSheet();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Stabilize viewport height across keyboard open/close
   useViewportHeight();
+
+  // Deep-link from push notification: /?tx=<id>
+  useEffect(() => {
+    const tx = searchParams.get("tx");
+    if (!tx) return;
+    const id = Number(tx);
+    if (Number.isFinite(id) && id > 0) {
+      openTransactionDetail(id);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("tx");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, openTransactionDetail]);
 
   const handleTransactionSuccess = () => {
     closeTransactionSheet();
@@ -57,8 +74,11 @@ function AppContent() {
         <div className="page-container flex-1 overflow-hidden relative">
           <div className="scrollable-content h-full overflow-y-auto">
             <Routes>
-              {/* Public route */}
+              {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/banking/callback" element={<BankingCallback />} />
 
               {/* Protected routes */}
               <Route
@@ -156,17 +176,21 @@ function AppContent() {
         </div>
       </div>
 
+      {/* Top Safe Area Progressive Blur Overlay for Mobile PWA */}
+      <TopSafeAreaBlur />
+
       {/* Bottom Nav for mobile viewports */}
       <BottomNav onAddClick={openTransactionSheet} />
 
       {/* Global Bottom Sheets & Centered Modals */}
-      <BottomSheet
+      <TransactionForm
         isOpen={isTransactionSheetOpen}
         onClose={closeTransactionSheet}
-        title="Nuova Transazione"
-      >
-        <TransactionForm onSuccess={handleTransactionSuccess} />
-      </BottomSheet>
+        onSuccess={handleTransactionSuccess}
+      />
+
+      {/* Mobile Transaction Detail & Edit Sheet */}
+      <TransactionDetailSheet />
     </div>
   );
 }

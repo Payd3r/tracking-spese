@@ -8,7 +8,7 @@ export const DesktopHeader = () => {
   const { isOnline, isSyncing, pendingCount, hasPending, triggerSync } = useSync();
   const location = useLocation();
 
-  if (location.pathname === '/auth') {
+  if (location.pathname === '/auth' || location.pathname.startsWith('/privacy')) {
     return null;
   }
 
@@ -22,7 +22,7 @@ export const DesktopHeader = () => {
     if (path.startsWith("/settings/loans")) return "Gestione Prestiti";
     if (path.startsWith("/settings/profile")) return "Profilo Utente";
     if (path.startsWith("/settings")) return "Impostazioni";
-    return "Payd3r";
+    return "Tracking Spese";
   };
 
   const getGreeting = () => {

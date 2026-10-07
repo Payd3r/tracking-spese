@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it" style="background-color: #000000; color-scheme: dark;">
+<html lang="it" class="dark" style="background-color: #000000; color-scheme: dark;">
 
 <head>
   <meta charset="UTF-8" />
@@ -59,9 +59,9 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (let registration of registrations) {
-          if (!localStorage.getItem('pwa_sw_v6_cleared')) {
+          if (!localStorage.getItem('pwa_sw_v7_cleared')) {
             registration.unregister();
-            localStorage.setItem('pwa_sw_v6_cleared', 'true');
+            localStorage.setItem('pwa_sw_v7_cleared', 'true');
             if (window.caches) {
               caches.keys().then(function(names) {
                 for (let name of names) caches.delete(name);

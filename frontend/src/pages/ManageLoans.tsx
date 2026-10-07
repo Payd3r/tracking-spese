@@ -3,7 +3,7 @@ import { IconRenderer } from "@/components/IconRenderer";
 import { BottomSheet } from "@/components/BottomSheet";
 import { LoanForm } from "@/components/forms/LoanForm";
 import { RepaymentForm } from "@/components/forms/RepaymentForm";
-import { ArrowLeft, Plus, Trash2, Loader2, X, CheckCircle2, ArrowDownLeft, Eye, Calendar, Wallet } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, CheckCircle2, ArrowDownLeft, Eye, Calendar, Wallet, HandCoins } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -410,25 +410,24 @@ export default function ManageLoans() {
       </AlertDialog>
 
       {/* Create Loan Bottom Sheet / Desktop Modal */}
-      <BottomSheet
+      <LoanForm
         isOpen={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
-        title="Nuovo Prestito"
-      >
-        <LoanForm onSuccess={handleLoanCreated} />
-      </BottomSheet>
+        onSuccess={handleLoanCreated}
+      />
 
       {/* Add Repayment Bottom Sheet / Desktop Modal */}
-      <BottomSheet
-        isOpen={repaymentSheetOpen}
-        onClose={() => {
-          setRepaymentSheetOpen(false);
-          setSelectedLoan(null);
-        }}
-        title="Nuova Restituzione"
-      >
-        {selectedLoan && <RepaymentForm loan={selectedLoan} onSuccess={handleRepaymentCreated} />}
-      </BottomSheet>
+      {selectedLoan && (
+        <RepaymentForm
+          isOpen={repaymentSheetOpen}
+          onClose={() => {
+            setRepaymentSheetOpen(false);
+            setSelectedLoan(null);
+          }}
+          loan={selectedLoan}
+          onSuccess={handleRepaymentCreated}
+        />
+      )}
 
       {/* Loan Detail Bottom Sheet / Desktop Modal */}
       <BottomSheet
@@ -437,21 +436,69 @@ export default function ManageLoans() {
           setDetailSheetOpen(false);
           setLoanDetail(null);
         }}
-        title="Dettaglio Prestito"
+        header={
+          <div className="pb-3 border-b border-white/10 flex items-center">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                <HandCoins className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-white tracking-tight truncate">
+                  Dettaglio Prestito
+                </h2>
+                {loanDetail && (
+                  <span className="text-[10px] text-muted-foreground block truncate">
+                    {loanDetail.note || loanDetail.title}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        }
+        footer={
+          loanDetail ? (
+            <div className="flex gap-2 w-full">
+              <Button
+                onClick={() => {
+                  const currentLoan = loanDetail;
+                  setDetailSheetOpen(false);
+                  if (currentLoan) handleAddRepayment(currentLoan);
+                }}
+                className="flex-1 h-12 rounded-2xl font-bold text-xs gap-1.5"
+                variant="outline"
+              >
+                <ArrowDownLeft className="w-4 h-4" />
+                Restituzione
+              </Button>
+              <Button
+                onClick={handleCloseFromDetail}
+                className="flex-1 h-12 rounded-2xl font-bold text-xs gap-1.5 pill-active shadow-strong"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Chiudi
+              </Button>
+              <Button
+                onClick={handleDeleteFromDetail}
+                variant="destructive"
+                className="h-12 w-12 rounded-2xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-white transition-all shrink-0 p-0 flex items-center justify-center"
+                aria-label="Elimina prestito"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : null
+        }
       >
         {loanDetail && (
-          <div className="space-y-4">
-            {/* Header */}
-            <div>
-              <h2 className="text-lg font-bold mb-1 text-white leading-tight">{loanDetail.note || loanDetail.title}</h2>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{loanDetail.fromAccountName}</span>
-                <span>•</span>
-                <span>{loanDetail.categoryName}</span>
-                <span>•</span>
-                <Calendar className="w-3 h-3 text-muted-foreground" />
-                <span>{format(new Date(loanDetail.loanDate), 'dd MMM yyyy', { locale: it })}</span>
-              </div>
+          <div className="py-4 space-y-4">
+            {/* Meta Info */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              <span>{loanDetail.fromAccountName}</span>
+              <span>•</span>
+              <span>{loanDetail.categoryName}</span>
+              <span>•</span>
+              <Calendar className="w-3 h-3 text-muted-foreground" />
+              <span>{format(new Date(loanDetail.loanDate), "dd MMM yyyy", { locale: it })}</span>
             </div>
 
             {/* Summary */}
@@ -459,15 +506,23 @@ export default function ManageLoans() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Totale prestato</span>
-                  <span className="text-sm font-bold text-white">{loanDetail.currency} {loanDetail.amount?.toFixed(2) || '0.00'}</span>
+                  <span className="text-sm font-bold text-white">
+                    {loanDetail.currency} {loanDetail.amount?.toFixed(2) || "0.00"}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Restituito</span>
-                  <span className="text-sm font-bold text-green-400">{loanDetail.currency} {(loanDetail.totalRepaid || 0).toFixed(2)}</span>
+                  <span className="text-sm font-bold text-green-400">
+                    {loanDetail.currency} {(loanDetail.totalRepaid || 0).toFixed(2)}
+                  </span>
                 </div>
                 <div className="pt-2.5 border-t border-white/5 flex justify-between items-center text-sm font-bold">
                   <span className="text-white">Residuo</span>
-                  <span className={`${getRemainingAmount(loanDetail) > 0 ? 'text-warning' : 'text-green-400'}`}>
+                  <span
+                    className={`${
+                      getRemainingAmount(loanDetail) > 0 ? "text-warning" : "text-green-400"
+                    }`}
+                  >
                     {loanDetail.currency} {getRemainingAmount(loanDetail).toFixed(2)}
                   </span>
                 </div>
@@ -477,19 +532,30 @@ export default function ManageLoans() {
             {/* Repayments List */}
             {loanDetail.repayments && loanDetail.repayments.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold text-white mb-2 uppercase tracking-wider">Storico Restituzioni</h3>
-                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                <h3 className="text-xs font-bold text-white mb-2 uppercase tracking-wider">
+                  Storico Restituzioni
+                </h3>
+                <div className="space-y-2">
                   {loanDetail.repayments.map((repayment) => (
-                    <GlassCard key={repayment.id} className="p-3 border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+                    <GlassCard
+                      key={repayment.id}
+                      className="p-3 border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                    >
                       <div className="flex justify-between items-start">
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-xs text-white mb-1 truncate">{repayment.description || 'Restituzione'}</div>
+                          <div className="font-semibold text-xs text-white mb-1 truncate">
+                            {repayment.description || "Restituzione"}
+                          </div>
                           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                             <Wallet className="w-3 h-3" />
                             <span className="truncate">{repayment.toAccountName}</span>
                             <span>•</span>
                             <Calendar className="w-3 h-3" />
-                            <span>{format(new Date(repayment.repaymentDate), 'dd MMM yyyy', { locale: it })}</span>
+                            <span>
+                              {format(new Date(repayment.repaymentDate), "dd MMM yyyy", {
+                                locale: it,
+                              })}
+                            </span>
                           </div>
                         </div>
                         <div className="font-bold text-xs text-green-400 shrink-0 ml-2">
@@ -507,38 +573,6 @@ export default function ManageLoans() {
                 <p className="text-xs text-muted-foreground">Nessuna restituzione registrata</p>
               </GlassCard>
             )}
-
-            {/* Actions */}
-            <div className="space-y-2 pt-4 border-t border-white/5">
-              <Button
-                onClick={() => {
-                  setDetailSheetOpen(false);
-                  handleAddRepayment(loanDetail);
-                }}
-                className="w-full gap-2 h-10 font-semibold"
-                variant="outline"
-              >
-                <ArrowDownLeft className="w-4 h-4" />
-                Aggiungi Restituzione
-              </Button>
-              
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleCloseFromDetail}
-                  className="flex-1 gap-2 h-10 font-semibold pill-active shadow-strong"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Chiudi Prestito
-                </Button>
-                <Button
-                  onClick={handleDeleteFromDetail}
-                  variant="destructive"
-                  className="gap-2 h-10 bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-white transition-all shrink-0 px-3 rounded-xl"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
           </div>
         )}
       </BottomSheet>

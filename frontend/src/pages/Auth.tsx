@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { KeyRound, Loader2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { GlassCard } from '../components/GlassCard';
@@ -82,9 +82,20 @@ export default function Auth() {
           )}
         </Button>
 
-        <p className="text-[11px] text-muted-foreground font-mono">
-          Account: andreamauri2013
-        </p>
+        <div className="space-y-2 pt-1">
+          <p className="text-[11px] text-muted-foreground font-mono">
+            Account: andreamauri2013
+          </p>
+          <div>
+            <Link
+              to="/privacy"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-white transition-colors underline-offset-4 hover:underline"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
+              <span>Informativa sulla Privacy & Enable Banking</span>
+            </Link>
+          </div>
+        </div>
       </GlassCard>
     </div>
   );

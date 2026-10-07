@@ -1,6 +1,7 @@
 import { GlassCard } from "@/components/GlassCard";
 import { TextInput } from "@/components/TextInput";
 import { IconSelector } from "@/components/IconSelector";
+import { BottomSheet } from "@/components/BottomSheet";
 import { Wallet, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -16,10 +17,12 @@ import {
 const mainCurrencies = ["EUR", "USD", "GBP", "CHF"];
 
 interface AccountFormProps {
+  isOpen: boolean;
+  onClose: () => void;
   onSuccess: () => void;
 }
 
-export function AccountForm({ onSuccess }: AccountFormProps) {
+export function AccountForm({ isOpen, onClose, onSuccess }: AccountFormProps) {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("lucide:Wallet");
   const [currency, setCurrency] = useState("EUR");
@@ -43,16 +46,16 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
       await api.accounts.create({
         name: name.trim(),
         icon,
-        currency
+        currency,
       });
 
       toast.success("Conto creato con successo!");
-      
+
       // Reset form
       setName("");
       setIcon("lucide:Wallet");
       setCurrency("EUR");
-      
+
       onSuccess();
     } catch (err: any) {
       console.error("Failed to create account:", err);
@@ -73,69 +76,85 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Name Input */}
-      <TextInput
-        value={name}
-        onChange={setName}
-        placeholder="Es: Conto Principale, Risparmi..."
-        icon={Wallet}
-        label="Nome Conto"
-        maxLength={50}
-      />
-
-      {/* Icon Selector */}
-      <IconSelector
-        selectedIcon={icon}
-        onSelect={setIcon}
-        iconSet="account"
-      />
-
-      {/* Currency Selector */}
-      <div>
-        <label className="text-xs text-muted-foreground mb-3 block font-medium">
-          Seleziona Valuta
-        </label>
-        <GlassCard className="p-4">
-          <div className="flex flex-wrap gap-2">
-            {mainCurrencies.map((curr) => (
-              <button
-                key={curr}
-                onClick={() => setCurrency(curr)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
-                  currency === curr ? "pill-active" : "bg-white/5 hover:bg-white/10 text-white"
-                }`}
-              >
-                {curr}
-              </button>
-            ))}
-            <button
-              onClick={() => setCustomDialogOpen(true)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
-                !mainCurrencies.includes(currency) ? "pill-active" : "bg-white/5 hover:bg-white/10 text-white"
-              }`}
-            >
-              {!mainCurrencies.includes(currency) ? currency : <Plus className="w-4 h-4" />}
-            </button>
+    <>
+      <BottomSheet
+        isOpen={isOpen}
+        onClose={onClose}
+        header={
+          <div className="pb-3 border-b border-white/10 flex items-center">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-base font-bold text-white tracking-tight">Nuovo Conto</h2>
+            </div>
           </div>
-        </GlassCard>
-      </div>
-
-      {/* Submit Button */}
-      <Button 
-        onClick={handleCreate} 
-        disabled={submitting}
-        className="w-full h-12 rounded-2xl font-semibold pill-active"
+        }
+        footer={
+          <Button
+            onClick={handleCreate}
+            disabled={submitting || !name.trim() || !currency}
+            size="lg"
+            className="w-full h-12 pill-active text-sm font-bold rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+          >
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Creazione...
+              </span>
+            ) : (
+              "Crea Conto"
+            )}
+          </Button>
+        }
       >
-        {submitting ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin mr-2" />
-            Creazione...
-          </>
-        ) : (
-          "Crea Conto"
-        )}
-      </Button>
+        <div className="py-4 space-y-4">
+          {/* Name Input */}
+          <TextInput
+            value={name}
+            onChange={setName}
+            placeholder="Es: Conto Principale, Risparmi..."
+            icon={Wallet}
+            label="Nome Conto"
+            maxLength={50}
+          />
+
+          {/* Icon Selector */}
+          <IconSelector selectedIcon={icon} onSelect={setIcon} iconSet="account" />
+
+          {/* Currency Selector */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-3 block font-medium">
+              Seleziona Valuta
+            </label>
+            <GlassCard className="p-4">
+              <div className="flex flex-wrap gap-2">
+                {mainCurrencies.map((curr) => (
+                  <button
+                    key={curr}
+                    type="button"
+                    onClick={() => setCurrency(curr)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
+                      currency === curr ? "pill-active" : "bg-white/5 hover:bg-white/10 text-white"
+                    }`}
+                  >
+                    {curr}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCustomDialogOpen(true)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all interactive-press ${
+                    !mainCurrencies.includes(currency)
+                      ? "pill-active"
+                      : "bg-white/5 hover:bg-white/10 text-white"
+                  }`}
+                >
+                  {!mainCurrencies.includes(currency) ? currency : <Plus className="w-4 h-4" />}
+                </button>
+              </div>
+            </GlassCard>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Custom Currency Dialog */}
       <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
@@ -158,17 +177,17 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
               />
             </div>
             <div className="flex gap-2">
-              <Button 
+              <Button
                 onClick={() => {
                   setCustomDialogOpen(false);
                   setCustomCurrency("");
-                }} 
+                }}
                 variant="outline"
                 className="flex-1"
               >
                 Annulla
               </Button>
-              <Button 
+              <Button
                 onClick={handleCustomCurrency}
                 className="flex-1 pill-active"
                 disabled={customCurrency.length !== 3}
@@ -179,7 +198,6 @@ export function AccountForm({ onSuccess }: AccountFormProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
-

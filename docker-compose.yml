@@ -37,6 +37,15 @@ services:
       JWT_EXPIRY: ${JWT_EXPIRY:-30d}
       PORT: 3000
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID}
+      ENABLE_BANKING_KEY_PATH: /app/secrets/e83dda61-4521-4f88-883d-bcc5792f6f4b.pem
+      ENABLE_BANKING_REDIRECT_URL: ${ENABLE_BANKING_REDIRECT_URL:-https://spese.andrea-mauri.duckdns.org/banking/callback}
+      ENABLE_BANKING_BASE_URL: ${ENABLE_BANKING_BASE_URL:-https://api.enablebanking.com}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:andreamauri2013@gmail.com}
+    volumes:
+      - ./e83dda61-4521-4f88-883d-bcc5792f6f4b.pem:/app/secrets/e83dda61-4521-4f88-883d-bcc5792f6f4b.pem:ro
     networks:
       - backend
       - frontend

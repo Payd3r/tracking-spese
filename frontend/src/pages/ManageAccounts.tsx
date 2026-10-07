@@ -181,13 +181,11 @@ export default function ManageAccounts() {
       </AlertDialog>
 
       {/* Create Account Bottom Sheet / Desktop Modal */}
-      <BottomSheet
+      <AccountForm
         isOpen={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
-        title="Nuovo Conto"
-      >
-        <AccountForm onSuccess={handleAccountCreated} />
-      </BottomSheet>
+        onSuccess={handleAccountCreated}
+      />
     </div>
   );
 }

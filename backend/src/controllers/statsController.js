@@ -5,80 +5,77 @@ export const getCategoryStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const defaultCurrency = req.user.default_currency;
-    const { type } = req.query; // 'income' or 'expense'
+    const { type = 'expense' } = req.query; // 'income' or 'expense'
 
-    // Get all categories of the specified type
-    let categoryQuery = `
-      SELECT id, name, icon, color, type
-      FROM categories
-      WHERE (user_id = $1 OR is_system = true)
-        AND COALESCE(exclude_from_totals, false) = false
-        AND name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
-    `;
-
-    const categoryParams = [userId];
-
-    if (type) {
-      categoryQuery += ' AND type = $2';
-      categoryParams.push(type);
-    }
-
-    categoryQuery += ' ORDER BY is_system DESC, name ASC';
-
-    const categoriesResult = await pool.query(categoryQuery, categoryParams);
-
-    // Get totals for each category
-    const categoryStats = await Promise.all(
-      categoriesResult.rows.map(async (category) => {
-        const statsResult = await pool.query(
-          `SELECT 
-            SUM(t.amount) as total,
-            a.currency
-       FROM transactions t
-       JOIN accounts a ON t.account_id = a.id
-       JOIN categories c ON t.category_id = c.id
-       WHERE t.user_id = $1 AND t.category_id = $2
+    const categoryStatsResult = await pool.query(
+      `SELECT 
+        c.id,
+        c.name,
+        c.icon,
+        c.color,
+        c.type,
+        COALESCE(SUM(t.amount), 0) as total,
+        COALESCE(a.currency, $3) as currency
+       FROM categories c
+       LEFT JOIN transactions t ON t.category_id = c.id 
+         AND t.user_id = $1 
+         AND t.type = $2
+       LEFT JOIN accounts a ON t.account_id = a.id
+       WHERE (c.user_id = $1 OR c.is_system = true)
+         AND c.type = $2
          AND COALESCE(c.exclude_from_totals, false) = false
          AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
-       GROUP BY a.currency`,
-          [userId, category.id]
-        );
-
-        let totalAmount = 0;
-
-        // Convert all amounts to default currency
-        for (const stat of statsResult.rows) {
-          const amountInDefault = await convertCurrency(
-            parseFloat(stat.total),
-            stat.currency,
-            defaultCurrency
-          );
-          totalAmount += amountInDefault;
-        }
-
-        return {
-          id: category.id,
-          name: category.name,
-          icon: category.icon,
-          color: category.color,
-          type: category.type,
-          total: totalAmount
-        };
-      })
+       GROUP BY c.id, c.name, c.icon, c.color, c.type, a.currency
+       ORDER BY total DESC, c.name ASC`,
+      [userId, type, defaultCurrency]
     );
 
-    // Calculate total for all categories of this type
-    const totalForType = categoryStats.reduce((sum, cat) => sum + cat.total, 0);
+    const categoryMap = new Map();
 
-    // Calculate percentage for each category
-    const categoryStatsWithPercentage = categoryStats.map(cat => ({
-      ...cat,
-      percentage: totalForType > 0 ? Math.round((cat.total / totalForType) * 100) : 0
-    }));
+    for (const cat of categoryStatsResult.rows) {
+      const amountInDefault = parseFloat(cat.total) > 0
+        ? await convertCurrency(
+            parseFloat(cat.total),
+            cat.currency,
+            defaultCurrency
+          )
+        : 0;
+
+      if (categoryMap.has(cat.id)) {
+        categoryMap.get(cat.id).amount += amountInDefault;
+        categoryMap.get(cat.id).total += amountInDefault;
+      } else {
+        categoryMap.set(cat.id, {
+          id: cat.id,
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          type: cat.type,
+          amount: amountInDefault,
+          total: amountInDefault
+        });
+      }
+    }
+
+    const allTimeCategoryTotal = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.amount, 0);
+
+    const categoryStats = Array.from(categoryMap.values())
+      .map(cat => ({
+        ...cat,
+        percentage: allTimeCategoryTotal > 0
+          ? Math.round((cat.amount / allTimeCategoryTotal) * 100)
+          : 0
+      }))
+      .sort((a, b) => {
+        if (b.amount !== a.amount) {
+          return b.amount - a.amount;
+        }
+        return a.name.localeCompare(b.name);
+      });
 
     res.json({
-      categories: categoryStatsWithPercentage,
-      total: totalForType
+      categories: categoryStats,
+      total: allTimeCategoryTotal
     });
   } catch (error) {
     next(error);
@@ -94,10 +91,12 @@ export const getDashboardStats = async (req, res, next) => {
     // Calculate date range matching frontend logic exactly
     const now = new Date(); // This matches 'now' in frontend
     let startDate = new Date(now);
+    let endDate = new Date(now);
 
     switch (period) {
       case 'day':
         startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
         break;
       case 'week':
         startDate.setDate(now.getDate() - 7);
@@ -153,7 +152,7 @@ export const getDashboardStats = async (req, res, next) => {
          AND COALESCE(c.exclude_from_totals, false) = false
          AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
        GROUP BY t.type, a.currency`,
-      [userId, startDate, now]
+      [userId, startDate, endDate]
     );
 
     // Convert and aggregate by type
@@ -215,60 +214,73 @@ export const getDashboardStats = async (req, res, next) => {
       })
     );
 
-    // Get spending by category for period
+    // Get all-time spending/income by category across the whole database
     const categoryStatsResult = await pool.query(
       `SELECT 
         c.id,
         c.name,
         c.icon,
         c.color,
-        SUM(t.amount) as total,
-        a.currency
-       FROM transactions t
-       JOIN accounts a ON t.account_id = a.id
-       JOIN categories c ON t.category_id = c.id
-       WHERE t.user_id = $1 AND t.type = 'expense' AND t.transaction_date >= $2 AND t.transaction_date <= $3
+        c.type,
+        COALESCE(SUM(t.amount), 0) as total,
+        COALESCE(a.currency, $3) as currency
+       FROM categories c
+       LEFT JOIN transactions t ON t.category_id = c.id 
+         AND t.user_id = $1 
+         AND t.type = $2
+       LEFT JOIN accounts a ON t.account_id = a.id
+       WHERE (c.user_id = $1 OR c.is_system = true)
+         AND c.type = $2
          AND COALESCE(c.exclude_from_totals, false) = false
          AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
-       GROUP BY c.id, c.name, c.icon, c.color, a.currency
-       ORDER BY total DESC`,
-      [userId, startDate, now]
+       GROUP BY c.id, c.name, c.icon, c.color, c.type, a.currency
+       ORDER BY total DESC, c.name ASC`,
+      [userId, type, defaultCurrency]
     );
 
     // Aggregate categories and convert to default currency
     const categoryMap = new Map();
 
     for (const cat of categoryStatsResult.rows) {
-      const amountInDefault = await convertCurrency(
-        parseFloat(cat.total),
-        cat.currency,
-        defaultCurrency
-      );
+      const amountInDefault = parseFloat(cat.total) > 0
+        ? await convertCurrency(
+            parseFloat(cat.total),
+            cat.currency,
+            defaultCurrency
+          )
+        : 0;
 
       if (categoryMap.has(cat.id)) {
         categoryMap.get(cat.id).amount += amountInDefault;
+        categoryMap.get(cat.id).total += amountInDefault;
       } else {
         categoryMap.set(cat.id, {
           id: cat.id,
           name: cat.name,
           icon: cat.icon,
           color: cat.color,
-          amount: amountInDefault
+          type: cat.type,
+          amount: amountInDefault,
+          total: amountInDefault
         });
       }
     }
 
-    const categoryStats = Array.from(categoryMap.values())
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 10); // Top 10 categories
+    const allTimeCategoryTotal = Array.from(categoryMap.values()).reduce((sum, cat) => sum + cat.amount, 0);
 
-    // Calculate percentage for each category
-    const totalCategorySpending = categoryStats.reduce((sum, cat) => sum + cat.amount, 0);
-    categoryStats.forEach(cat => {
-      cat.percentage = totalCategorySpending > 0
-        ? Math.round((cat.amount / totalCategorySpending) * 100)
-        : 0;
-    });
+    const categoryStats = Array.from(categoryMap.values())
+      .map(cat => ({
+        ...cat,
+        percentage: allTimeCategoryTotal > 0
+          ? Math.round((cat.amount / allTimeCategoryTotal) * 100)
+          : 0
+      }))
+      .sort((a, b) => {
+        if (b.amount !== a.amount) {
+          return b.amount - a.amount;
+        }
+        return a.name.localeCompare(b.name);
+      });
 
     // NEW TREND CALCULATION LOGIC TO MATCH FRONTEND EXACTLY
     // We fetch raw data points and aggregate them in JS to ensure perfect alignment
@@ -290,7 +302,7 @@ export const getDashboardStats = async (req, res, next) => {
         AND c.name NOT IN ('Trasferimento', 'Prestito', 'Restituzione prestito')
       ORDER BY t.transaction_date ASC`;
 
-    const trendResult = await pool.query(trendQuery, [userId, type, startDate, now]);
+    const trendResult = await pool.query(trendQuery, [userId, type, startDate, endDate]);
 
     // Initialize data points based on period (matching frontend logic)
     let dataPoints = [];
@@ -329,7 +341,7 @@ export const getDashboardStats = async (req, res, next) => {
 
       if (period === 'day') {
         // Match frontend: index = floor(hour / 4)
-        index = Math.min(Math.floor(txDate.getHours() / 4), 5);
+        index = Math.min(Math.max(Math.floor(txDate.getHours() / 4), 0), 5);
       } else if (period === 'week') {
         // Match frontend: day of week index (Mon=0...Sun=6)
         const day = txDate.getDay();
@@ -361,7 +373,7 @@ export const getDashboardStats = async (req, res, next) => {
       period: {
         name: period,
         startDate: startDate.toISOString(),
-        endDate: now.toISOString(),
+        endDate: endDate.toISOString(),
         totalIncome: parseFloat(totalIncome.toFixed(2)),
         totalExpense: parseFloat(totalExpense.toFixed(2)),
         netIncome: parseFloat((totalIncome - totalExpense).toFixed(2))

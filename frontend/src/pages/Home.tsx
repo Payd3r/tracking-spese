@@ -1,6 +1,6 @@
 import { GlassCard } from "@/components/GlassCard";
 import { IconRenderer } from "@/components/IconRenderer";
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Wifi, WifiOff, RefreshCw, Wallet, Tag, HandCoins, Cloud, Loader2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Wifi, WifiOff, RefreshCw, Wallet, Tag, HandCoins, Cloud, Loader2, Eye, EyeOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Link } from "react-router-dom";
@@ -14,50 +14,41 @@ import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { setStartupSnapshot, getStartupSnapshot, isCountedTransaction } from "@/lib/cacheManager";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBottomSheet } from "@/contexts/BottomSheetContext";
 
 // Helper function to format chart labels based on period
 const formatChartLabel = (date: string, period: string, index: number): string => {
   switch (period) {
     case 'day':
       const hours = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'];
-      return hours[index] || '';
+      return hours[index] || date || '';
     case 'week':
       const days = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-      return days[index] || '';
+      return days[index] || date || '';
     case 'month':
       return `W${index + 1}`;
     case 'year':
       const months = ['G', 'F', 'M', 'A', 'M', 'G', 'L', 'A', 'S', 'O', 'N', 'D'];
-      return months[index] || '';
+      return months[index] || date || '';
     default:
-      return '';
+      return date || '';
   }
 };
 
-const getVisibleLabels = (data: any[], period: string) => {
+const getVisibleLabels = (data: any[], _period: string) => {
   if (!data || data.length === 0) return [];
-
-  switch (period) {
-    case 'day':
-      return data.filter((_, index) => index % 2 === 0);
-    case 'week':
-      return data;
-    case 'month':
-      return data;
-    case 'year':
-      return data;
-    default:
-      return data;
-  }
+  return data;
 };
 
 const getDateRange = (period: 'day' | 'week' | 'month' | 'year') => {
   const now = new Date();
   let startDate = new Date();
+  let endDate = new Date();
 
   switch (period) {
     case 'day':
       startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
       break;
     case 'week':
       startDate.setDate(now.getDate() - 7);
@@ -72,7 +63,7 @@ const getDateRange = (period: 'day' | 'week' | 'month' | 'year') => {
 
   return {
     startDate: startDate.toISOString(),
-    endDate: now.toISOString()
+    endDate: endDate.toISOString()
   };
 };
 
@@ -106,6 +97,7 @@ const getCurrencySymbol = (code: string = "EUR"): string => {
 export default function Home() {
   const { isOnline, isSyncing, pendingCount, hasPending, triggerSync } = useSync();
   const { user } = useAuth();
+  const { openTransactionDetail } = useBottomSheet();
   const [viewType, setViewType] = useState<"income" | "spending">("spending");
   const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("week");
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -122,6 +114,7 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [topCategories, setTopCategories] = useState<any[]>([]);
+  const [showBalances, setShowBalances] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -153,8 +146,11 @@ export default function Home() {
       }
       setError(null);
 
-      // Load accounts to display on desktop financial summary
-      const localAccounts = await db.cachedAccounts.toArray();
+      // Load accounts & categories to display on desktop financial summary
+      const [localAccounts, localCategories] = await Promise.all([
+        db.cachedAccounts.toArray(),
+        db.cachedCategories.toArray()
+      ]);
       setAccounts(localAccounts);
 
       const dateRange = getDateRange(period);
@@ -201,30 +197,62 @@ export default function Home() {
       const countedTransactionsInPeriod = allTransactionsInPeriod.filter(isCountedTransaction);
       const totalAmount = countedTransactionsInPeriod.reduce((sum, tx) => sum + tx.amount, 0);
 
-      // Calculate top categories for widescreen
-      const categorySpent: Record<string, { amount: number, icon: string, color: string }> = {};
-      countedTransactionsInPeriod.forEach(tx => {
-        if (!tx.categoryName) return;
-        if (!categorySpent[tx.categoryName]) {
-          categorySpent[tx.categoryName] = {
-            amount: 0,
-            icon: tx.categoryIcon || 'HelpCircle',
-            color: tx.categoryColor || 'gradient-blue'
-          };
-        }
-        categorySpent[tx.categoryName].amount += tx.amount;
-      });
+    // Calculate categories across the ENTIRE database (all-time) for widescreen
+    const allCountedTxsForType = [...allCachedTransactions, ...pendingTxs].filter(
+      tx => tx.type === transactionType && isCountedTransaction(tx)
+    );
+    const allTimeTotalAmount = allCountedTxsForType.reduce((sum, tx) => sum + tx.amount, 0);
 
-      const calculatedTopCategories = Object.entries(categorySpent)
+    const categorySpent: Record<string, { amount: number, icon: string, color: string }> = {};
+    allCountedTxsForType.forEach(tx => {
+      if (!tx.categoryName) return;
+      if (!categorySpent[tx.categoryName]) {
+        categorySpent[tx.categoryName] = {
+          amount: 0,
+          icon: tx.categoryIcon || 'HelpCircle',
+          color: tx.categoryColor || 'gradient-blue'
+        };
+      }
+      categorySpent[tx.categoryName].amount += tx.amount;
+    });
+
+    const categoriesForType = localCategories.filter(cat => 
+      cat.type === transactionType && 
+      !cat.excludeFromTotals && 
+      cat.name !== 'Trasferimento' && 
+      cat.name !== 'Prestito' && 
+      cat.name !== 'Restituzione prestito'
+    );
+
+    let calculatedTopCategories: any[] = [];
+    if (categoriesForType.length > 0) {
+      calculatedTopCategories = categoriesForType.map(cat => {
+        const spent = categorySpent[cat.name]?.amount || 0;
+        return {
+          id: cat.id,
+          name: cat.name,
+          icon: cat.icon || categorySpent[cat.name]?.icon || 'HelpCircle',
+          color: cat.color || categorySpent[cat.name]?.color || 'gradient-blue',
+          amount: spent,
+          percentage: allTimeTotalAmount > 0 ? Math.round((spent / allTimeTotalAmount) * 100) : 0
+        };
+      }).sort((a, b) => {
+        if (b.amount !== a.amount) {
+          return b.amount - a.amount;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      calculatedTopCategories = Object.entries(categorySpent)
         .map(([name, data]) => ({
           name,
           ...data,
-          percentage: totalAmount > 0 ? Math.round((data.amount / totalAmount) * 100) : 0
+          percentage: allTimeTotalAmount > 0 ? Math.round((data.amount / allTimeTotalAmount) * 100) : 0
         }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 4);
+        .sort((a, b) => b.amount - a.amount);
+    }
 
-      setTopCategories(calculatedTopCategories);
+    setTopCategories(calculatedTopCategories);
 
       const calculateLocalTrend = (transactions: Transaction[], period: 'day' | 'week' | 'month' | 'year') => {
         const dateRange = getDateRange(period);
@@ -261,7 +289,7 @@ export default function Home() {
           let index = -1;
 
           if (period === 'day') {
-            index = Math.min(Math.floor(txDate.getHours() / 4), 5);
+            index = Math.min(Math.max(Math.floor(txDate.getHours() / 4), 0), 5);
           } else if (period === 'week') {
             const day = txDate.getDay();
             index = day === 0 ? 6 : day - 1;
@@ -317,17 +345,32 @@ export default function Home() {
 
       if (isOnline) {
         try {
-          const [statsResponse, transactionsResponse] = await Promise.all([
+          const [statsResponse, transactionsResponse, accountsResponse, categoriesResponse] = await Promise.all([
             api.stats.getDashboard(period, transactionType),
             api.transactions.getAll({
               limit: 10,
               type: transactionType,
               startDate: dateRange.startDate,
               endDate: dateRange.endDate
-            })
+            }),
+            api.accounts.getAll(),
+            api.categories.getAll()
           ]);
 
           setStats(statsResponse.data);
+
+          if (Array.isArray(statsResponse.data?.categoryStats) && statsResponse.data.categoryStats.length > 0) {
+            setTopCategories(statsResponse.data.categoryStats);
+          }
+
+          if (accountsResponse?.data?.accounts) {
+            setAccounts(accountsResponse.data.accounts);
+            await db.cachedAccounts.bulkPut(accountsResponse.data.accounts);
+          }
+
+          if (categoriesResponse?.data?.categories) {
+            await db.cachedCategories.bulkPut(categoriesResponse.data.categories);
+          }
 
           const transactions = transactionsResponse.data.transactions || [];
           const freshTransactions = Array.isArray(transactions) ? transactions : [];
@@ -374,6 +417,9 @@ export default function Home() {
     const snapshot = getStartupSnapshot();
     if (snapshot) {
       setStats(snapshot.stats);
+      if (Array.isArray(snapshot.stats?.categoryStats) && snapshot.stats.categoryStats.length > 0) {
+        setTopCategories(snapshot.stats.categoryStats);
+      }
       setRecentTransactions(snapshot.recentTransactions);
       setPeriod(snapshot.period);
       setViewType(snapshot.viewType);
@@ -571,7 +617,21 @@ export default function Home() {
             {/* Accounts Balance Summary Card */}
             <GlassCard className="p-5 border border-white/10 bg-white/5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-white tracking-tight">Riepilogo Conti</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white tracking-tight">Riepilogo Conti</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowBalances((prev) => !prev)}
+                    className="text-muted-foreground hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5 flex items-center justify-center"
+                    title={showBalances ? "Nascondi saldi" : "Mostra saldi"}
+                  >
+                    {showBalances ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
                 <Link to="/settings/accounts" className="text-[10px] text-muted-foreground hover:text-white flex items-center gap-0.5">
                   Gestisci <ChevronRight className="w-3 h-3" />
                 </Link>
@@ -581,16 +641,24 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground text-center py-4">Nessun conto configurato</p>
               ) : (
                 <div className="space-y-3">
-                  {accounts.slice(0, 3).map((acc) => (
+                  {accounts.map((acc) => (
                     <div key={acc.id} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                          <Wallet className="w-4 h-4 text-white" />
+                          {acc.icon ? (
+                            <IconRenderer icon={acc.icon} size={16} className="text-white" />
+                          ) : (
+                            <Wallet className="w-4 h-4 text-white" />
+                          )}
                         </div>
                         <span className="text-xs font-semibold text-white truncate">{acc.name}</span>
                       </div>
-                      <span className={`text-xs font-bold ${acc.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {acc.balance >= 0 ? '+ ' : ''}{formatCurrency(acc.balance)} €
+                      <span className={`text-xs font-bold ${!showBalances ? 'text-muted-foreground tracking-widest' : acc.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {showBalances ? (
+                          `${acc.balance >= 0 ? '+ ' : ''}${formatCurrency(acc.balance)} €`
+                        ) : (
+                          '••••••'
+                        )}
                       </span>
                     </div>
                   ))}
@@ -602,7 +670,7 @@ export default function Home() {
             <GlassCard className="p-5 border border-white/10 bg-white/5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-white tracking-tight">
-                  {viewType === "spending" ? "Top Categorie Spesa" : "Top Categorie Entrate"}
+                  {viewType === "spending" ? "Categorie Spesa" : "Categorie Entrate"}
                 </h3>
                 <Link to="/settings/categories" className="text-[10px] text-muted-foreground hover:text-white flex items-center gap-0.5">
                   Vedi tutte <ChevronRight className="w-3 h-3" />
@@ -620,10 +688,9 @@ export default function Home() {
                           <IconRenderer icon={cat.icon} size={14} className="text-white/60 shrink-0" />
                           <span className="font-semibold text-white truncate">{cat.name}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] shrink-0 font-medium">
-                          <span className="text-white font-semibold">{formatCurrency(cat.amount)} €</span>
-                          <span className="text-muted-foreground">({cat.percentage}%)</span>
-                        </div>
+                        <span className="text-xs font-semibold text-white/80 shrink-0">
+                          {cat.percentage}%
+                        </span>
                       </div>
                       <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/5">
                         <div 
@@ -671,34 +738,60 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {recentTransactions.map((transaction) => (
-                  <Link key={transaction.id} to={`/transaction/${transaction.id}`} className="block">
-                    <div className="glass-card p-3 interactive-press cursor-pointer rounded-xl flex items-center justify-between border border-transparent hover:border-white/10 hover:bg-white/5 transition-all">
-                      <div className="flex items-center gap-3">
+                  <Link
+                    key={transaction.id}
+                    to={`/transaction/${transaction.id}`}
+                    onClick={(e) => {
+                      if (isMobile && transaction.id > 0) {
+                        e.preventDefault();
+                        openTransactionDetail(transaction.id);
+                      }
+                    }}
+                    className="block"
+                  >
+                    <div className="glass-card p-2.5 sm:p-3 interactive-press cursor-pointer rounded-xl flex items-center justify-between gap-2 border border-transparent hover:border-white/10 hover:bg-white/5 transition-all">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                         {(() => {
                           const counted = isCountedTransaction(transaction);
                           return (
                             <>
                               <div
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10 ${!counted ? 'opacity-40' : ''}`}
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                  counted
+                                    ? "bg-white/5 border border-white/10 text-white"
+                                    : "bg-white/[0.03] border border-dashed border-white/20 text-muted-foreground opacity-60"
+                                }`}
                               >
                                 <IconRenderer icon={transaction.categoryIcon} size={20} />
                               </div>
-                              <div>
-                                <h4 className="font-semibold text-sm text-white">{transaction.categoryName}</h4>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                              <div className="min-w-0 flex-1">
+                                <h4 className={`font-semibold text-xs sm:text-sm truncate ${counted ? 'text-white' : 'text-zinc-300'}`}>
+                                  {transaction.categoryName}
+                                </h4>
+                                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
                                   {format(new Date(transaction.transactionDate), 'dd/MM/yyyy')}
-                                  {!counted && <span className="text-warning"> · Non conteggiata</span>}
                                 </p>
                               </div>
                             </>
                           );
                         })()}
                       </div>
-                      <div className="text-right">
-                        <p className={`font-bold text-sm ${transaction.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                          {transaction.type === 'income' ? <ArrowUpRight className="inline w-3.5 h-3.5 mr-0.5" /> : <ArrowDownRight className="inline w-3.5 h-3.5 mr-0.5" />}
-                          {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)} €
-                        </p>
+                      <div className="text-right shrink-0">
+                        {(() => {
+                          const counted = isCountedTransaction(transaction);
+                          return (
+                            <p className={`font-bold text-xs sm:text-sm whitespace-nowrap ${
+                              !counted
+                                ? "text-muted-foreground"
+                                : transaction.type === 'income'
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }`}>
+                              {transaction.type === 'income' ? <ArrowUpRight className="inline w-3.5 h-3.5 mr-0.5" /> : <ArrowDownRight className="inline w-3.5 h-3.5 mr-0.5" />}
+                              {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
+                            </p>
+                          );
+                        })()}
                       </div>
                     </div>
                   </Link>

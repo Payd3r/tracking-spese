@@ -3,7 +3,8 @@ import { AmountInput } from "@/components/AmountInput";
 import { MobileDateInput } from "@/components/MobileDateInput";
 import { NoteInput } from "@/components/NoteInput";
 import { IconRenderer } from "@/components/IconRenderer";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { BottomSheet } from "@/components/BottomSheet";
+import { Loader2, ChevronDown, ChevronUp, HandCoins } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -18,18 +19,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 interface LoanFormProps {
+  isOpen: boolean;
+  onClose: () => void;
   onSuccess: () => void;
 }
 
-export function LoanForm({ onSuccess }: LoanFormProps) {
+export function LoanForm({ isOpen, onClose, onSuccess }: LoanFormProps) {
   const { isFullyOnline } = useSync();
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [loanDate, setLoanDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [loanDate, setLoanDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [note, setNote] = useState("");
-  
+
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,24 +40,23 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isOpen) {
+      loadData();
+    }
+  }, [isOpen]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      
-      // SEMPRE caricare dalla cache prima
+
       const cachedAccounts = await db.cachedAccounts.toArray();
-      const cachedCategories = sortCategoriesByUsage(await db.cachedCategories
-        .where('type')
-        .equals('expense')
-        .toArray());
-      
-      // Mostrare subito i dati dalla cache
+      const cachedCategories = sortCategoriesByUsage(
+        await db.cachedCategories.where("type").equals("expense").toArray()
+      );
+
       setAccounts(cachedAccounts);
       setCategories(cachedCategories);
-      
+
       if (cachedAccounts.length > 0 && selectedAccount === null) {
         setSelectedAccount(cachedAccounts[0].id);
       }
@@ -63,27 +65,31 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
         const other = countedCategories.find((c) => c.name.toLowerCase() === "altro");
         setSelectedCategory(other ? other.id : countedCategories[0]?.id || cachedCategories[0].id);
       }
-      
+
       setLoading(false);
-      
-      // POI, se online E server raggiungibile, aggiornare in background
+
       if (isFullyOnline) {
         try {
           const [accountsResponse, categoriesResponse] = await Promise.all([
             api.accounts.getAll(),
-            api.categories.getAll('expense')
+            api.categories.getAll("expense"),
           ]);
-          
-          const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
-          const categoriesData = sortCategoriesByUsage(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
-          
-          // Aggiornare cache e stato
+
+          const accountsData = Array.isArray(accountsResponse.data.accounts)
+            ? accountsResponse.data.accounts
+            : [];
+          const categoriesData = sortCategoriesByUsage(
+            Array.isArray(categoriesResponse.data.categories)
+              ? categoriesResponse.data.categories
+              : []
+          );
+
           await db.cachedAccounts.bulkPut(accountsData);
           await db.cachedCategories.bulkPut(categoriesData);
-          
+
           setAccounts(accountsData);
           setCategories(categoriesData);
-        } catch (err) {
+        } catch {
           console.log("Background refresh failed, using cached data");
         }
       }
@@ -94,9 +100,8 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
     }
   };
 
-  const selectedAccountData = accounts.find(a => a.id === selectedAccount);
-  const selectedCategoryData = categories.find(c => c.id === selectedCategory);
-  const currency = selectedAccountData?.currency || 'EUR';
+  const selectedAccountData = accounts.find((a) => a.id === selectedAccount);
+  const currency = selectedAccountData?.currency || "EUR";
 
   const handleCreate = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -122,13 +127,13 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
     try {
       setSubmitting(true);
       const payload = {
-        title: note.trim(), // Usa la nota come titolo
+        title: note.trim(),
         amount: parseFloat(amount),
         currency,
         fromAccountId: selectedAccount,
         categoryId: selectedCategory,
         loanDate: new Date(loanDate).toISOString(),
-        note: note.trim()
+        note: note.trim(),
       };
 
       if (!isFullyOnline) {
@@ -139,32 +144,33 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
         }
         const tempId = -Date.now();
         await addPendingLoanOperation(userId, {
-          type: 'create',
+          type: "create",
           data: { ...payload, tempId },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         await db.cachedLoans.put({
           id: tempId,
           userId,
           ...payload,
-          status: 'active',
+          status: "active",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           totalRepaid: 0,
           isPending: true,
-          pendingAction: 'create'
+          pendingAction: "create",
         });
         toast.success("Prestito salvato offline! Verrà sincronizzato automaticamente.");
       } else {
         await api.loans.create(payload);
         toast.success("Prestito creato con successo!");
       }
-      
+
       // Reset form
       setAmount("");
       setNote("");
-      setLoanDate(format(new Date(), 'yyyy-MM-dd'));
-      
+      setLoanDate(format(new Date(), "yyyy-MM-dd"));
+      setCategoriesExpanded(false);
+
       onSuccess();
     } catch (err: any) {
       console.error("Failed to create loan:", err);
@@ -174,155 +180,187 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {/* Amount Input */}
-      <AmountInput
-        value={amount}
-        onChange={setAmount}
-        currency={currency}
-      />
-
-      {/* Date */}
-      <MobileDateInput
-        value={loanDate}
-        onChange={setLoanDate}
-      />
-
-      {/* Category */}
-      <GlassCard className="p-4">
-        <label className="text-xs text-muted-foreground mb-2 block font-medium">Categoria</label>
-        {categories.length === 0 ? (
-          <div className="text-center">
-            <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
-            <Link to="/settings/categories" className="text-primary text-xs mt-2 inline-block">
-              Crea una categoria
-            </Link>
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      header={
+        <div className="pb-3 border-b border-white/10 flex items-center">
+          <div className="flex items-center gap-2">
+            <HandCoins className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-base font-bold text-white tracking-tight">Nuovo Prestito</h2>
+          </div>
+        </div>
+      }
+      footer={
+        <Button
+          onClick={handleCreate}
+          disabled={submitting || loading || !selectedCategory || !note.trim() || !amount}
+          size="lg"
+          className="w-full h-12 pill-active text-sm font-bold rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+        >
+          {submitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Creazione...
+            </span>
+          ) : (
+            "Crea Prestito"
+          )}
+        </Button>
+      }
+    >
+      <div className="py-4 space-y-4">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin" />
           </div>
         ) : (
           <>
-            {(() => {
-              const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
-              const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
-              const hasMoreCategories = filteredCategories.length > 8;
+            {/* Amount Input */}
+            <AmountInput value={amount} onChange={setAmount} currency={currency} />
 
-              if (filteredCategories.length === 0) {
-                return (
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
-                    <Link to="/settings/categories" className="text-primary text-xs mt-2 inline-block">
-                      Crea una categoria
-                    </Link>
-                  </div>
-                );
-              }
-              
-              return (
+            {/* Date */}
+            <MobileDateInput value={loanDate} onChange={setLoanDate} />
+
+            {/* Category */}
+            <GlassCard className="p-4">
+              <label className="text-xs text-muted-foreground mb-2 block font-medium">
+                Categoria
+              </label>
+              {categories.length === 0 ? (
+                <div className="text-center">
+                  <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
+                  <Link
+                    to="/settings/categories"
+                    onClick={onClose}
+                    className="text-primary text-xs mt-2 inline-block"
+                  >
+                    Crea una categoria
+                  </Link>
+                </div>
+              ) : (
                 <>
-                  <div className="grid grid-cols-4 gap-2">
-                    {visibleCategories.map((category) => {
-                      const isSelected = selectedCategory === category.id;
+                  {(() => {
+                    const filteredCategories = sortCategoriesByUsage(
+                      categories.filter(isVisibleTransactionCategory)
+                    );
+                    const visibleCategories = categoriesExpanded
+                      ? filteredCategories
+                      : filteredCategories.slice(0, 8);
+                    const hasMoreCategories = filteredCategories.length > 8;
+
+                    if (filteredCategories.length === 0) {
                       return (
-                        <button
-                          key={category.id}
-                          onClick={() => setSelectedCategory(category.id)}
-                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
-                            isSelected ? "pill-active" : "glass-card"
-                          }`}
-                        >
-                          <IconRenderer icon={category.icon} size={24} />
-                          <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
-                        </button>
+                        <div className="text-center">
+                          <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
+                          <Link
+                            to="/settings/categories"
+                            onClick={onClose}
+                            className="text-primary text-xs mt-2 inline-block"
+                          >
+                            Crea una categoria
+                          </Link>
+                        </div>
                       );
-                    })}
-                  </div>
-                  
-                  {hasMoreCategories && (
-                    <button
-                      onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10 interactive-press"
-                    >
-                      {categoriesExpanded ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          Mostra meno
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          Mostra tutte le categorie ({filteredCategories.length - 8} altre)
-                        </>
-                      )}
-                    </button>
-                  )}
+                    }
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-4 gap-2">
+                          {visibleCategories.map((category) => {
+                            const isSelected = selectedCategory === category.id;
+                            return (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => setSelectedCategory(category.id)}
+                                className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
+                                  isSelected ? "pill-active" : "glass-card"
+                                }`}
+                              >
+                                <IconRenderer icon={category.icon} size={24} />
+                                <span className="text-[10px] font-medium leading-tight text-center truncate w-full">
+                                  {category.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {hasMoreCategories && (
+                          <button
+                            type="button"
+                            onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                            className="w-full mt-3 glass-card p-2.5 flex items-center justify-center gap-1.5 text-xs font-medium transition-all hover:bg-white/10 interactive-press"
+                          >
+                            {categoriesExpanded ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                                Mostra meno
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                Mostra tutte ({filteredCategories.length - 8} altre)
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
-              );
-            })()}
+              )}
+            </GlassCard>
+
+            {/* Account */}
+            <GlassCard className="p-4">
+              <label className="text-xs text-muted-foreground mb-2 block font-medium">Conto</label>
+              {accounts.length === 0 ? (
+                <div className="text-center">
+                  <p className="text-muted-foreground text-xs">Nessun conto disponibile</p>
+                  <Link
+                    to="/settings/accounts"
+                    onClick={onClose}
+                    className="text-primary text-xs mt-2 inline-block"
+                  >
+                    Crea un conto
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {accounts.map((account) => {
+                    const isSelected = selectedAccount === account.id;
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        onClick={() => setSelectedAccount(account.id)}
+                        className={`p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
+                          isSelected ? "pill-active" : "glass-card"
+                        }`}
+                      >
+                        <IconRenderer icon={account.icon} size={24} />
+                        <span className="text-[10px] font-medium leading-tight text-center truncate w-full">
+                          {account.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Note Input */}
+            <NoteInput
+              value={note}
+              onChange={setNote}
+              placeholder="Note o beneficiario del prestito..."
+            />
           </>
         )}
-      </GlassCard>
-
-      {/* Account */}
-      <GlassCard className="p-4">
-        <label className="text-xs text-muted-foreground mb-2 block font-medium">Conto</label>
-        {accounts.length === 0 ? (
-          <div className="text-center">
-            <p className="text-muted-foreground text-xs">Nessun conto disponibile</p>
-            <Link to="/settings/accounts" className="text-primary text-xs mt-2 inline-block">
-              Crea un conto
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {accounts.map((account) => {
-              const isSelected = selectedAccount === account.id;
-              return (
-                <button
-                  key={account.id}
-                  onClick={() => setSelectedAccount(account.id)}
-                  className={`p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
-                    isSelected ? "pill-active" : "glass-card"
-                  }`}
-                >
-                  <IconRenderer icon={account.icon} size={24} />
-                  <span className="text-[10px] font-medium leading-tight text-center">{account.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </GlassCard>
-
-      {/* Note Input */}
-      <NoteInput
-        value={note}
-        onChange={setNote}
-        placeholder="Note del prestito..."
-      />
-
-      {/* Submit Button */}
-      <Button 
-        onClick={handleCreate} 
-        disabled={submitting || !selectedCategory || !note.trim()}
-        className="w-full h-11 rounded-2xl font-semibold text-base pill-active"
-      >
-        {submitting ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            Creazione...
-          </>
-        ) : (
-          "Crea Prestito"
-        )}
-      </Button>
-    </div>
+      </div>
+    </BottomSheet>
   );
 }

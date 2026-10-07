@@ -14,7 +14,7 @@ export const Sidebar = ({ onAddClick }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  if (!isAuthenticated || location.pathname === '/auth') {
+  if (!isAuthenticated || location.pathname === '/auth' || location.pathname.startsWith('/privacy')) {
     return null;
   }
 
@@ -62,12 +62,12 @@ export const Sidebar = ({ onAddClick }: SidebarProps) => {
     <aside className="hidden md:flex flex-col w-64 h-screen bg-black border-r border-white/10 p-5 shrink-0 z-40">
       {/* Brand Logo */}
       <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center font-bold text-lg shadow-strong">
-          P
+        <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center font-bold text-base shadow-strong">
+          TS
         </div>
         <div>
-          <h1 className="font-bold text-base tracking-tight leading-none">Payd3r</h1>
-          <span className="text-[10px] text-muted-foreground">Tracking Spese</span>
+          <h1 className="font-bold text-base tracking-tight leading-none">Tracking Spese</h1>
+          <span className="text-[10px] text-muted-foreground">Gestione Finanze</span>
         </div>
       </div>
 

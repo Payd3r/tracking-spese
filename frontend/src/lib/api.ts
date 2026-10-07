@@ -166,6 +166,31 @@ export const api = {
       description?: string;
     }) => apiClient.post(`/loans/admin/${id}/attach-repayment-transaction`, data),
   },
+
+  banking: {
+    getStatus: () => apiClient.get('/banking/status'),
+    listAspsps: (country?: string) => apiClient.get('/banking/aspsps', { params: { country } }),
+    startAuth: (data: { aspspName: string; country: string }) =>
+      apiClient.post('/banking/auth', data),
+    exchange: (data: { code: string; state?: string }) =>
+      apiClient.post('/banking/exchange', data),
+    sync: (data?: {
+      lookbackDays?: number;
+      sendPush?: boolean;
+      createNew?: boolean;
+      linkExisting?: boolean;
+    }) => apiClient.post('/banking/sync', data || {}),
+    deleteSession: (id: number) => apiClient.delete(`/banking/sessions/${id}`),
+  },
+
+  push: {
+    getVapidPublicKey: () => apiClient.get('/push/vapid-public-key'),
+    getStatus: () => apiClient.get('/push/status'),
+    subscribe: (subscription: PushSubscriptionJSON) =>
+      apiClient.post('/push/subscribe', { subscription }),
+    unsubscribe: (endpoint: string) =>
+      apiClient.delete('/push/subscribe', { data: { endpoint } }),
+  },
 };
 
 export function isOnline(): boolean {

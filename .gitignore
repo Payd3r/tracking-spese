@@ -8,7 +8,12 @@ bun.lockb
 .env.*.local
 .env.prod
 .env.production
+backend/.env
 backend/.env.backup
+
+# Secrets
+*.pem
+!*.pem.example
 
 # Logs
 *.log

@@ -31,13 +31,16 @@ export function MobileDateInput({
   }, [value]);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!isOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    const prevTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = prevOverflow;
+      document.body.style.touchAction = prevTouchAction;
     };
   }, [isOpen]);
 
@@ -53,7 +56,8 @@ export function MobileDateInput({
     }
   };
 
-  const openPicker = () => {
+  const openPicker = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
     setCurrentMonth(value ? new Date(value) : new Date());
     setIsOpen(true);
   };
@@ -63,11 +67,13 @@ export function MobileDateInput({
     setIsOpen(false);
   };
 
-  const handlePrevMonth = () => {
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1));
   };
 
-  const handleNextMonth = () => {
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1));
   };
 
@@ -86,12 +92,17 @@ export function MobileDateInput({
   const calendarModal = isOpen
     ? createPortal(
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 p-3 backdrop-blur-md touch-none isolate"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Seleziona data"
           onClick={() => setIsOpen(false)}
+          onTouchMove={(e) => e.preventDefault()}
         >
           <div
-            className="glass-card w-full max-w-sm max-h-[80vh] overflow-hidden border border-white/10 shadow-[var(--shadow-soft)]"
+            className="glass-card w-full max-w-sm max-h-[80vh] overflow-hidden border border-white/10 shadow-[var(--shadow-soft)] touch-auto"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <button
@@ -126,7 +137,7 @@ export function MobileDateInput({
               ))}
             </div>
 
-            <div className="grid max-h-56 grid-cols-7 gap-1 overflow-y-auto px-3 pb-3">
+            <div className="grid max-h-56 grid-cols-7 gap-1 overflow-y-auto overscroll-contain px-3 pb-3 touch-auto">
               {getCalendarDays().map((day, index) => {
                 if (!day) {
                   return <div key={`empty-${index}`} className="h-9" />;
@@ -136,7 +147,10 @@ export function MobileDateInput({
                   <button
                     key={day.toISOString()}
                     type="button"
-                    onClick={() => handleDateSelect(day)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDateSelect(day);
+                    }}
                     className={cn(
                       "h-9 rounded-xl text-xs font-semibold transition-all touch-manipulation",
                       isSelected(day)
@@ -155,14 +169,20 @@ export function MobileDateInput({
             <div className="flex gap-2 border-t border-white/10 p-3">
               <button
                 type="button"
-                onClick={() => handleDateSelect(new Date())}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDateSelect(new Date());
+                }}
                 className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/10 touch-manipulation"
               >
                 Oggi
               </button>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                }}
                 className="flex-1 rounded-xl py-2.5 px-3 text-sm font-semibold pill-active touch-manipulation"
               >
                 Chiudi

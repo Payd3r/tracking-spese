@@ -3,7 +3,8 @@ import { IconRenderer } from "@/components/IconRenderer";
 import { AmountInput } from "@/components/AmountInput";
 import { MobileDateInput } from "@/components/MobileDateInput";
 import { NoteInput } from "@/components/NoteInput";
-import { Loader2, ChevronDown, ChevronUp, Wifi, WifiOff } from "lucide-react";
+import { BottomSheet } from "@/components/BottomSheet";
+import { Loader2, ChevronDown, ChevronUp, WifiOff, PlusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -18,18 +19,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isVisibleTransactionCategory, sortCategoriesByUsage } from "@/lib/cacheManager";
 
 interface TransactionFormProps {
+  isOpen: boolean;
+  onClose: () => void;
   onSuccess: () => void;
 }
 
-export function TransactionForm({ onSuccess }: TransactionFormProps) {
-  const { isFullyOnline, isOnline, isServerReachable } = useSync();
+export function TransactionForm({ isOpen, onClose, onSuccess }: TransactionFormProps) {
+  const { isFullyOnline } = useSync();
   const { user } = useAuth();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -40,7 +43,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   const getDefaultAccountId = (list: Account[]) => {
     if (!list.length) return null;
     const cash = list.find(
-      (a) => a.name.toLowerCase() === "contanti" || a.name.toLowerCase() === "cash",
+      (a) => a.name.toLowerCase() === "contanti" || a.name.toLowerCase() === "cash"
     );
     return (cash ?? list[0]).id;
   };
@@ -53,21 +56,20 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   };
 
   useEffect(() => {
-    loadData();
-  }, [type]);
+    if (isOpen) {
+      loadData();
+    }
+  }, [type, isOpen]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // SEMPRE caricare dalla cache prima
-      const cachedCategories = sortCategoriesByUsage(await db.cachedCategories
-        .where('type')
-        .equals(type)
-        .toArray());
+      const cachedCategories = sortCategoriesByUsage(
+        await db.cachedCategories.where("type").equals(type).toArray()
+      );
       const cachedAccounts = await db.cachedAccounts.toArray();
 
-      // Mostrare subito i dati dalla cache
       setCategories(cachedCategories);
       setAccounts(cachedAccounts);
 
@@ -80,30 +82,32 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
 
       setLoading(false);
 
-      // POI, se online E server raggiungibile, aggiornare in background
       if (isFullyOnline) {
         try {
           const [categoriesResponse, accountsResponse] = await Promise.all([
             api.categories.getAll(type),
-            api.accounts.getAll()
+            api.accounts.getAll(),
           ]);
 
-          const categoriesData = sortCategoriesByUsage(Array.isArray(categoriesResponse.data.categories) ? categoriesResponse.data.categories : []);
-          const accountsData = Array.isArray(accountsResponse.data.accounts) ? accountsResponse.data.accounts : [];
+          const categoriesData = sortCategoriesByUsage(
+            Array.isArray(categoriesResponse.data.categories)
+              ? categoriesResponse.data.categories
+              : []
+          );
+          const accountsData = Array.isArray(accountsResponse.data.accounts)
+            ? accountsResponse.data.accounts
+            : [];
 
-          // Aggiornare cache e stato
           await db.cachedCategories.bulkPut(categoriesData);
           await db.cachedAccounts.bulkPut(accountsData);
 
           setCategories(categoriesData);
           setAccounts(accountsData);
-        } catch (err) {
-          // Ignorare errori di rete - abbiamo già i dati dalla cache
+        } catch {
           console.log("Background refresh failed, using cached data");
         }
       }
     } catch (err: any) {
-      // Se anche la cache fallisce, mostrare errore
       console.error("Failed to load data:", err);
       toast.error(err.response?.data?.message || "Errore nel caricamento dei dati");
       setCategories([]);
@@ -113,7 +117,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
   };
 
   const handleSubmit = async () => {
-    if (!amount || !selectedCategory || !selectedAccount) {
+    if (!amount || parseFloat(amount) <= 0 || !selectedCategory || !selectedAccount) {
       toast.error("Compila tutti i campi obbligatori");
       return;
     }
@@ -121,11 +125,12 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     try {
       setSubmitting(true);
 
-      const selectedCategoryData = categories.find(c => c.id === selectedCategory);
-      // Pre-calculate title/note for consistency
+      const selectedCategoryData = categories.find((c) => c.id === selectedCategory);
       const title = selectedCategoryData
-        ? `${type === 'income' ? 'Entrata' : 'Uscita'} - ${selectedCategoryData.name}`
-        : type === 'income' ? 'Entrata' : 'Uscita';
+        ? `${type === "income" ? "Entrata" : "Uscita"} - ${selectedCategoryData.name}`
+        : type === "income"
+        ? "Entrata"
+        : "Uscita";
 
       const transactionData = {
         accountId: selectedAccount,
@@ -137,7 +142,6 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         transactionDate: new Date(date).toISOString(),
       };
 
-      // Helper to save offline
       const saveOffline = async () => {
         const userId = user?.id;
         if (!userId) throw new Error("Utente non autenticato (offline save)");
@@ -146,29 +150,18 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
         toast.success("Salvata offline! Sarà sincronizzata appena possibile.");
       };
 
-      // STRATEGY: Safety Net
-      // 1. If currently marked offline -> Go straight to queue
       if (!isFullyOnline) {
         await saveOffline();
       } else {
-        // 2. If online, TRY the API
         try {
           await api.transactions.create(transactionData);
           toast.success("Transazione creata con successo!");
-
-          // Optimistic local update (optional but good) is handled by cache refresh in background or next fetch
-          // For now, we rely on the list view refreshing from cache or stale-while-revalidate
         } catch (apiError: any) {
           console.warn("Direct API call failed, falling back to offline queue:", apiError);
-
-          // Check if it's a network-ish error or server error
-          // If 4xx (validation), we explicitly fail. If 5xx or Network, we queue.
           const isNetworkOrServer = !apiError.response || apiError.response.status >= 500;
-
           if (isNetworkOrServer) {
             await saveOffline();
           } else {
-            // Real validation error (e.g. 400 Bad Request)
             throw apiError;
           }
         }
@@ -179,9 +172,11 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
       setNote("");
       setSelectedCategory(null);
       setSelectedAccount(null);
-      setDate(format(new Date(), 'yyyy-MM-dd'));
+      setDate(format(new Date(), "yyyy-MM-dd"));
       setType("expense");
+      setCategoriesExpanded(false);
 
+      window.dispatchEvent(new Event("transactionUpdated"));
       onSuccess();
     } catch (err: any) {
       console.error("Failed to create transaction:", err);
@@ -191,194 +186,223 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {/* Type Selector */}
-      <GlassCard className="p-2 flex gap-2">
-        <button
-          onClick={() => {
-            setType("expense");
-            setSelectedCategory(null);
-            setCategoriesExpanded(false);
-          }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${type === "expense" ? "pill-active" : "text-muted-foreground"
-            }`}
-        >
-          Uscita
-        </button>
-        <button
-          onClick={() => {
-            setType("income");
-            setSelectedCategory(null);
-            setCategoriesExpanded(false);
-          }}
-          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all interactive-press ${type === "income" ? "pill-active" : "text-muted-foreground"
-            }`}
-        >
-          Entrata
-        </button>
-      </GlassCard>
-
-      {/* Status Indicator */}
-      {!isFullyOnline && (
-        <div className="glass-card tone-warning p-3 rounded-2xl flex items-center gap-2">
-          {!isOnline ? (
-            <>
-              <WifiOff className="w-4 h-4 text-warning" />
-              <span className="text-xs text-warning">Modalità offline - Le transazioni verranno sincronizzate quando torni online</span>
-            </>
-          ) : !isServerReachable ? (
-            <>
-              <WifiOff className="w-4 h-4 text-warning" />
-              <span className="text-xs text-warning">Server non raggiungibile - Le transazioni verranno sincronizzate automaticamente</span>
-            </>
-          ) : null}
+    <BottomSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      header={
+        <div className="pb-3 border-b border-white/10 flex items-center">
+          <div className="flex items-center gap-2">
+            <PlusCircle className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-base font-bold text-white tracking-tight">Nuova Transazione</h2>
+          </div>
         </div>
-      )}
+      }
+      footer={
+        <Button
+          onClick={handleSubmit}
+          disabled={submitting || loading}
+          size="lg"
+          className="w-full h-12 pill-active text-sm font-bold rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+        >
+          {submitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Salvataggio...
+            </span>
+          ) : type === "expense" ? (
+            "Aggiungi Uscita"
+          ) : (
+            "Aggiungi Entrata"
+          )}
+        </Button>
+      }
+    >
+      <div className="py-4 space-y-4">
+        {/* Type Selector */}
+        <div className="p-1 bg-white/5 border border-white/10 rounded-2xl flex gap-1">
+          <button
+            type="button"
+            onClick={() => setType("expense")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all interactive-press ${
+              type === "expense" ? "pill-active" : "text-muted-foreground hover:text-white"
+            }`}
+          >
+            Uscite
+          </button>
+          <button
+            type="button"
+            onClick={() => setType("income")}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all interactive-press ${
+              type === "income" ? "pill-active" : "text-muted-foreground hover:text-white"
+            }`}
+          >
+            Entrate
+          </button>
+        </div>
 
-      {/* Amount */}
-      <AmountInput
-        value={amount}
-        onChange={setAmount}
-        currency={selectedAccount ? accounts.find(a => a.id === selectedAccount)?.currency : 'EUR'}
-        type={type}
-      />
-
-      {/* Date */}
-      <MobileDateInput value={date} onChange={setDate} />
-
-      {/* Category */}
-      <GlassCard className="p-4">
-        <label className="text-xs text-muted-foreground mb-2 block font-medium">Categoria</label>
-        {categories.length === 0 ? (
-          <div className="text-center">
-            <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
-            <Link to="/settings/categories" className="text-primary text-xs mt-2 inline-block">
-              Crea una categoria
-            </Link>
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin" />
           </div>
         ) : (
           <>
-            {(() => {
-              const filteredCategories = sortCategoriesByUsage(categories.filter(isVisibleTransactionCategory));
-              const visibleCategories = categoriesExpanded ? filteredCategories : filteredCategories.slice(0, 8);
-              const hasMoreCategories = filteredCategories.length > 8;
-
-              if (filteredCategories.length === 0) {
-                return (
-                  <div className="text-center">
-                    <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
-                    <Link to="/settings/categories" className="text-primary text-xs mt-2 inline-block">
-                      Crea una categoria
-                    </Link>
-                  </div>
-                );
+            {/* Amount */}
+            <AmountInput
+              value={amount}
+              onChange={setAmount}
+              currency={
+                selectedAccount
+                  ? accounts.find((a) => a.id === selectedAccount)?.currency || "EUR"
+                  : "EUR"
               }
+              type={type}
+            />
 
-              return (
+            {/* Date */}
+            <MobileDateInput value={date} onChange={setDate} />
+
+            {/* Category */}
+            <GlassCard className="p-4">
+              <label className="text-xs text-muted-foreground mb-2 block font-medium">
+                Categoria
+              </label>
+              {categories.length === 0 ? (
+                <div className="text-center py-2">
+                  <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
+                  <Link
+                    to="/settings/categories"
+                    onClick={onClose}
+                    className="text-primary text-xs mt-2 inline-block"
+                  >
+                    Crea una categoria
+                  </Link>
+                </div>
+              ) : (
                 <>
-                  <div className="grid grid-cols-4 gap-2">
-                    {visibleCategories.map((category) => {
-                      const isSelected = selectedCategory === category.id;
+                  {(() => {
+                    const filteredCategories = sortCategoriesByUsage(
+                      categories.filter(isVisibleTransactionCategory)
+                    );
+                    const visibleCategories = categoriesExpanded
+                      ? filteredCategories
+                      : filteredCategories.slice(0, 8);
+                    const hasMoreCategories = filteredCategories.length > 8;
+
+                    if (filteredCategories.length === 0) {
                       return (
-                        <button
-                          key={category.id}
-                          onClick={() => setSelectedCategory(category.id)}
-                          className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${isSelected ? "pill-active" : "glass-card"
-                            }`}
-                        >
-                          <IconRenderer icon={category.icon} size={24} />
-                          <span className="text-[10px] font-medium leading-tight text-center">{category.name}</span>
-                        </button>
+                        <div className="text-center py-2">
+                          <p className="text-muted-foreground text-xs">Nessuna categoria disponibile</p>
+                          <Link
+                            to="/settings/categories"
+                            onClick={onClose}
+                            className="text-primary text-xs mt-2 inline-block"
+                          >
+                            Crea una categoria
+                          </Link>
+                        </div>
                       );
-                    })}
-                  </div>
+                    }
 
-                  {hasMoreCategories && (
-                    <button
-                      onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-                      className="w-full mt-3 glass-card p-3 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-white/10 interactive-press"
-                    >
-                      {categoriesExpanded ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          Mostra meno
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          Mostra tutte le categorie ({filteredCategories.length - 8} altre)
-                        </>
-                      )}
-                    </button>
-                  )}
+                    return (
+                      <>
+                        <div className="grid grid-cols-4 gap-2">
+                          {visibleCategories.map((category) => {
+                            const isSelected = selectedCategory === category.id;
+                            return (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => setSelectedCategory(category.id)}
+                                className={`p-2.5 flex flex-col items-center gap-1.5 transition-all rounded-xl interactive-press ${
+                                  isSelected ? "pill-active" : "glass-card"
+                                }`}
+                              >
+                                <IconRenderer icon={category.icon} size={22} />
+                                <span className="text-[10px] font-medium leading-tight text-center truncate w-full">
+                                  {category.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {hasMoreCategories && (
+                          <button
+                            type="button"
+                            onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                            className="w-full mt-3 glass-card p-2.5 flex items-center justify-center gap-1.5 text-xs font-medium transition-all hover:bg-white/10 interactive-press"
+                          >
+                            {categoriesExpanded ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                                Mostra meno
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                Mostra tutte ({filteredCategories.length - 8} altre)
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
-              );
-            })()}
+              )}
+            </GlassCard>
+
+            {/* Account */}
+            <GlassCard className="p-4">
+              <label className="text-xs text-muted-foreground mb-2 block font-medium">Conto</label>
+              {accounts.length === 0 ? (
+                <div className="text-center py-2">
+                  <p className="text-muted-foreground text-xs">Nessun conto disponibile</p>
+                  <Link
+                    to="/settings/accounts"
+                    onClick={onClose}
+                    className="text-primary text-xs mt-2 inline-block"
+                  >
+                    Crea un conto
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {accounts.map((account) => {
+                    const isSelected = selectedAccount === account.id;
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        onClick={() => setSelectedAccount(account.id)}
+                        className={`p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${
+                          isSelected ? "pill-active" : "glass-card"
+                        }`}
+                      >
+                        <IconRenderer icon={account.icon} size={22} />
+                        <span className="text-[10px] font-medium leading-tight text-center truncate w-full">
+                          {account.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Note */}
+            <NoteInput value={note} onChange={setNote} placeholder="Note opzionali..." />
+
+            {!isFullyOnline && (
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2 text-warning text-xs">
+                <WifiOff className="w-4 h-4 shrink-0" />
+                <span>Modalità offline: la transazione verrà sincronizzata appena online.</span>
+              </div>
+            )}
           </>
         )}
-      </GlassCard>
-
-      {/* Account */}
-      <GlassCard className="p-4">
-        <label className="text-xs text-muted-foreground mb-2 block font-medium">Conto</label>
-        {accounts.length === 0 ? (
-          <div className="text-center">
-            <p className="text-muted-foreground text-xs">Nessun conto disponibile</p>
-            <Link to="/settings/accounts" className="text-primary text-xs mt-2 inline-block">
-              Crea un conto
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {accounts.map((account) => {
-              const isSelected = selectedAccount === account.id;
-              return (
-                <button
-                  key={account.id}
-                  onClick={() => setSelectedAccount(account.id)}
-                  className={`p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all rounded-xl interactive-press ${isSelected ? "pill-active" : "glass-card"
-                    }`}
-                >
-                  <IconRenderer icon={account.icon} size={24} />
-                  <span className="text-[10px] font-medium leading-tight text-center">{account.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </GlassCard>
-
-      {/* Note */}
-      <NoteInput
-        value={note}
-        onChange={setNote}
-        placeholder="Note opzionali..."
-      />
-
-      {/* Submit Button */}
-      <Button
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="w-full h-11 rounded-2xl font-semibold text-base pill-active"
-      >
-        {submitting ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            Salvataggio...
-          </>
-        ) : (
-          "Aggiungi Transazione"
-        )}
-      </Button>
-    </div>
+      </div>
+    </BottomSheet>
   );
 }

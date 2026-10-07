@@ -7,14 +7,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env.local (dev) or .env (prod)
-const devEnvPath = path.resolve(__dirname, '../../../.env.local');
-const prodEnvPath = path.resolve(__dirname, '../../../.env');
+// Load root .env
+const envPath = path.resolve(__dirname, '../../../.env');
 
-if (fs.existsSync(devEnvPath)) {
-  dotenv.config({ path: devEnvPath, override: true });
-} else if (fs.existsSync(prodEnvPath)) {
-  dotenv.config({ path: prodEnvPath, override: true });
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath, override: true });
 }
 
 const { Pool } = pg;

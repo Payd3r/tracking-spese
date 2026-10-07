@@ -397,6 +397,81 @@ All colors MUST be HSL.
     padding-top: env(safe-area-inset-top, 0px);
   }
 
+  /* Progressive Safe Area Top Blur for Mobile PWA */
+  .top-safe-area-blur {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: max(calc(env(safe-area-inset-top, 0px) + 24px), 52px);
+    pointer-events: none;
+    z-index: 40;
+    overflow: hidden;
+    transform: translateZ(0);
+  }
+
+  .top-safe-area-blur .blur-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transform: translateZ(0);
+    will-change: transform, backdrop-filter;
+  }
+
+  /* Layer 1: ultra-fine broad reach blur */
+  .top-safe-area-blur .blur-layer-1 {
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 50%, rgba(0, 0, 0, 0) 100%);
+  }
+
+  /* Layer 2: light blur */
+  .top-safe-area-blur .blur-layer-2 {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 40%, rgba(0, 0, 0, 0) 80%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 40%, rgba(0, 0, 0, 0) 80%);
+  }
+
+  /* Layer 3: medium-strong blur */
+  .top-safe-area-blur .blur-layer-3 {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 30%, rgba(0, 0, 0, 0) 65%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 30%, rgba(0, 0, 0, 0) 65%);
+  }
+
+  /* Layer 4: strong blur */
+  .top-safe-area-blur .blur-layer-4 {
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0) 50%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0) 50%);
+  }
+
+  /* Layer 5: heavy blur focused near status bar / dynamic island */
+  .top-safe-area-blur .blur-layer-5 {
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 15%, rgba(0, 0, 0, 0) 35%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.8) 15%, rgba(0, 0, 0, 0) 35%);
+  }
+
+  /* Tint overlay: 70% dark at top transitioning to 0% at bottom */
+  .top-safe-area-blur .blur-tint-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.45) 45%, rgba(0, 0, 0, 0.12) 75%, rgba(0, 0, 0, 0) 100%);
+  }
+
+  @media (min-width: 768px) {
+    .top-safe-area-blur {
+      display: none;
+    }
+  }
+
   /* Ensure navigation buttons are always clickable */
   .ios-bottom-nav a,
   .ios-bottom-nav button {
@@ -535,6 +610,14 @@ All colors MUST be HSL.
   }
 
   /* Interactive micro motion */
+  .filter-chip {
+    transition: background-color var(--transition-quick), color var(--transition-quick), border-color var(--transition-quick), opacity var(--transition-quick);
+  }
+
+  .filter-chip:active:not(:disabled) {
+    opacity: 0.82;
+  }
+
   .interactive-press {
     transition: transform var(--transition-quick), box-shadow var(--transition-quick), background-color var(--transition-quick), color var(--transition-quick), border-color var(--transition-quick);
     will-change: transform, box-shadow;

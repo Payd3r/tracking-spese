@@ -182,12 +182,11 @@ export const verifyPasskeyRegistration = async (req, res, next) => {
       ]
     );
 
-    // Create session for 30 days
+    // Create session for 30 days (multi-device: do not revoke other sessions)
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: `${SESSION_EXPIRY_DAYS}d` });
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS);
 
-    await pool.query('DELETE FROM sessions WHERE user_id = $1', [user.id]);
     await pool.query(
       'INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)',
       [user.id, token, expiresAt]
@@ -306,12 +305,11 @@ export const verifyPasskeyLogin = async (req, res, next) => {
       dbAuth.credential_id,
     ]);
 
-    // Create session for 30 days
+    // Create session for 30 days (multi-device: do not revoke other sessions)
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: `${SESSION_EXPIRY_DAYS}d` });
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS);
 
-    await pool.query('DELETE FROM sessions WHERE user_id = $1', [user.id]);
     await pool.query(
       'INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)',
       [user.id, token, expiresAt]

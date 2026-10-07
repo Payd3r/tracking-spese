@@ -236,13 +236,12 @@ export default function ManageCategories() {
       </AlertDialog>
 
       {/* Create Category Bottom Sheet / Widescreen Modal */}
-      <BottomSheet
+      <CategoryForm
         isOpen={createSheetOpen}
         onClose={() => setCreateSheetOpen(false)}
-        title="Nuova Categoria"
-      >
-        <CategoryForm onSuccess={handleCategoryCreated} initialType={viewType} />
-      </BottomSheet>
+        onSuccess={handleCategoryCreated}
+        initialType={viewType}
+      />
     </div>
   );
 }

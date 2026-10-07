@@ -3,7 +3,7 @@ import { Transaction } from "@/types/api";
 
 export const TRANSACTIONS_PAGE_SIZE = 50;
 
-export type DatePreset = "all" | "this_month" | "last_month" | "this_year" | "custom";
+export type DatePreset = "all" | "yesterday" | "last_week" | "this_month" | "last_month" | "this_year" | "custom";
 export type SortOption = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "title_asc";
 
 export type TransactionListFilters = {
@@ -42,6 +42,24 @@ export function getDateRangeFromPreset(preset: DatePreset): { startDate: string;
   const month = now.getMonth();
 
   switch (preset) {
+    case "yesterday": {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = format(yesterday, "yyyy-MM-dd");
+      return {
+        startDate: yStr,
+        endDate: yStr,
+      };
+    }
+    case "last_week": {
+      const currentDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
+      const mondayLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - currentDay - 7);
+      const sundayLastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - currentDay - 1);
+      return {
+        startDate: format(mondayLastWeek, "yyyy-MM-dd"),
+        endDate: format(sundayLastWeek, "yyyy-MM-dd"),
+      };
+    }
     case "this_month":
       return {
         startDate: format(new Date(year, month, 1), "yyyy-MM-dd"),

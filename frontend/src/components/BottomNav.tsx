@@ -90,7 +90,7 @@ export const BottomNav = ({ onAddClick }: BottomNavProps = {}) => {
     return () => observer.disconnect();
   }, []);
 
-  if (!isAuthenticated || location.pathname === "/auth") {
+  if (!isAuthenticated || location.pathname === "/auth" || location.pathname.startsWith("/privacy")) {
     return null;
   }
 

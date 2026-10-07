@@ -16,23 +16,20 @@ import transactionRoutes from './routes/transactions.js';
 import statsRoutes from './routes/stats.js';
 import currencyRoutes from './routes/currencies.js';
 import loanRoutes from './routes/loans.js';
+import bankingRoutes from './routes/banking.js';
+import pushRoutes from './routes/push.js';
+import { startBankingScheduler } from './services/enableBanking/scheduler.js';
 
 // Load environment variables from project root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
-// Priority: .env.local (dev) > .env (prod)
-// override: true forza il caricamento anche se le variabili esistono già
-const devEnvPath = path.resolve(__dirname, '../../.env.local');
-const prodEnvPath = path.resolve(__dirname, '../../.env');
+// Load environment variables from root .env
+const envPath = path.resolve(__dirname, '../../.env');
 
-if (fs.existsSync(devEnvPath)) {
-  dotenv.config({ path: devEnvPath, override: true });
-  console.log('📄 Loaded .env.local (DEVELOPMENT)');
-} else if (fs.existsSync(prodEnvPath)) {
-  dotenv.config({ path: prodEnvPath, override: true });
-  console.log('📄 Loaded .env (PRODUCTION)');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath, override: true });
+  console.log('📄 Loaded .env');
 } else {
   console.log('📄 Using environment variables from Docker/System');
 }
@@ -101,6 +98,8 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/currencies', currencyRoutes);
 app.use('/api/loans', loanRoutes);
+app.use('/api/banking', bankingRoutes);
+app.use('/api/push', pushRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -112,6 +111,9 @@ app.use(errorHandler);
 
 // Cleanup expired sessions every hour
 setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+
+// Enable Banking AIS scheduler (08/12/16/20 Europe/Rome)
+startBankingScheduler();
 
 // Start server
 app.listen(PORT, () => {
