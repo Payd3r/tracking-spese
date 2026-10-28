@@ -214,13 +214,12 @@ export async function exchangeBankingCode(req, res, next) {
 
 export async function syncBankingNow(req, res, next) {
   try {
-    // Default: solo oggi. createNew=true crea solo da oggi; linkExisting solo se richiesto
-    // (o automaticamente quando createNew=false = solo associa storico).
+    // Recupera 30 giorni e associa anche le spese già inserite manualmente.
     const lookbackDays =
-      req.body?.lookbackDays !== undefined ? Number(req.body.lookbackDays) : 0;
+      req.body?.lookbackDays !== undefined ? Number(req.body.lookbackDays) : 30;
     const createNew = req.body?.createNew !== false;
     const linkExisting =
-      req.body?.linkExisting === true || createNew === false;
+      req.body?.linkExisting !== false || createNew === false;
     const summary = await syncBankingTransactions({
       userId: req.user.id,
       lookbackDays,

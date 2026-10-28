@@ -112,7 +112,7 @@ app.use(errorHandler);
 // Cleanup expired sessions every hour
 setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
 
-// Enable Banking AIS scheduler (08/12/16/20 Europe/Rome)
+// Enable Banking AIS scheduler (12/20 Europe/Rome)
 startBankingScheduler();
 
 // Start server

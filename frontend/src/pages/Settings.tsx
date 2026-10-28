@@ -196,7 +196,7 @@ export default function Settings() {
     try {
       setBankingSyncing(true);
       const { data } = await api.banking.sync({
-        lookbackDays: 0,
+        lookbackDays: 30,
         createNew: true,
         linkExisting: true,
         sendPush: true,
@@ -379,7 +379,7 @@ export default function Settings() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-white">Conti collegati</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sync automatica alle 8, 12, 16 e 20: solo movimenti di oggi, in Altro.
+                    Sync automatica alle 12 e alle 20 (ora italiana): ultimi 30 giorni, senza duplicati, in Altro.
                   </p>
                 </div>
               </div>

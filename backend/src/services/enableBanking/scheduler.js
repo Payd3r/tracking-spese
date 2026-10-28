@@ -14,10 +14,10 @@ export async function runScheduledBankingSync(reason = 'cron') {
   console.log(`🏦 Banking sync avviato (${reason})`);
   try {
     const summary = await syncBankingTransactions({
-      lookbackDays: 0,
+      lookbackDays: 30,
       sendPush: true,
       createNew: true,
-      // Associa se oggi hai già inserito a mano la stessa cifra, altrimenti crea
+      // Recupera anche contabilizzazioni tardive e associa movimenti manuali.
       linkExisting: true,
     });
     console.log('🏦 Banking sync completato:', {
@@ -26,6 +26,8 @@ export async function runScheduledBankingSync(reason = 'cron') {
       fetched: summary.fetched,
       created: summary.created,
       linked: summary.linked,
+      deduplicated: summary.deduplicated?.length || 0,
+      crossAccountReview: summary.crossAccountReview?.length || 0,
       skipped: summary.skipped,
       errors: summary.errors?.length || 0,
     });
@@ -41,8 +43,8 @@ export async function runScheduledBankingSync(reason = 'cron') {
 export function startBankingScheduler() {
   if (job) return job;
 
-  // 08:00, 12:00, 16:00, 20:00 Europe/Rome — max 4 background fetches/day (PSD2)
-  job = new Cron('0 8,12,16,20 * * *', {
+  // Due controlli al giorno, con finestra sovrapposta di 30 giorni.
+  job = new Cron('0 12,20 * * *', {
     timezone: 'Europe/Rome',
     protect: true,
   }, async () => {
@@ -53,7 +55,7 @@ export function startBankingScheduler() {
     }
   });
 
-  console.log('⏰ Banking scheduler attivo: 08/12/16/20 Europe/Rome');
+  console.log('⏰ Banking scheduler attivo: 12/20 Europe/Rome');
   return job;
 }
 

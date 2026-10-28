@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import pool from '../../config/database.js';
 import { fetchAllTransactions } from './client.js';
 import { getAltroCategoryIds, parseBankingTransaction } from './parser.js';
+import { reconcilePayPalPayments } from './paypalReconciliation.js';
 import { notifyNewBankingTransaction } from '../pushService.js';
 
 function toDateOnly(value) {
@@ -35,6 +37,8 @@ async function findExistingByReference(client, accountUid, entryReference) {
   const result = await client.query(
     `SELECT id FROM transactions
      WHERE banking_account_uid = $1 AND banking_entry_reference = $2
+        OR id IN (SELECT transaction_id FROM banking_transaction_sources
+          WHERE banking_account_uid = $1 AND banking_entry_reference = $2)
      LIMIT 1`,
     [accountUid, entryReference]
   );
@@ -66,19 +70,24 @@ async function insertBankingTransaction(client, userId, parsed) {
 
 /**
  * Sync banking transactions.
- * Default: solo da oggi (Europe/Rome), crea nuove tx, nessuna associazione allo storico locale.
+ * Recupera gli ultimi 30 giorni, inclusi movimenti contabilizzati in ritardo.
  */
 export async function syncBankingTransactions({
   userId = null,
-  lookbackDays = 0,
+  lookbackDays = 30,
   dateFrom = null,
   dateTo = null,
   sendPush = true,
   createNew = true,
-  linkExisting = false,
+  linkExisting = true,
   strategy = 'default',
+  fetchTransactions = fetchAllTransactions,
 } = {}) {
+  if (!Number.isInteger(lookbackDays) || lookbackDays < 0 || lookbackDays > 365) {
+    throw new Error('lookbackDays deve essere un intero tra 0 e 365');
+  }
   const client = await pool.connect();
+  let locked = false;
   const summary = {
     sessions: 0,
     accounts: 0,
@@ -88,11 +97,17 @@ export async function syncBankingTransactions({
     skipped: 0,
     errors: [],
     createdTransactions: [],
+    deduplicated: [],
+    crossAccountReview: [],
     dateFrom: null,
     dateTo: null,
   };
 
   try {
+    // Anche sync manuali e processi diversi condividono lo stesso lock.
+    const lock = await client.query('SELECT pg_try_advisory_lock(731204, 1) AS locked');
+    locked = lock.rows[0].locked;
+    if (!locked) return { ...summary, skipped: true, reason: 'already_running' };
     const sessionParams = [];
     let sessionSql = `
       SELECT bs.*, bal.id AS link_id, bal.account_uid, bal.local_account_id,
@@ -134,7 +149,7 @@ export async function syncBankingTransactions({
       for (const link of links) {
         summary.accounts += 1;
         try {
-          const rawTransactions = await fetchAllTransactions(link.account_uid, {
+          const rawTransactions = await fetchTransactions(link.account_uid, {
             dateFrom: from,
             dateTo: to,
             transactionStatus: 'BOOK',
@@ -142,6 +157,7 @@ export async function syncBankingTransactions({
           });
           summary.fetched += rawTransactions.length;
 
+          const occurrences = new Map();
           for (const raw of rawTransactions) {
             const parsed = parseBankingTransaction(raw, {
               localAccountId: link.local_account_id,
@@ -153,8 +169,18 @@ export async function syncBankingTransactions({
               continue;
             }
 
+            // Alcune banche non forniscono un ID: conserva una chiave stabile,
+            // distinguendo anche più movimenti identici nella stessa risposta.
+            if (!parsed.entryReference) {
+              const fingerprint = createHash('sha256').update(JSON.stringify([
+                parsed.transactionDate, parsed.type, parsed.amount, parsed.title, parsed.note,
+              ])).digest('hex');
+              const occurrence = (occurrences.get(fingerprint) || 0) + 1;
+              occurrences.set(fingerprint, occurrence);
+              parsed.entryReference = `fallback:${fingerprint}:${occurrence}`;
+            }
             const txDate = toDateOnly(parsed.transactionDate);
-            if (txDate && txDate < from) {
+            if (txDate && (txDate < from || txDate > to)) {
               summary.skipped += 1;
               continue;
             }
@@ -187,6 +213,15 @@ export async function syncBankingTransactions({
                    LIMIT 2`,
                   [session.user_id, link.local_account_id, parsed.type, parsed.amount, date]
                 );
+                if (fp.rows.length > 1) {
+                  // Non creare un duplicato se più spese locali sono compatibili.
+                  sessionError = 'AMBIGUOUS_LOCAL_MATCH';
+                  summary.errors.push({ aspsp: session.aspsp_name,
+                    error: sessionError, entryReference: parsed.entryReference });
+                  summary.skipped += 1;
+                  await client.query('COMMIT');
+                  continue;
+                }
                 if (fp.rows.length === 1) {
                   await client.query(
                     `UPDATE transactions SET
@@ -208,26 +243,11 @@ export async function syncBankingTransactions({
                 continue;
               }
 
-              // Crea solo movimenti da oggi in poi (Europe/Rome)
-              const today = todayIsoRome();
-              if (txDate && txDate < today) {
-                summary.skipped += 1;
-                await client.query('COMMIT');
-                continue;
-              }
-
               const created = await insertBankingTransaction(client, session.user_id, parsed);
               summary.created += 1;
               summary.createdTransactions.push(created);
               await client.query('COMMIT');
 
-              if (sendPush) {
-                try {
-                  await notifyNewBankingTransaction(session.user_id, created);
-                } catch (pushErr) {
-                  console.error('Push after banking insert failed:', pushErr.message);
-                }
-              }
             } catch (txErr) {
               await client.query('ROLLBACK');
               if (txErr.code === '23505') {
@@ -268,8 +288,43 @@ export async function syncBankingTransactions({
       );
     }
 
+    if (createNew) {
+      await client.query('BEGIN');
+      let reconciliation;
+      try {
+        reconciliation = await reconcilePayPalPayments(client, { userId, dateFrom: from, dateTo: to });
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      }
+      summary.deduplicated = reconciliation.merged;
+      summary.crossAccountReview = reconciliation.ambiguous;
+      const newlyCreated = new Set(summary.createdTransactions.map(t => t.id));
+      const removed = new Set(reconciliation.merged.map(m => m.paypalId));
+      const merged = new Set(reconciliation.merged.filter(m => !newlyCreated.has(m.paypalId)).map(m => m.transactionId));
+      summary.createdTransactions = summary.createdTransactions.filter(t => !removed.has(t.id));
+      summary.created = summary.createdTransactions.length;
+      // Notify once, after reconciliation; attaching a second source is not a new expense.
+      if (sendPush) {
+        for (const transaction of summary.createdTransactions) {
+          if (merged.has(transaction.id)) continue;
+          try {
+            // The transaction belongs to this user, including scheduled multi-user syncs.
+            const owner = await client.query('SELECT user_id FROM transactions WHERE id = $1', [transaction.id]);
+            await notifyNewBankingTransaction(owner.rows[0].user_id, transaction);
+          } catch (pushErr) {
+            console.error('Push after banking insert failed:', pushErr.message);
+          }
+        }
+      }
+    }
     return summary;
   } finally {
-    client.release();
+    try {
+      if (locked) await client.query('SELECT pg_advisory_unlock(731204, 1)');
+    } finally {
+      client.release();
+    }
   }
 }
